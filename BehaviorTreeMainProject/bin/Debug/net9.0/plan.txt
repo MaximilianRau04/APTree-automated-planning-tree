@@ -1,0 +1,4 @@
+(pickup lp1 loc1)
+(place lp1 loc2)
+(pickup b1 loc3)
+(place b1 loc4)
