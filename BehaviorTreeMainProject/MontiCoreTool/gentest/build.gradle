@@ -1,0 +1,48 @@
+/* (c) https://github.com/MontiCore/monticore */
+
+plugins {
+    id "java"
+}
+
+repositories {
+    if (("true").equals(getProperty('useLocalRepo'))) {
+        mavenLocal()
+    }
+    maven {
+        credentials.username mavenUser
+        credentials.password mavenPassword
+        url repo
+    }
+}
+
+def junit_version = '5.10.3'
+
+dependencies {
+    implementation "de.se_rwth.commons:se-commons-logging:$se_commons_version"
+    implementation "de.se_rwth.commons:se-commons-utilities:$se_commons_version"
+    testImplementation "org.junit.jupiter:junit-jupiter-api:$junit_version"
+    testImplementation "org.junit.jupiter:junit-jupiter-engine:$junit_version"
+}
+
+sourceSets {
+    main.java.srcDirs += ["$projectDir/target/generated-sources"]
+}
+
+task genPingPong(type: JavaExec) {
+    classpath += parent.tasks.shadowJar.outputs.files
+    args '-i','src/main/resources/PingPong.aut', '-o', 'target/generated-sources/'
+    dependsOn parent.tasks.shadowJar
+}
+
+compileJava {
+    dependsOn genPingPong
+}
+
+test {
+    useJUnitPlatform()
+}
+
+
+clean.doFirst {
+    delete "${projectDir}/target/"
+}

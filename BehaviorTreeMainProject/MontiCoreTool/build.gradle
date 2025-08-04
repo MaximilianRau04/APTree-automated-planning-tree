@@ -1,0 +1,128 @@
+/* (c) https://github.com/MontiCore/monticore */
+plugins {
+  id "java-library" // Java plus providing specific knowledge about Java libraries
+  id "de.monticore.generator" version "$mc_version" // MontiCore Plugin
+  id "maven-publish"
+  id "com.github.johnrengelman.shadow" version "7.1.2" // for creating the all-in-one jar
+  id 'jacoco' // Test coverage reports
+  id 'de.se_rwth.codestyle' version "$mc_version" // Enforces & Provides SE CodeStyle
+}
+
+
+def guava_version = '33.1.0-jre'
+def junit_version = '5.10.3'
+
+group = "de.monticore.lang"
+description = "Automata DSL"
+
+// Change the output directory
+buildDir = file("$projectDir/target")
+
+generateMCGrammars {
+  // The mc4 grammars are build from the src/main/grammars directory by default
+  // You do not have to configure anything, the de.monticore.generator plugin does it all
+  // Reasonable defaults are used, further details: https://monticore.github.io/monticore/docs/Gradle/
+}
+
+
+java {
+  // Configure the java toolchain to use Java 11 (overriding the locally installed JDK)
+  // https://docs.gradle.org/current/userguide/toolchains.html
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(11)
+  }
+}
+
+
+dependencies {
+  // Depend on the MontiCore language library (which in term depends on the runtime)
+  grammar "de.monticore:monticore-grammar:$mc_version"
+  // Next, dependencies of the project itself
+  implementation group: 'com.google.guava', name: 'guava', version: guava_version
+  implementation group: 'de.monticore.lang', name: 'cd4analysis', version: mc_version
+  implementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.11'
+
+  // And dependencies for the test source set
+  testImplementation "org.junit.jupiter:junit-jupiter-api:$junit_version"
+  testImplementation "org.junit.jupiter:junit-jupiter-engine:$junit_version"
+  // Provide MontiCore-specific tests, such as de.monticore.cocos.helper.Assert
+  testImplementation("de.monticore:monticore-runtime:$mc_version") {
+    capabilities {
+      requireCapability("de.monticore:monticore-runtime-tests")
+    }
+  }
+}
+
+// Where can we find the dependencies?
+repositories {
+  if (("true").equals(getProperty('useLocalRepo'))) {
+    mavenLocal()
+  }
+  maven {
+    credentials.username mavenUser
+    credentials.password mavenPassword
+    url repo
+  }
+}
+
+java {
+  withSourcesJar() // Also publish a variant consisting of the Java sources
+  withJavadocJar() // Also publish a variant consisting of the JavaDocs
+}
+
+sourcesJar.dependsOn project.collect { it.tasks.withType(MCGenTask) }
+
+// generated java doc contains errors, disable for now
+javadoc.failOnError(false)
+
+shadowJar { // all in one jar
+  manifest {
+    attributes "Main-Class": "automata.AutomataTool"
+  }
+  archiveClassifier = "tool"
+}
+
+jar.dependsOn(shadowJar)
+
+// configure deployment
+publishing {
+  // configure what artifacts to publish
+  publications {
+    mavenJava(MavenPublication) {
+      artifactId = "$project.name"
+      from components.java
+    }
+  }
+  repositories.maven {
+    credentials.username mavenUser
+    credentials.password mavenPassword
+    def releasesRepoUrl = "https://nexus.se.rwth-aachen.de/content/repositories/monticore-releases/"
+    def snapshotsRepoUrl = "https://nexus.se.rwth-aachen.de/content/repositories/monticore-snapshots/"
+    url = version.endsWith("SNAPSHOT") ? snapshotsRepoUrl : releasesRepoUrl
+  }
+}
+
+tasks.withType(JavaCompile) {
+  options.encoding = 'UTF-8'
+}
+
+test {
+  useJUnitPlatform()
+}
+
+task testReport(type: TestReport) {
+  destinationDir = file("$buildDir/reports/allTests")
+  // Include the results from the 'test' task
+  reportOn tasks.withType(Test)
+}
+
+
+task buildAll(type: GradleBuild) {
+  tasks = ['build']
+}
+
+spotless {
+  enforceCheck = false
+}
+
+defaultTasks 'build'

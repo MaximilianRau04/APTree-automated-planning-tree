@@ -1,0 +1,16 @@
+/* (c) https://github.com/MontiCore/monticore */
+
+// Model of a door
+automaton Door {
+  state Close <<initial>> <<final>> {
+    state Closing <<initial>>;
+    state Closed;
+    state Opening;
+    Closing - motor > Closed;
+    Closed - motor > Opening;
+  }
+  state Open;
+
+  Close - buttonPressed > Open;
+  Open - timeOut > Close;
+}

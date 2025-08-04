@@ -1,0 +1,31 @@
+{
+	"name": "Ping2Pong2",
+	"package": "automata.serialization",
+	"template": "templates/automatascope.ftl",
+	"numberOfSubScopes": 1,
+	"kindHierarchy": [],
+	"symbols": [
+		{
+			"kind": "automata._symboltable.AutomatonSymbol",
+			"name": "Ping2Pong2",
+			"template": "templates/automatonsymbol.ftl",
+			"spannedScope": {
+				"isShadowingScope": false,
+				"symbols": [
+					{
+						"kind": "automata._symboltable.StateSymbol",
+						"name": "NoGame"
+					},
+					{
+						"kind": "automata._symboltable.StateSymbol",
+						"name": "Ping"
+					},
+					{
+						"kind": "automata._symboltable.StateSymbol",
+						"name": "Pong"
+					}
+				]
+			}
+		}
+	]
+}
