@@ -1,0 +1,45 @@
+/* (c) https://github.com/MontiCore/monticore */
+
+grammar BehaviorTree extends de.monticore.MCBasics {
+
+BehaviorTree = "BehaviorTree" Name "{"
+        Blackboard
+        RootNode "}";
+//rootnode definition
+RootNode = "BTFlowNode" "RootNode" "{" (BTFlowNode | BTActionNode)*"}";
+// Blackboard definition
+Blackboard =  "Blackboard" Name "{"  Variable*  "}";
+// Variable declarations
+Variable =  type:VariableType name:Name ";";
+// Node types
+BTNodeBase = BTFlowNode | BTActionNode;
+/** A BTFlowNode represents a flow control node */
+symbol BTFlowNode = Decorator? "BTFlowNode" Name "{" (BTFlowNode | BTActionNode )* "}";
+/** A BTActionNode represents an action node */
+symbol BTActionNode =  Decorator? "BTActionNode" Name "{"
+        Parameter (";" Parameter)* ";"
+    "}";
+// Parameters and types
+Parameter = type:VariableType name:Name;
+VariableType = ("Object");
+//Decorator and service definition
+Decorator = "decorator" Name;
+
+
+// tokens definition
+ token LETTER = 'a'..'z' | 'A'..'Z';
+  token NUMBER = '0'..'9';
+  token LOWER_CASE_LETTER = 'a'..'z';
+  
+  token PDDL_START = LOWER_CASE_LETTER;
+  token PDDL_CHAR = LETTER | NUMBER | '-' | '_';
+  token STRING_VALUE = '"' (STRING_CHAR)* '"';
+  token DOUBLE_VALUE = NUMBER+ '.' NUMBER+;
+  token INTEGER_VALUE = NUMBER+;
+  token STRING_CHAR = LETTER | NUMBER | '_'  | '.' ;
+  
+  token Name = PDDL_START (PDDL_CHAR)*; 
+
+  
+
+}
