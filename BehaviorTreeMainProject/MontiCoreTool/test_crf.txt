@@ -1,0 +1,20 @@
+Action MoveToAction {
+    name = "MoveTo"
+    parameters {
+        agent - Agent,
+        target - Location,
+    }
+    preconditions {
+        AtLocation(agent = player, location = currentLocation)
+    }
+    effects {
+        AtLocation(agent = player, location = targetLocation)
+    }
+    function {
+        {agent, target},
+        {Boolean}
+    }
+    implementation {
+        "Move the agent to the target location"
+    }
+} 

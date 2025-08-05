@@ -1,9 +1,0 @@
-/* (c) https://github.com/MontiCore/monticore */
-
-automaton A {
-  state S
-        <<initial>>
-  <<final>>;
-  
-}
-

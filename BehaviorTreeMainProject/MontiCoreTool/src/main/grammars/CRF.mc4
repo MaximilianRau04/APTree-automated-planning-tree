@@ -3,7 +3,7 @@ AllowedType = ("Element" | "Agent" | "Location" | "Layer"
     | "Module" | "Tool" | "String" | "Double" | "Integer");    
 // Extend BTNodeBase to include CRF-specific components
 BTNodeBase = 
-    ParameterBlock
+    ParametersBlock
     PreconditionState
     EffectState;
 

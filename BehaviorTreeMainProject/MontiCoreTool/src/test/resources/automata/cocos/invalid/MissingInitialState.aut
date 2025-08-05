@@ -1,5 +1,0 @@
-/* (c) https://github.com/MontiCore/monticore */
-
-automaton MissingInitialState {
-  state S <<final>>;
-}
