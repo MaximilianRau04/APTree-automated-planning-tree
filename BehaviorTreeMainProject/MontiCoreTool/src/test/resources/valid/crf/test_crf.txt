@@ -1,0 +1,10 @@
+predicate isAt {
+    agent - Agent,
+    location - Location
+}
+
+predicate hasTool {
+    agent - Agent,
+    tool - Tool
+}
+

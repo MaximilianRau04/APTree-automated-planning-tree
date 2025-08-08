@@ -125,6 +125,12 @@ spotless {
   enforceCheck = false
 }
 
+// Custom task to run C# predicate generator
+task generateCSharpPredicates(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'CSharpPredicateGenerator'
+    workingDir = projectDir
+}
 
 
 defaultTasks 'build'

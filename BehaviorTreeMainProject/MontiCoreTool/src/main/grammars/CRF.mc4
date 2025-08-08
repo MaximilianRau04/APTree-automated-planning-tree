@@ -1,6 +1,11 @@
 grammar CRF extends BehaviorTree {
-AllowedType = ("Element" | "Agent" | "Location" | "Layer" 
+// Root rule that allows multiple predicates
+AllowedType = (PredicateTypeDef)*;
+
+// Basic types for parameters
+BasicType = ("Element" | "Agent" | "Location" | "Layer" 
     | "Module" | "Tool" | "String" | "Double" | "Integer");    
+
 // Extend BTNodeBase to include CRF-specific components
 BTNodeBase = 
     ParametersBlock
@@ -9,7 +14,7 @@ BTNodeBase =
 
 // Define the missing rules that CRF uses
 ParametersBlock = "parameters" "{" (ParameterDeclaration)* "}";
-ParameterDeclaration = Name "-" AllowedType ","; 
+ParameterDeclaration = Name "-" BasicType; 
 
 // State-related rules
 State = Name? "{" (PredicateInstance)+ "}";   
@@ -37,11 +42,11 @@ EffectBlock = "effects" "{" (PredicateInstance)* "}";
 FunctionBlock = "function" "{" 
     "{" (Name ("," Name)*)? "}" ","
     "{" ReturnType "}" "}";   
-ReturnType = AllowedType;              
+ReturnType = BasicType;              
 ImplementationBlock = "implementation" "{" (Statement)* "}";  
 Statement = STRING_VALUE; 
 // Predicate type definition
-PredicateTypeDef = "predicate" Name "{" (ParameterDeclaration)+ "}";      
+PredicateTypeDef = "predicate" Name "{" (ParameterDeclaration ("," ParameterDeclaration)*)? "}";      
 // Predicate instance definition
 PredicateInstance = Name "(" (PredicateArgument)* ")";   
 PredicateArgument = value: PredicateValue "=" name: Name;  

@@ -1,0 +1,17 @@
+Action simpleAction {
+    name = "Simple"
+    parameters {
+        param1 - String,
+    }
+    preconditions {
+    }
+    effects {
+    }
+    function {
+        {param1},
+        {Boolean}
+    }
+    implementation {
+        "Simple implementation"
+    }
+}
