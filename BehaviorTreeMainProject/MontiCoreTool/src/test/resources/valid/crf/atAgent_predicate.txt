@@ -1,4 +1,0 @@
-predicate atAgent {
-    agent - Agent,
-    location - Location
-}

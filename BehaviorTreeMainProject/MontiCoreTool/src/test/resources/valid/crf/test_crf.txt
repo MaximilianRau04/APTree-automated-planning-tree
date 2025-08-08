@@ -1,21 +1,20 @@
-Parameter Beam : Element {
-    length: Double,
-    material: String
+Parameter beam : Element {
+    length: Double
 }
 
-Parameter Robot : Agent {
+Parameter robot : Agent {
     type: String,
     speed: Double
 }
 
-Parameter Plate : Element {
+Parameter plate : Element {
     thickness: Double,
     material: String
 }
 
-Parameter FirstLocation : Location {
-    x: Double,
-    y: Double
+Parameter firstLocation : Location {
+    xcoordinate: Double,
+    ycoordinate: Double
 }
 
 Parameter positionOnRail : Location {

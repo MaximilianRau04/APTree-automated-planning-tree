@@ -125,12 +125,28 @@ spotless {
   enforceCheck = false
 }
 
+// Custom task to run CRF parser test
+task runTestCRFParser(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'TestCRFParser'
+    workingDir = projectDir
+}
+
+// Custom task to run C# parameter type generator
+task generateCSharpParameterTypes(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'CSharpParameterTypeGenerator'
+    workingDir = projectDir
+}
+
 // Custom task to run C# predicate generator
 task generateCSharpPredicates(type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'CSharpPredicateGenerator'
     workingDir = projectDir
 }
+
+
 
 
 defaultTasks 'build'

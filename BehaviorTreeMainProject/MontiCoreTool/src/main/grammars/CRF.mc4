@@ -3,14 +3,15 @@ grammar CRF extends BehaviorTree {
 AllowedType = (PredicateTypeDef | ParameterTypeDef)*;
 
 // Parameter type definition with inheritance and properties
-ParameterTypeDef = "Parameter" Name ":" BasicType "{" (ParameterProperty)* "}";
+ParameterTypeDef = "Parameter" Name ":" BasicType "{" (ParameterPropertyList)? "}";
+ParameterPropertyList = ParameterProperty (("," ParameterProperty)*)?;
 
 // Parameter property definition
 ParameterProperty = Name ":" BasicType;
 
-// Basic types for parameters
-BasicType = ("Element" | "Agent" | "Location" | "Layer" 
-    | "Module" | "Tool" | "String" | "Double" | "Integer");    
+// Basic types for parameters - using named alternatives
+BasicType = element:"Element" | agent:"Agent" | location:"Location" | layer:"Layer" 
+    | module:"Module" | tool:"Tool" | string:"String" | double:"Double" | integer:"Integer";    
 
 // Extend BTNodeBase to include CRF-specific components
 BTNodeBase = 
