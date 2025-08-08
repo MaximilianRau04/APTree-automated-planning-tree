@@ -139,6 +139,13 @@ task generateCSharpParameterTypes(type: JavaExec) {
     workingDir = projectDir
 }
 
+// Custom task to run C# action type generator
+task generateCSharpActionTypes(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'CSharpActionTypeGenerator'
+    workingDir = projectDir
+}
+
 // Custom task to run C# predicate generator
 task generateCSharpPredicates(type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath

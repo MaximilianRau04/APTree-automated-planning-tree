@@ -34,3 +34,25 @@ predicate hasTool {
     tool - Tool
 }
 
+// Action definition 
+
+Action pickUp {
+    name = "pickup"   
+    parameters {
+        obj : beam
+        rob : robot
+        loc : firstLocation}   
+    preconditions {
+        at(obj = object loc = location)
+        atAgent(robot = agent loc = location)
+        hasTool(robot = agent robot.tool = tool) }    
+    effects {
+        holding(robot = agent obj = object)
+        at(robot = agent loc = location) }   
+    function {{obj,robot},{Boolean}}
+    implementation {
+        pickupImplementation }
+}
+
+
+

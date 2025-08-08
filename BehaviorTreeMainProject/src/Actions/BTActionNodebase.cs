@@ -4,6 +4,7 @@ using System.Collections.Generic;
 
 public abstract class BTActionNodeBase :BTNodeBase, IBTActionNode
 {
+    private readonly Func<Dictionary<string, object>, float, bool> actionLogic;
     protected readonly Blackboard<FastName> blackboard;
     protected FastName instanceName;
     protected string debugDisplayName;
