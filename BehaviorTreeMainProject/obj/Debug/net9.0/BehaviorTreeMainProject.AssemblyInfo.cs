@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("BehaviorTreeMainProject")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8b2e77a2ea197add1081dcf11fe516deddf2a545")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1149fc46ef56580cf7638c70168d2a20038c5ad0")]
 [assembly: System.Reflection.AssemblyProductAttribute("BehaviorTreeMainProject")]
 [assembly: System.Reflection.AssemblyTitleAttribute("BehaviorTreeMainProject")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

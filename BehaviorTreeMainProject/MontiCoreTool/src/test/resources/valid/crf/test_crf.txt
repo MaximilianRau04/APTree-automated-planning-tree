@@ -1,3 +1,30 @@
+Parameter Beam : Element {
+    length: Double,
+    material: String
+}
+
+Parameter Robot : Agent {
+    type: String,
+    speed: Double
+}
+
+Parameter Plate : Element {
+    thickness: Double,
+    material: String
+}
+
+Parameter FirstLocation : Location {
+    x: Double,
+    y: Double
+}
+
+Parameter positionOnRail : Location {
+    position: Double,
+    direction: String
+}
+
+// Predicate definition
+
 predicate isAt {
     agent - Agent,
     location - Location

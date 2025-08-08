@@ -1,6 +1,12 @@
 grammar CRF extends BehaviorTree {
-// Root rule that allows multiple predicates
-AllowedType = (PredicateTypeDef)*;
+// Root rule that allows multiple predicates and parameter types
+AllowedType = (PredicateTypeDef | ParameterTypeDef)*;
+
+// Parameter type definition with inheritance and properties
+ParameterTypeDef = "Parameter" Name ":" BasicType "{" (ParameterProperty)* "}";
+
+// Parameter property definition
+ParameterProperty = Name ":" BasicType;
 
 // Basic types for parameters
 BasicType = ("Element" | "Agent" | "Location" | "Layer" 
