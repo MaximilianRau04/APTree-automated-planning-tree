@@ -7,7 +7,7 @@ using System.Reflection;
 
 
 //we need to fix the query so that the parent types are also added to the graph
-public class Blackboard<FastName> : IDisposable
+public class Blackboard<T> : IDisposable where T : class
 {
     Dictionary<FastName, int>           IntValues =            new ();
     Dictionary<FastName, double>        DoubleValues =         new ();
@@ -27,6 +27,7 @@ public class Blackboard<FastName> : IDisposable
      Dictionary<FastName, HashSet<Type>> RegisteredModuleTypeValues = new();
      Dictionary<FastName, Layer> LayerValues = new();
      Dictionary<FastName, Module> ModuleValues = new();
+     Dictionary<FastName, Tool> ToolValues = new();
      Dictionary<FastName, State> StateValues = new();
    
     private readonly IDriver _driver;
@@ -428,7 +429,7 @@ public void SetActionType(FastName key, Type actionType)
                     SET p0:{predicate.PredicateName}
                     RETURN p0";
 
-                queryParams.Add("firstParamName", value?.NameKey.ToString() ?? paramList[0].Value.ToString());
+                queryParams.Add("firstParamName", (value as Entity)?.NameKey.ToString() ?? paramList[0].Value.ToString());
             }
             else if (paramList.Count == 2)
             {
@@ -440,8 +441,8 @@ public void SetActionType(FastName key, Type actionType)
                     MERGE (p0)-[r:{predicate.PredicateName}]->(p1)
                     RETURN p0, p1";
 
-                queryParams.Add("firstParamName", value1?.NameKey.ToString() ?? paramList[0].Value.ToString());
-                queryParams.Add("secondParamName", value2?.NameKey.ToString() ?? paramList[1].Value.ToString());
+                queryParams.Add("firstParamName", (value1 as Entity)?.NameKey.ToString() ?? paramList[0].Value.ToString());
+                queryParams.Add("secondParamName", (value2 as Entity)?.NameKey.ToString() ?? paramList[1].Value.ToString());
             }
             else
             {
@@ -512,6 +513,12 @@ public void SetActionType(FastName key, Type actionType)
         value.NameKey = key;  // Set the instance ID
     }
 
+    public void SetTool(FastName key, Tool value)
+    {
+        ToolValues[key] = value;
+        value.NameKey = key;  // Set the instance ID
+    }
+
     public Layer GetLayer(FastName key)
     {
         if (!LayerValues.ContainsKey(key))
@@ -528,6 +535,15 @@ public void SetActionType(FastName key, Type actionType)
             throw new ArgumentException($"Could not find a value for {key} this key");
         }
         return ModuleValues[key];
+    }
+
+    public Tool GetTool(FastName key)
+    {
+        if (!ToolValues.ContainsKey(key))
+        {
+            throw new ArgumentException($"Could not find a value for {key} this key");
+        }
+        return ToolValues[key];
     }
 
     // Get and Set methods for States

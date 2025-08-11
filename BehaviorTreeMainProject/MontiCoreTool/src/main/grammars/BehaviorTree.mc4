@@ -37,6 +37,7 @@ Decorator = "decorator" Name;
   token DOUBLE_VALUE = NUMBER+ '.' NUMBER+;
   token INTEGER_VALUE = NUMBER+;
   token STRING_CHAR = LETTER | NUMBER | '_'  | '.' ;
+  token BOOLEAN_VALUE = "true" | "false";
   
   token Name = PDDL_START (PDDL_CHAR)*; 
 

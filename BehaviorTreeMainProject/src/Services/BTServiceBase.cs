@@ -1,4 +1,4 @@
-public abstract class BTServiceBase : IBTDecorator
+public abstract class BTServiceBase 
 {
     
     public IBehaviorTree OwningTree { get; protected set; }

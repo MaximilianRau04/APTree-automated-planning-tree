@@ -6,7 +6,7 @@ public class Planner
 
     public Planner(string name, string constraints, string requirements)
     {
-        Name = name;
+        Name = new FastName(name);
         Constraints = constraints;
         Requirements = requirements;
     }

@@ -12,7 +12,7 @@ public class CSharpActionTypeGenerator {
     
     public static void main(String[] args) {
         try {
-            System.out.println("🔍 Generating C# Action Type Classes...");
+            System.out.println("Generating C# Action Type Classes...");
             
             CRFParser parser = new CRFParser();
             Optional<ASTAllowedType> result = parser.parse("src/test/resources/valid/crf/test_crf.txt");
@@ -20,13 +20,13 @@ public class CSharpActionTypeGenerator {
             if (result.isPresent()) {
                 ASTAllowedType ast = result.get();
                 generateCSharpClasses(ast);
-                System.out.println("✅ C# action type classes generated successfully!");
+                System.out.println("C# action type classes generated successfully!");
             } else {
-                System.out.println("❌ Failed to parse CRF model");
+                System.out.println("Failed to parse CRF model");
             }
             
         } catch (Exception e) {
-            System.err.println("❌ ERROR: " + e.getMessage());
+            System.err.println("ERROR: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -57,70 +57,36 @@ public class CSharpActionTypeGenerator {
         try (PrintWriter writer = new PrintWriter(new FileWriter(filePath))) {
             // Generate the C# class
             writer.println("using System;");
+            writer.println("using System.Collections.Generic;");
             writer.println();
             writer.println("namespace ModelLoader.ActionTypes");
             writer.println("{");
-            writer.println("    public class " + className + " : BTActionNodeBase");
+            writer.println("    public class " + className + " : GenericBTAction");
             writer.println("    {");
             
-            // Generate properties for parameters
-            if (action.getActionParametersBlock() != null && action.getActionParametersBlock().getParameterInstanceList() != null) {
-                for (ASTParameterInstance param : action.getActionParametersBlock().getParameterInstanceList()) {
-                    String paramName = param.getName(0); // First name is the parameter name
-                    String paramTypeRef = param.getName(1); // Second name is the parameter type reference
-                    String paramType = getParameterTypeFromReference(paramTypeRef);
-                    writer.println("        public " + paramType + " " + capitalizeFirst(paramName) + " { get; set; }");
-                }
-            }
+            // Generate predicate templates
+            generatePredicateTemplates(writer, action, className);
             
-            writer.println();
-            
-            // Generate constructor
-            writer.print("        public " + className + "(");
-            if (action.getActionParametersBlock() != null && action.getActionParametersBlock().getParameterInstanceList() != null) {
-                for (int i = 0; i < action.getActionParametersBlock().getParameterInstanceList().size(); i++) {
-                    ASTParameterInstance param = action.getActionParametersBlock().getParameterInstanceList().get(i);
-                    String paramType = getParameterTypeFromReference(param.getName(1));
-                    String paramName = param.getName(0);
-                    writer.print(paramType + " " + paramName);
-                    if (i < action.getActionParametersBlock().getParameterInstanceList().size() - 1) {
-                        writer.print(", ");
-                    }
-                }
-            }
+            // Generate constructor with automatic predicate instantiation
+                         writer.print("        public " + className + "(string actionType, string instanceName, Blackboard blackboard, List<Parameter> parameters, object[] parameterValues");
             writer.println(")");
+            writer.println("            : base(actionType, instanceName, blackboard, parameters, parameterValues)");
             writer.println("        {");
-            
-            // Generate constructor body
-            if (action.getActionParametersBlock() != null && action.getActionParametersBlock().getParameterInstanceList() != null) {
-                for (ASTParameterInstance param : action.getActionParametersBlock().getParameterInstanceList()) {
-                    String paramName = param.getName(0);
-                    writer.println("            this." + capitalizeFirst(paramName) + " = " + paramName + ";");
-                }
-            }
-            
+            writer.println("            // Parameters and predicates are handled by the base class");
             writer.println("        }");
             writer.println();
             
             // Generate OnTick_NodeLogic method
             writer.println("        protected override bool OnTick_NodeLogic(float InDeltaTime)");
             writer.println("        {");
-            
-            // Add implementation from the action definition
-            if (action.getImplementationBlock() != null && action.getImplementationBlock().getFunctionReference() != null) {
-                String functionName = action.getImplementationBlock().getFunctionReference().getName();
-                writer.println("            // Call implementation function: " + functionName);
-                writer.println("            return " + functionName + "();");
-            } else {
-                writer.println("            // TODO: Implement action logic");
-                writer.println("            return true;");
-            }
-            
+            writer.println("            // TODO: Implement action logic for " + className);
+            writer.println("            // Access parameters via: parameterValues[index] or parameters[index]");
+            writer.println("            return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);");
             writer.println("        }");
             writer.println("    }");
             writer.println("}");
             
-            System.out.println("✅ Generated: " + fileName);
+                         System.out.println("Generated: " + fileName);
         }
     }
     
@@ -131,9 +97,19 @@ public class CSharpActionTypeGenerator {
         return str.substring(0, 1).toUpperCase() + str.substring(1);
     }
     
-    private static String getParameterTypeFromReference(String paramTypeRef) {
-        // Map parameter type references to their actual types
-        // This should be based on the parameter types defined in the file
+    private static String getParameterTypeFromReference(String paramTypeRef, ASTAction action) {
+        // First, try to find the parameter in the action's parameter list
+        if (action.getActionParametersBlock() != null && action.getActionParametersBlock().getParameterInstanceList() != null) {
+            for (ASTParameterInstance param : action.getActionParametersBlock().getParameterInstanceList()) {
+                if (param.getName(0).equals(paramTypeRef)) {
+                    // Found the parameter, now get its type
+                    String paramTypeName = param.getName(1);
+                    return getBasicTypeFromName(paramTypeName);
+                }
+            }
+        }
+        
+        // Fallback to the original mapping
         switch (paramTypeRef.toLowerCase()) {
             case "beam":
             case "plate":
@@ -145,6 +121,33 @@ public class CSharpActionTypeGenerator {
                 return "Location";
             default:
                 System.out.println("Debug getParameterTypeFromReference: Unknown reference '" + paramTypeRef + "', returning 'string'");
+                return "string"; // Default fallback
+        }
+    }
+    
+    private static String getBasicTypeFromName(String typeName) {
+        switch (typeName.toLowerCase()) {
+            case "element":
+                return "Element";
+            case "agent":
+                return "Agent";
+            case "location":
+                return "Location";
+            case "layer":
+                return "Layer";
+            case "module":
+                return "Module";
+            case "tool":
+                return "Tool";
+            case "string":
+                return "string";
+            case "double":
+                return "double";
+            case "integer":
+                return "int";
+            case "boolean":
+                return "bool";
+            default:
                 return "string"; // Default fallback
         }
     }
@@ -203,6 +206,76 @@ public class CSharpActionTypeGenerator {
             default:
                 System.out.println("Debug getBasicTypeName: Unknown class '" + className + "', returning 'string'");
                 return "string"; // Default fallback
+        }
+    }
+    
+    private static void generatePredicateTemplates(PrintWriter writer, ASTAction action, String className) throws IOException {
+        // Generate precondition templates
+        writer.println("        protected override List<ActionPredicateTemplate> PreconditionTemplates => new List<ActionPredicateTemplate>");
+        writer.println("        {");
+        
+        if (action.getPreconditionBlock() != null && action.getPreconditionBlock().getPredicateInstanceList() != null) {
+            for (var predicateInstance : action.getPreconditionBlock().getPredicateInstanceList()) {
+                generatePredicateTemplate(writer, predicateInstance, action);
+            }
+        }
+        
+        writer.println("        };");
+        writer.println();
+        
+        // Generate effect templates
+        writer.println("        protected override List<ActionPredicateTemplate> EffectTemplates => new List<ActionPredicateTemplate>");
+        writer.println("        {");
+        
+        if (action.getEffectBlock() != null && action.getEffectBlock().getPredicateInstanceList() != null) {
+            for (var predicateInstance : action.getEffectBlock().getPredicateInstanceList()) {
+                generatePredicateTemplate(writer, predicateInstance, action);
+            }
+        }
+        
+        writer.println("        };");
+        writer.println();
+    }
+    
+    private static void generatePredicateTemplate(PrintWriter writer, crf._ast.ASTPredicateInstance predicateInstance, ASTAction action) throws IOException {
+        try {
+            String predicateName = predicateInstance.getName();
+            System.out.println("Debug: Processing predicate: " + predicateName);
+            
+            writer.println("            new ActionPredicateTemplate(\"" + predicateName + "\", new List<PredicateParameterMapping>");
+            writer.println("            {");
+            
+            if (predicateInstance.getPredicateArgumentList() != null) {
+                System.out.println("Debug: Found " + predicateInstance.getPredicateArgumentList().size() + " arguments");
+                for (var argument : predicateInstance.getPredicateArgumentList()) {
+                    try {
+                        String predicateParamName = argument.getName();
+                        System.out.println("Debug: Predicate param name: " + predicateParamName);
+                        
+                                                 // For now, just use the predicate parameter name as the action parameter name
+                         // This avoids the Monticore AST issues entirely
+                         String actionParamName = predicateParamName;
+                         System.out.println("Debug: Using predicate param name as action param name: " + actionParamName);
+                        
+                        String paramType = getParameterTypeFromReference(actionParamName, action);
+                        System.out.println("Debug: Parameter type: " + paramType);
+                        
+                        writer.println("                new PredicateParameterMapping(\"" + actionParamName + "\", \"" + predicateParamName + "\", \"" + paramType + "\"),");
+                    } catch (Exception e) {
+                        System.out.println("Debug: Error processing argument: " + e.getMessage());
+                        // Continue with next argument
+                    }
+                }
+            } else {
+                System.out.println("Debug: No predicate arguments found");
+            }
+            
+            writer.println("            }),");
+        } catch (Exception e) {
+            System.out.println("Debug: Error processing predicate template: " + e.getMessage());
+            e.printStackTrace();
+            // Write a minimal template to avoid breaking the generation
+            writer.println("            new ActionPredicateTemplate(\"unknown\", new List<PredicateParameterMapping>()),");
         }
     }
 }

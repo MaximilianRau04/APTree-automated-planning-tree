@@ -29,7 +29,7 @@ public class Neo4jService : IDisposable
     /// <param name="parameters"> A dictionary of parameters for the predicate </param>
     /// <returns> A task that represents the asynchronous operation </returns>
 
-    public async Task AddPredicateRelationship(string predicateType, Dictionary<string, IEntity> parameters)
+    public async Task AddPredicateRelationship(string predicateType, Dictionary<string, Entity> parameters)
     {
         // Create an asynchronous session to interact with the Neo4j database
         var session = _driver.AsyncSession();
@@ -63,7 +63,7 @@ public class Neo4jService : IDisposable
         }
     }
 
-    private (string query, object parameters) BuildPredicateQuery(string predicateType, Dictionary<string, IEntity> parameters)
+    private (string query, object parameters) BuildPredicateQuery(string predicateType, Dictionary<string, Entity> parameters)
     {
         // Example for a binary predicate like "holding(agent, element)"
         if (parameters.Count == 2)

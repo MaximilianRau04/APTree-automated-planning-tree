@@ -1,5 +1,0 @@
-public interface IBTActionNode: IBTNode
-
-{
-
-}

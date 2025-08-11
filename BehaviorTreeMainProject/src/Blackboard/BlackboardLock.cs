@@ -1,4 +1,4 @@
-public class BlackboardLock : IDisposable
+public class BlackboardLock 
 {
     private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
 

@@ -15,8 +15,8 @@ public abstract class BTNodeBase : IBTNode
     // to keep track of the tick phase of each node
     protected EBTNodeTickPhase CurrentTickPhase { get; set; } = EBTNodeTickPhase.WaitingForNextTick;
     // to store the list of services of this node
-    protected List<IBTService>? AlwaysOnServices;
-    protected List<IBTService>? GenrealServices; 
+    protected List<BTServiceBase>? AlwaysOnServices;
+    protected List<BTServiceBase>? GenrealServices; 
     // to store the list of decorators of this node
     protected List<IBTDecorator>? Decorators;
     
@@ -52,7 +52,7 @@ public bool HasFinished => (LastStatus == EBTNodeResult.Succeeded || LastStatus 
     /// <param name="InIsAlwaysOn"></param>
     /// <returns></returns>
 
-    public IBTNode AddService(IBTService InService, bool InIsAlwaysOn = false)
+    public IBTNode AddService(BTServiceBase InService, bool InIsAlwaysOn = false)
     {
         InService.SetOwiningTree(OwningTree);
         if (InIsAlwaysOn)
@@ -185,15 +185,15 @@ public bool HasFinished => (LastStatus == EBTNodeResult.Succeeded || LastStatus 
     {
         EBTNodeResult FinalResult = InProvisionalResult;
         CurrentTickPhase = EBTNodeTickPhase.WaitingForNextTick;
-        if(Decorators != null)
-        {
-            foreach(var Decorator in Decorators)
-            {
-                if (Decorator.CanpostProcessTickresult)
-                    FinalResult = Decorator.PostProcessTickresult (FinalResult);
+        // if(Decorators != null)
+        // {
+        //     foreach(var Decorator in Decorators)
+        //     {
+        //         if (Decorator.CanPostProcessTickResult(FinalResult))
+        //             FinalResult = Decorator.PostProcessTickResult(FinalResult);
 
-            }
-        }
+        //     }
+        // }
         if (bCanSendExitNotification && HasFinished)
             OnExit();
 

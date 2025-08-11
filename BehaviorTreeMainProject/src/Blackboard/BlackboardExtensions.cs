@@ -1,6 +1,6 @@
 public static class BlackboardExtensions
 {
-    public static bool HasElement<T>(this Blackboard<T> blackboard, FastName key)
+    public static bool HasElement<T>(this Blackboard<T> blackboard, FastName key) where T : class
     {
         try
         {
@@ -13,7 +13,7 @@ public static class BlackboardExtensions
         }
     }
 
-    public static bool HasAgent<T>(this Blackboard<T> blackboard, FastName key)
+    public static bool HasAgent<T>(this Blackboard<T> blackboard, FastName key) where T : class
     {
         try
         {
@@ -26,7 +26,7 @@ public static class BlackboardExtensions
         }
     }
 
-    public static bool HasLocation<T>(this Blackboard<T> blackboard, FastName key)
+    public static bool HasLocation<T>(this Blackboard<T> blackboard, FastName key) where T : class
     {
         try
         {
@@ -39,7 +39,7 @@ public static class BlackboardExtensions
         }
     }
     // Add HasPredicate extension method
-    public static bool HasPredicate<T>(this Blackboard<T> blackboard, FastName key, Predicate predicate)
+    public static bool HasPredicate<T>(this Blackboard<T> blackboard, FastName key, Predicate predicate) where T : class
     {
         try
         {
@@ -53,7 +53,7 @@ public static class BlackboardExtensions
     }
 
     // Add RemovePredicate extension method
-    public static bool RemovePredicate<T>(this Blackboard<T> blackboard, FastName key, Predicate predicate)
+    public static bool RemovePredicate<T>(this Blackboard<T> blackboard, FastName key, Predicate predicate) where T : class 
     {
         try
         {
@@ -69,13 +69,13 @@ public static string FormatPredicate(Predicate predicate)
 {
     var parameters = predicate.GetAllProperties()
         .Where(p => p.Key != "PredicateName" && p.Key != "PredicateType" && p.Key != "isNegated")
-        .Select(p => GetInstanceId(p.Value as IEntity))
+        .Select(p => GetInstanceId(p.Value as Entity))
         .ToList();
 
     return $"{predicate.PredicateName}({string.Join(",", parameters)})";
 }
 
-private static string GetInstanceId(IEntity obj)
+private static string GetInstanceId(Entity obj)
 {
     
     return obj.NameKey.ToString() ?? "";

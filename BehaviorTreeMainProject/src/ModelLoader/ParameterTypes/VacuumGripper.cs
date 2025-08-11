@@ -2,28 +2,28 @@ using System;
 
 namespace ModelLoader.ParameterTypes
 {
-    public class Beam : Element
+    public class VacuumGripper : Tool
     {
-        public double Length { get; set; }
+        public string IsOn { get; set; }
 
         // Empty constructor - required by Entity
-        public Beam() : base()
+        public VacuumGripper() : base()
         {
-            BaseType = new FastName("Element");
+            BaseType = new FastName("Tool");
             // TypeName is automatically set in base constructor
         }
 
         // Constructor with parameters
-        public Beam(double length) : this()
+        public VacuumGripper(string isOn) : this()
         {
-            this.Length = length;
+            this.IsOn = isOn;
         }
 
         // Constructor with name and parameters
-        public Beam(string name, double length) : base(name)
+        public VacuumGripper(string name, string isOn) : base(name)
         {
-            this.Length = length;
-            BaseType = new FastName("Element");
+            this.IsOn = isOn;
+            BaseType = new FastName("Tool");
             // TypeName is automatically set in base constructor
         }
     }

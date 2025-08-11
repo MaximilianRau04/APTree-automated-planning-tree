@@ -1,13 +1,18 @@
+using System;
+using System.Collections.Generic;
+
 public class PredicateTemplate
 {
-    public bool IsNegated { get; set; }
     public FastName PredicateName { get; set; }
-    public FastName[] ParameterNames { get; set; }
+    public Dictionary<string, object> ParameterNames { get; set; }
 
-    public PredicateTemplate(FastName predicateName, FastName[] parameterNames, bool isNegated)
+    public PredicateTemplate(FastName predicateName, Dictionary<string, object> parameterNames)
     {
         PredicateName = predicateName;
-        ParameterNames = parameterNames;
-        IsNegated = isNegated;
+        ParameterNames = parameterNames ?? new Dictionary<string, object>();
+    }
+
+    public PredicateTemplate(FastName predicateName) : this(predicateName, new Dictionary<string, object>())
+    {
     }
 }

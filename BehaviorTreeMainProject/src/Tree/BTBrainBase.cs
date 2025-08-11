@@ -6,7 +6,7 @@ public abstract class BTBrainBase : IBTBrain
     public IBehaviorTree LinkedBehaviourTree { get; protected set; } = new BTInstance();
     private DateTime lastUpdateTime = DateTime.Now;
    
-    public IThings self { get; protected set; }
+    public Entity self { get; protected set; }
     public void Start()
     {
         //setting things on the blackboard

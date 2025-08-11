@@ -5,14 +5,14 @@ using System.IO;
 public class CallPDDLPlanner: BTServicePlanner
 {
     private readonly Blackboard<FastName> blackboard;
-    private readonly ActionFactory actionFactory;
+    private readonly FactoryAction actionFactory;
     public FastName PlannerName = new FastName("PDDLPlANNER");
 
 
     public CallPDDLPlanner(IBehaviorTree InOwningtree) : base(InOwningtree)
     {
         this.blackboard = InOwningtree.LinkedBlackboard;
-        this.actionFactory = ActionFactory.Instance;
+        this.actionFactory = FactoryAction.Instance;
     }
 public override (List<IBTNode> Actions, List<OrderType> Orders) CreatePlanWithOrders()
     {

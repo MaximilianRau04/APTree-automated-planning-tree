@@ -1,6 +1,7 @@
 using System;
 
-public abstract class Location : Entity  {
+public abstract class Tool : Entity
+{
     public FastName NameKey { get; set; }
     public DateTime LastModified { get; set; }
     public string ID { get; set; }
@@ -8,15 +9,15 @@ public abstract class Location : Entity  {
     public override FastName BaseType { get; set; }
 
     // Empty constructor - required by Entity
-    protected Location() : base()
+    protected Tool() : base()
     {
-        BaseType = new FastName("Location");
-        TypeName = new FastName("Location");
+        BaseType = new FastName("Tool");
+        TypeName = new FastName("Tool");
     }
 
-    public Location(string InName) : base(InName)
+    public Tool(string InName) : base(InName)
     {
-        BaseType = new FastName("Location");
-        TypeName = new FastName("Location");
+        BaseType = new FastName("Tool");
+        TypeName = new FastName("Tool");
     }
 }

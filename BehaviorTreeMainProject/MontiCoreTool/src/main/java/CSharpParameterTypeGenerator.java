@@ -13,7 +13,7 @@ public class CSharpParameterTypeGenerator {
     
     public static void main(String[] args) {
         try {
-            System.out.println("🔍 Generating C# Parameter Type Classes...");
+            System.out.println("Generating C# Parameter Type Classes...");
             
             CRFParser parser = new CRFParser();
             Optional<ASTAllowedType> result = parser.parse("src/test/resources/valid/crf/test_crf.txt");
@@ -21,13 +21,13 @@ public class CSharpParameterTypeGenerator {
             if (result.isPresent()) {
                 ASTAllowedType ast = result.get();
                 generateCSharpClasses(ast);
-                System.out.println("✅ C# parameter type classes generated successfully!");
+                System.out.println("C# parameter type classes generated successfully!");
             } else {
-                System.out.println("❌ Failed to parse CRF model");
+                System.out.println("Failed to parse CRF model");
             }
             
         } catch (Exception e) {
-            System.err.println("❌ ERROR: " + e.getMessage());
+            System.err.println("ERROR: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -77,11 +77,22 @@ public class CSharpParameterTypeGenerator {
             
             writer.println();
             
-            // Generate constructor
-            writer.print("        public " + className + "(");
+            // Generate empty constructor - required by Entity
+            writer.println("        // Empty constructor - required by Entity");
+            writer.println("        public " + className + "() : base()");
+            writer.println("        {");
+            writer.println("            BaseType = new FastName(\"" + baseType + "\");");
+            writer.println("            // TypeName is automatically set in base constructor");
+            writer.println("        }");
+            writer.println();
+            
+            // Generate constructor with parameters (if any properties exist)
             if (parameterType.isPresentParameterPropertyList()) {
                 ASTParameterPropertyList propertyList = parameterType.getParameterPropertyList();
                 if (!propertyList.isEmptyParameterPropertys()) {
+                    writer.println("        // Constructor with parameters");
+                    writer.print("        public " + className + "(");
+                    
                     for (int i = 0; i < propertyList.sizeParameterPropertys(); i++) {
                         ASTParameterProperty property = propertyList.getParameterProperty(i);
                         String propertyType = getBasicTypeName(property.getBasicType());
@@ -91,25 +102,49 @@ public class CSharpParameterTypeGenerator {
                             writer.print(", ");
                         }
                     }
+                    writer.println(") : this()");
+                    writer.println("        {");
+                    
+                    // Generate constructor body
+                    for (ASTParameterProperty property : propertyList.getParameterPropertyList()) {
+                        String propertyName = property.getName();
+                        writer.println("            this." + capitalizeFirst(propertyName) + " = " + propertyName + ";");
+                    }
+                    
+                    writer.println("        }");
+                    writer.println();
+                    
+                    // Generate constructor with name and parameters
+                    writer.println("        // Constructor with name and parameters");
+                    writer.print("        public " + className + "(string name, ");
+                    
+                    for (int i = 0; i < propertyList.sizeParameterPropertys(); i++) {
+                        ASTParameterProperty property = propertyList.getParameterProperty(i);
+                        String propertyType = getBasicTypeName(property.getBasicType());
+                        String propertyName = property.getName();
+                        writer.print(propertyType + " " + propertyName);
+                        if (i < propertyList.sizeParameterPropertys() - 1) {
+                            writer.print(", ");
+                        }
+                    }
+                    writer.println(") : base(name)");
+                    writer.println("        {");
+                    
+                    // Generate constructor body
+                    for (ASTParameterProperty property : propertyList.getParameterPropertyList()) {
+                        String propertyName = property.getName();
+                        writer.println("            this." + capitalizeFirst(propertyName) + " = " + propertyName + ";");
+                    }
+                    writer.println("            BaseType = new FastName(\"" + baseType + "\");");
+                    writer.println("            // TypeName is automatically set in base constructor");
+                    writer.println("        }");
                 }
             }
-            writer.println(")");
-            writer.println("        {");
             
-            // Generate constructor body
-            if (parameterType.isPresentParameterPropertyList()) {
-                ASTParameterPropertyList propertyList = parameterType.getParameterPropertyList();
-                for (ASTParameterProperty property : propertyList.getParameterPropertyList()) {
-                    String propertyName = property.getName();
-                    writer.println("            this." + capitalizeFirst(propertyName) + " = " + propertyName + ";");
-                }
-            }
-            
-            writer.println("        }");
             writer.println("    }");
             writer.println("}");
             
-            System.out.println("✅ Generated: " + fileName);
+            System.out.println("Generated: " + fileName);
         }
     }
     
@@ -178,7 +213,8 @@ public class CSharpParameterTypeGenerator {
     }
     
     private static String getInheritance(String baseType) {
-        // Check if the type should inherit from a base class
+        // Since base types like Element, Agent, etc. already inherit from Entity,
+        // we only need to inherit from the base type
         switch (baseType) {
             case "Element":
             case "Agent":
@@ -186,9 +222,9 @@ public class CSharpParameterTypeGenerator {
             case "Layer":
             case "Module":
             case "Tool":
-                return baseType + ", IEntity";
+                return baseType; // Just inherit from the base type (which already inherits from Entity)
             default:
-                return "IEntity";
+                return "Entity"; // For primitive types, inherit directly from Entity
         }
     }
 }

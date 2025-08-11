@@ -1,10 +1,12 @@
 using System;
 
-public class Layer : IEntity  
+public class Layer : Entity  
 {
 	public FastName NameKey { get; set; }
 	public DateTime LastModified { get; set; }
 	public string ID { get; set; }
+	public FastName TypeName { get; set; }
+	public override FastName BaseType { get; set; }
 	
 	/// <summary>
 	/// Each element should have a nameid. the name id should comply with PDDL naming conventions
@@ -12,9 +14,16 @@ public class Layer : IEntity
 
 	private Module module;
 
-	public Layer(string InName)
+	// Empty constructor - required by Entity
+	public Layer() : base()
 	{
-		NameKey = new FastName(InName);
+		BaseType = new FastName("Layer");
+		TypeName = new FastName("Layer");
 	}
 
+	public Layer(string InName) : base(InName)
+	{
+		BaseType = new FastName("Layer");
+		TypeName = new FastName("Layer");
+	}
 }

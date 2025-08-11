@@ -16,7 +16,7 @@ public interface IBTNode
 bool DoDecoratorsNowPermitRunning(float InDeltaTime);
     void Reset();
     EBTNodeResult Tick(float InDeltaTime);
-    IBTNode AddService(IBTService InService, bool InIsAlwaysOn = false);
+    IBTNode AddService(BTServiceBase InService, bool InIsAlwaysOn = false);
     IBTNode AddDecorator(IBTDecorator InDecorator);
 
 
