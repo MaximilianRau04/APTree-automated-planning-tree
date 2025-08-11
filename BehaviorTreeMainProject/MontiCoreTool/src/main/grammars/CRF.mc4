@@ -1,6 +1,6 @@
 grammar CRF extends BehaviorTree {
-// Root rule that allows multiple predicates, parameter types, parameter instances, and actions
-AllowedType = (PredicateTypeDef | ParameterTypeDef | ParameterInstanceDef | Action)*;
+// Root rule that allows multiple predicates, parameter types, parameter instances, predicate instances, and actions
+AllowedType = (PredicateTypeDef | ParameterTypeDef | ParameterInstanceDef | PredicateInstanceDef | Action)*;
 
 // Parameter type definition with inheritance and properties
 ParameterTypeDef = "Parameter" Name ":" BasicType "{" (ParameterPropertyList)? "}";
@@ -71,9 +71,11 @@ FunctionReference = Name;
 // Predicate type definition
 PredicateTypeDef = "predicate" Name "{" (ParameterDeclaration ("," ParameterDeclaration)*)? "}";    
 
-// Predicate instance definition
-PredicateInstance = Name "(" (PredicateArgument)* ")";   
-PredicateArgument = value: PredicateValue "=" name: Name;  
+// Predicate instance definition (standalone)
+PredicateInstanceDef = "PredicateInstance" ":" Name "(" (PredicateArgument ("," PredicateArgument)*)? ")";   
+// Predicate instance (for use within actions)
+PredicateInstance = Name "(" (PredicateArgument ("," PredicateArgument)*)? ")";   
+PredicateArgument = value: PredicateValue "=" name: Name;
 // Possible predicate values
 PredicateValue = Name | AttributeAccess;
 // Attribute access with dot notation

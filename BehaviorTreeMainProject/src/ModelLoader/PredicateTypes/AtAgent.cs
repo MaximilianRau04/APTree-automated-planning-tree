@@ -2,14 +2,14 @@ using System;
 
 namespace ModelLoader.PredicateTypes
 {
-    public class IsAt : Predicate
+    public class AtAgent : Predicate
     {
-        public String object { get; set; }
+        public String agent { get; set; }
         public String location { get; set; }
 
-        public IsAt(String object, String location)
+        public AtAgent(String agent, String location)
         {
-            this.object = object;
+            this.agent = agent;
             this.location = location;
         }
     }

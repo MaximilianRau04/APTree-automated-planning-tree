@@ -18,21 +18,21 @@ public class BehaviorTreeTool {
         try {
             BehaviorTreeParser parser = new BehaviorTreeParser();
             
-            System.out.println("🔍 Parsing file: " + filename);
+            System.out.println("PARSING: Parsing file: " + filename);
             Optional<ASTBehaviorTree> result = parser.parse(filename);
             
             if (result.isPresent()) {
-                System.out.println("✅ Successfully parsed Behavior Tree!");
+                System.out.println("SUCCESS: Successfully parsed Behavior Tree!");
                 ASTBehaviorTree ast = result.get();
                 System.out.println("AST Structure:");
                 System.out.println(ast.toString());
             } else {
-                System.out.println("❌ Failed to parse Behavior Tree");
+                System.out.println("FAILED: Failed to parse Behavior Tree");
                 System.out.println("Check if the file exists and contains valid syntax");
             }
             
         } catch (Exception e) {
-            System.err.println("❌ Error parsing: " + e.getMessage());
+            System.err.println("ERROR: Error parsing: " + e.getMessage());
             e.printStackTrace();
         }
     }

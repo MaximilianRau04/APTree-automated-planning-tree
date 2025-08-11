@@ -12,7 +12,7 @@ public class CSharpPredicateGenerator {
     
     public static void main(String[] args) {
         try {
-            System.out.println("🔍 Generating C# Predicate Classes...");
+            System.out.println("GENERATING: Generating C# Predicate Classes...");
             
             CRFParser parser = new CRFParser();
             Optional<ASTAllowedType> result = parser.parse("src/test/resources/valid/crf/test_crf.txt");
@@ -20,13 +20,13 @@ public class CSharpPredicateGenerator {
             if (result.isPresent()) {
                 ASTAllowedType ast = result.get();
                 generateCSharpClasses(ast);
-                System.out.println("✅ C# classes generated successfully!");
+                System.out.println("SUCCESS: C# classes generated successfully!");
             } else {
-                System.out.println("❌ Failed to parse CRF model");
+                System.out.println("FAILED: Failed to parse CRF model");
             }
             
         } catch (Exception e) {
-            System.err.println("❌ ERROR: " + e.getMessage());
+            System.err.println("ERROR: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -95,7 +95,7 @@ public class CSharpPredicateGenerator {
             writer.println("    }");
             writer.println("}");
             
-            System.out.println("✅ Generated: " + fileName);
+            System.out.println("SUCCESS: Generated: " + fileName);
         }
     }
     

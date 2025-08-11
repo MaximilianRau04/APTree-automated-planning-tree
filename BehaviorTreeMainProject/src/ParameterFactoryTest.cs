@@ -1,5 +1,7 @@
 using System;
 
+using ModelLoader;
+
 // Standalone test for ParameterFactory
 public class ParameterFactoryTest
 {
@@ -47,6 +49,19 @@ public class ParameterFactoryTest
             }
             
             Console.WriteLine("\n=== All ParameterFactory tests passed! ===");
+            
+            // Test 6: Test BlackboardWriter.registerInputParameterInstances()
+            Console.WriteLine("\n6. Testing BlackboardWriter.registerInputParameterInstances():");
+            TestBlackboardWriterMethod();
+            
+            // Test 7: Test FactoryPredicate.CreatePredicateInstance()
+            Console.WriteLine("\n7. Testing FactoryPredicate.CreatePredicateInstance():");
+            TestFactoryPredicateMethod();
+            
+            // Test 8: Test BlackboardWriter type registration functions
+            Console.WriteLine("\n8. Testing BlackboardWriter type registration functions:");
+            TestBlackboardWriterTypeRegistration();
+            
         }
         catch (Exception ex)
         {
@@ -57,4 +72,181 @@ public class ParameterFactoryTest
         Console.WriteLine("\nPress any key to exit...");
         Console.ReadKey();
     }
+    
+    private static void TestBlackboardWriterMethod()
+    {
+        try
+        {
+            // Create a blackboard with dummy Neo4j connection (for testing)
+            var blackboard = new Blackboard<FastName>("bolt://localhost:7687", "neo4j", "password");
+            
+            // Create the BlackboardWriter
+            var blackboardWriter = new BlackboardWriter(blackboard);
+            
+            // Test the registerInputParameterInstances method
+            Console.WriteLine("   Testing registerInputParameterInstances()...");
+            var instances = blackboardWriter.registerInputParameterInstances();
+            
+            Console.WriteLine($"   ✅ Method completed successfully!");
+            Console.WriteLine($"   📊 Created {instances.Count} parameter instances:");
+            
+            foreach (var instance in instances)
+            {
+                Console.WriteLine($"     - {instance.GetType().Name}: {instance.NameKey}");
+            }
+            
+            // Test that instances are registered in blackboard
+            Console.WriteLine("   --- Verifying instances in blackboard ---");
+            
+            // Test beam instances
+            try
+            {
+                var b1 = blackboard.GetElement(new FastName("b1"));
+                Console.WriteLine("   ✅ b1 found in blackboard");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"   ❌ b1 not found in blackboard: {e.Message}");
+            }
+            
+            try
+            {
+                var b2 = blackboard.GetElement(new FastName("b2"));
+                Console.WriteLine("   ✅ b2 found in blackboard");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"   ❌ b2 not found in blackboard: {e.Message}");
+            }
+            
+            try
+            {
+                var b3 = blackboard.GetElement(new FastName("b3"));
+                Console.WriteLine("   ✅ b3 found in blackboard");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"   ❌ b3 not found in blackboard: {e.Message}");
+            }
+            
+            // Test robot instance
+            try
+            {
+                var r1 = blackboard.GetAgent(new FastName("r1"));
+                Console.WriteLine("   ✅ r1 found in blackboard");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"   ❌ r1 not found in blackboard: {e.Message}");
+            }
+            
+            Console.WriteLine("   === BlackboardWriter test completed! ===");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"   ❌ BlackboardWriter test failed: {e.Message}");
+            Console.WriteLine($"   Stack trace: {e.StackTrace}");
+                }
+    }
+    
+    private static void TestFactoryPredicateMethod()
+    {
+        try
+        {
+            // Create a blackboard with dummy Neo4j connection (for testing)
+            var blackboard = new Blackboard<FastName>("bolt://localhost:7687", "neo4j", "password");
+            
+            // First, create some parameter instances to work with
+            var parameterFactory = FactoryParameter.Instance;
+            var b1 = parameterFactory.CreateParameter("beam", "b1");
+            var fp1 = parameterFactory.CreateParameter("firstlocation", "fp1");
+            var r1 = parameterFactory.CreateParameter("robot", "r1");
+            
+            // Register them in the blackboard
+            blackboard.RegisterEntityIfNotExists(b1);
+            blackboard.RegisterEntityIfNotExists(fp1);
+            blackboard.RegisterEntityIfNotExists(r1);
+            
+            // Create the predicate factory
+            var predicateFactory = FactoryPredicate.Instance;
+            
+            // Test 1: Create an isAt predicate instance
+            Console.WriteLine("   Testing CreatePredicateInstance for isAt:");
+            var isAtParams = new Dictionary<string, string>
+            {
+                { "object", "b1" },    // parameter name -> entity name
+                { "location", "fp1" }  // parameter name -> entity name
+            };
+            
+            var isAtPredicate = predicateFactory.CreatePredicateInstance("isAt", isAtParams, blackboard);
+            Console.WriteLine($"   Created: {isAtPredicate.GetType().Name}");
+            
+            // Cast to specific type to access properties
+            if (isAtPredicate is ModelLoader.PredicateTypes.IsAt isAt)
+            {
+                Console.WriteLine($"   IsAt predicate created successfully");
+            }
+            
+            // Test 2: Create a hasTool predicate instance
+            Console.WriteLine("   Testing CreatePredicateInstance for hasTool:");
+            var hasToolParams = new Dictionary<string, string>
+            {
+                { "agent", "r1" },     // parameter name -> entity name
+                { "tool", "vg1" }      // parameter name -> entity name (will fail if vg1 doesn't exist)
+            };
+            
+            try
+            {
+                var hasToolPredicate = predicateFactory.CreatePredicateInstance("hasTool", hasToolParams, blackboard);
+                Console.WriteLine($"   Created: {hasToolPredicate.GetType().Name}");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"   Expected error (vg1 doesn't exist): {e.Message}");
+            }
+            
+            Console.WriteLine("   === FactoryPredicate test completed! ===");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"   ❌ FactoryPredicate test failed: {e.Message}");
+            Console.WriteLine($"   Stack trace: {e.StackTrace}");
+        }
+    }
+    
+    private static void TestBlackboardWriterTypeRegistration()
+    {
+        try
+        {
+            // Create a blackboard with dummy Neo4j connection (for testing)
+            var blackboard = new Blackboard<FastName>("bolt://localhost:7687", "neo4j", "password");
+            
+            // Create the BlackboardWriter
+            var blackboardWriter = new BlackboardWriter(blackboard);
+            
+            // Test 1: Register parameter types
+            Console.WriteLine("   Testing RegisterParameterTypes():");
+            blackboardWriter.RegisterParameterTypes();
+            
+            // Test 2: Register predicate types
+            Console.WriteLine("   Testing RegisterPredicateTypes():");
+            blackboardWriter.RegisterPredicateTypes();
+            
+            // Test 3: Register action types
+            Console.WriteLine("   Testing RegisterActionTypes():");
+            blackboardWriter.RegisterActionTypes();
+            
+            // Test 4: Register all types at once
+            Console.WriteLine("   Testing RegisterAllTypes():");
+            blackboardWriter.RegisterAllTypes();
+            
+            Console.WriteLine("   === BlackboardWriter type registration test completed! ===");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"   ❌ BlackboardWriter type registration test failed: {e.Message}");
+            Console.WriteLine($"   Stack trace: {e.StackTrace}");
+        }
+    }
 }
+

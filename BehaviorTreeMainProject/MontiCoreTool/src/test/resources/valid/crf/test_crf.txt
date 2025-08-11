@@ -29,8 +29,10 @@ Parameter positionOnRail : Location {
 // parameter instance
 
 ParameterInstance: beam {b1}
+ParameterInstance: beam {b3}
 ParameterInstance: beam {b2}
 ParameterInstance: robot {r1}
+ParameterInstance: firstLocation {fp1}
 
 // Predicate definition
 
@@ -50,6 +52,10 @@ predicate hasTool {
     tool - Tool
 }
 
+//predicate instances
+
+PredicateInstance: isAt(b1 = object, fp1 = location)
+
 // Action definition 
 
 Action pickUp {
@@ -60,12 +66,12 @@ Action pickUp {
         loc : firstLocation   
         tool : vacuumGripper}
     preconditions {
-        at(obj = object loc = location)
-        atAgent(robot = agent loc = location)
-        hasTool(agent = robot tool = tool) }    
+        isat(obj = object, loc = location)
+        atAgent(robot = agent, loc = location)
+        hasTool(agent = robot, tool = tool) }    
     effects {
-        holding(robot = agent obj = object)
-        at(robot = agent loc = location) }   
+        holding(robot = agent, obj = object)
+        at(robot = agent, loc = location) }   
     function {{obj,robot},{Boolean}}
     implementation {
         pickupImplementation }

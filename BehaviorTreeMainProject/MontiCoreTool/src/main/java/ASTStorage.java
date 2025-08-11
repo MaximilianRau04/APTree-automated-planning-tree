@@ -25,11 +25,11 @@ public class ASTStorage {
                 exportToXML(ast, "ast_data.xml");
                 
             } else {
-                System.out.println("❌ Failed to parse file");
+                System.out.println("FAILED: Failed to parse file");
             }
             
         } catch (Exception e) {
-            System.err.println("❌ Error: " + e.getMessage());
+            System.err.println("ERROR: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -38,9 +38,9 @@ public class ASTStorage {
     public static void serializeAST(ASTBehaviorTree ast, String filename) {
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(filename))) {
             oos.writeObject(ast);
-            System.out.println("✅ AST serialized to: " + filename);
+            System.out.println("SUCCESS: AST serialized to: " + filename);
         } catch (IOException e) {
-            System.err.println("❌ Serialization failed: " + e.getMessage());
+            System.err.println("ERROR: Serialization failed: " + e.getMessage());
         }
     }
     
@@ -48,10 +48,10 @@ public class ASTStorage {
     public static ASTBehaviorTree deserializeAST(String filename) {
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(filename))) {
             ASTBehaviorTree ast = (ASTBehaviorTree) ois.readObject();
-            System.out.println("✅ AST loaded from: " + filename);
+            System.out.println("SUCCESS: AST loaded from: " + filename);
             return ast;
         } catch (IOException | ClassNotFoundException e) {
-            System.err.println("❌ Deserialization failed: " + e.getMessage());
+            System.err.println("ERROR: Deserialization failed: " + e.getMessage());
             return null;
         }
     }
@@ -81,9 +81,9 @@ public class ASTStorage {
             
             writer.println("  }");
             writer.println("}");
-            System.out.println("✅ AST exported to JSON: " + filename);
+            System.out.println("SUCCESS: AST exported to JSON: " + filename);
         } catch (IOException e) {
-            System.err.println("❌ JSON export failed: " + e.getMessage());
+            System.err.println("ERROR: JSON export failed: " + e.getMessage());
         }
     }
     
@@ -108,9 +108,9 @@ public class ASTStorage {
             }
             
             writer.println("</behaviorTree>");
-            System.out.println("✅ AST exported to XML: " + filename);
+            System.out.println("SUCCESS: AST exported to XML: " + filename);
         } catch (IOException e) {
-            System.err.println("❌ XML export failed: " + e.getMessage());
+            System.err.println("ERROR: XML export failed: " + e.getMessage());
         }
     }
 }

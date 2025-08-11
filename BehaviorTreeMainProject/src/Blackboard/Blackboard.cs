@@ -9,25 +9,25 @@ using System.Reflection;
 //we need to fix the query so that the parent types are also added to the graph
 public class Blackboard<T> : IDisposable where T : class
 {
+    // built-in types
     Dictionary<FastName, int>           IntValues =            new ();
     Dictionary<FastName, double>        DoubleValues =         new ();
     Dictionary<FastName, bool>          BoolValues =           new (); 
     Dictionary<FastName, string>        StringValues =         new ();
+ 
+    // registeredtypes
+    Dictionary<FastName, BTActionNodeBase> RegisteredActionTypeValues = new();
+    Dictionary<FastName, Entity> RegisteredEntityTypeValues = new();
+     Dictionary<FastName, Predicate> RegisteredPredicateTypeValues = new(); 
+     // registered instances
+     Dictionary<FastName, Layer> LayerValues = new();
+     Dictionary<FastName, Module> ModuleValues = new();
+     Dictionary<FastName, Tool> ToolValues = new();
     Dictionary<FastName, Element>   ElementValues =    new ();
     Dictionary<FastName, Location>   LocationValues =    new ();
     Dictionary<FastName, Agent>   AgentValues =    new ();
     Dictionary<FastName, HashSet<Predicate>> PredicateValues = new();
     Dictionary<FastName, HashSet<Action>> ActionValues = new();
-    Dictionary<FastName, HashSet<Type>> RegisteredActionTypeValues = new();
-    Dictionary<FastName, HashSet<Type>> RegisteredElementTypeValues = new();
-     Dictionary<FastName, HashSet<Type>> RegisteredLocationTypeValues = new(); // Add this new dictionary
-    Dictionary<FastName, HashSet<Type>> RegisteredAgentTypeValues = new();
-     Dictionary<FastName, HashSet<Type>> RegisteredPredicateTypeValues = new(); // Add this new dictionary
-     Dictionary<FastName, HashSet<Type>> RegisteredLayerTypeValues = new();
-     Dictionary<FastName, HashSet<Type>> RegisteredModuleTypeValues = new();
-     Dictionary<FastName, Layer> LayerValues = new();
-     Dictionary<FastName, Module> ModuleValues = new();
-     Dictionary<FastName, Tool> ToolValues = new();
      Dictionary<FastName, State> StateValues = new();
    
     private readonly IDriver _driver;
@@ -125,25 +125,18 @@ public class Blackboard<T> : IDisposable where T : class
     }
 
      // Update corresponding Get methods
-public HashSet<Type> GetElementTypes(FastName key)
+public Entity GetElementTypes(FastName key)
 {
-    if (!RegisteredElementTypeValues.ContainsKey(key))
+    if (!RegisteredEntityTypeValues.ContainsKey(key))
     {
         throw new ArgumentException($"Could not find element types for {key}");
     }
-    return RegisteredElementTypeValues[key];
+    return RegisteredEntityTypeValues[key];
 }
 
-public HashSet<Type> GetLocationTypes(FastName key)
-{
-    if (!RegisteredLocationTypeValues.ContainsKey(key))
-    {
-        throw new ArgumentException($"Could not find location types for {key}");
-    }
-    return RegisteredLocationTypeValues[key];
-}
 
-public HashSet<Type> GetPredicateTypes(FastName key)
+
+public Predicate GetPredicateTypes(FastName key)
 {
     if (!RegisteredPredicateTypeValues.ContainsKey(key))
     {
@@ -152,7 +145,7 @@ public HashSet<Type> GetPredicateTypes(FastName key)
     return RegisteredPredicateTypeValues[key];
 }
 
-public HashSet<Type> GetActionTypes(FastName key)
+public BTActionNodeBase GetActionTypes(FastName key)
 {
     if (!RegisteredActionTypeValues.ContainsKey(key))
     {
@@ -162,23 +155,7 @@ public HashSet<Type> GetActionTypes(FastName key)
 }
 
 // Get methods
-public HashSet<Type> GetLayerTypes(FastName key)
-{
-    if (!RegisteredLayerTypeValues.ContainsKey(key))
-    {
-        throw new ArgumentException($"Could not find layer types for {key}");
-    }
-    return RegisteredLayerTypeValues[key];
-}
 
-public HashSet<Type> GetModuleTypes(FastName key)
-{
-    if (!RegisteredModuleTypeValues.ContainsKey(key))
-    {
-        throw new ArgumentException($"Could not find module types for {key}");
-    }
-    return RegisteredModuleTypeValues[key];
-}
 
     // Set methods for all types
     public void SetInt(FastName key, int value)
@@ -224,77 +201,56 @@ public HashSet<Type> GetModuleTypes(FastName key)
         value.NameKey = key;  // Set the instance ID
     }
 
-    public void SetAgentType(FastName key, Type agentType)
-    {
-        if (!typeof(Agent).IsAssignableFrom(agentType))
-        {
-            throw new ArgumentException($"Type {agentType.Name} is not an Agent type");
-        }
-
-        if (!RegisteredAgentTypeValues.ContainsKey(key))
-        {
-            RegisteredAgentTypeValues[key] = new HashSet<Type>();
-        }
-        RegisteredAgentTypeValues[key].Add(agentType);
-    }
-
-   public void SetElementType(FastName key, Type elementType)
+    
+/// <summary>
+/// Sets the entity type for a given key
+/// </summary>
+/// <param name="key"></param>
+/// <param name="elementType"></param>
+/// <exception cref="ArgumentException"></exception>
+   public void SetEntityType(FastName key, Entity elementType)
 {
-    if (!typeof(Element).IsAssignableFrom(elementType))
+    if (!typeof(Entity).IsAssignableFrom(elementType.GetType()))
     {
-        throw new ArgumentException($"Type {elementType.Name} is not an Element type");
+        throw new ArgumentException($"Type {elementType.GetType().Name} is not an Entity type");
     }
 
-    if (!RegisteredElementTypeValues.ContainsKey(key))
+    if (!RegisteredEntityTypeValues.ContainsKey(key))
     {
-        RegisteredElementTypeValues[key] = new HashSet<Type>();
+        RegisteredEntityTypeValues[key] = elementType;
     }
-    RegisteredElementTypeValues[key].Add(elementType);
+    RegisteredEntityTypeValues[key] = elementType;
 }
 
-// Location type methods
-public void SetLocationType(FastName key, Type locationType)
-{
-    if (!typeof(Location).IsAssignableFrom(locationType))
-    {
-        throw new ArgumentException($"Type {locationType.Name} is not a Location type");
-    }
-
-    if (!RegisteredLocationTypeValues.ContainsKey(key))
-    {
-        RegisteredLocationTypeValues[key] = new HashSet<Type>();
-    }
-    RegisteredLocationTypeValues[key].Add(locationType);
-}
 
 // Predicate type methods
-public void SetPredicateType(FastName key, Type predicateType)
+public void SetPredicateType(FastName key, Predicate predicateType)
 {
-    if (!typeof(Predicate).IsAssignableFrom(predicateType))
+    if (!typeof(Predicate).IsAssignableFrom(predicateType.GetType()))
     {
-        throw new ArgumentException($"Type {predicateType.Name} is not a Predicate type");
+        throw new ArgumentException($"Type {predicateType.GetType().Name} is not a Predicate type");
     }
 
     if (!RegisteredPredicateTypeValues.ContainsKey(key))
     {
-        RegisteredPredicateTypeValues[key] = new HashSet<Type>();
+        RegisteredPredicateTypeValues[key] = predicateType;
     }
-    RegisteredPredicateTypeValues[key].Add(predicateType);
+    RegisteredPredicateTypeValues[key] = predicateType;
 }
 
 // Action type methods
-public void SetActionType(FastName key, Type actionType)
+public void SetActionType(FastName key, BTActionNodeBase actionType)
 {
-    if (!typeof(GenericBTAction).IsAssignableFrom(actionType))
+    if (!typeof(BTActionNodeBase).IsAssignableFrom(actionType.GetType()))
     {
-        throw new ArgumentException($"Type {actionType.Name} is not an Action type");
+        throw new ArgumentException($"Type {actionType.GetType().Name} is not an Action type");
     }
 
     if (!RegisteredActionTypeValues.ContainsKey(key))
     {
-        RegisteredActionTypeValues[key] = new HashSet<Type>();
+        RegisteredActionTypeValues[key] = actionType;
     }
-    RegisteredActionTypeValues[key].Add(actionType);
+    RegisteredActionTypeValues[key] = actionType;
 }
 
     // Set methods for predicates
@@ -473,33 +429,7 @@ public void SetActionType(FastName key, Type actionType)
     }
 
     // Set methods
-    public void SetLayerType(FastName key, Type layerType)
-    {
-        if (!typeof(Layer).IsAssignableFrom(layerType))
-        {
-            throw new ArgumentException($"Type {layerType.Name} is not a Layer type");
-        }
-
-        if (!RegisteredLayerTypeValues.ContainsKey(key))
-        {
-            RegisteredLayerTypeValues[key] = new HashSet<Type>();
-        }
-        RegisteredLayerTypeValues[key].Add(layerType);
-    }
-
-    public void SetModuleType(FastName key, Type moduleType)
-    {
-        if (!typeof(Module).IsAssignableFrom(moduleType))
-        {
-            throw new ArgumentException($"Type {moduleType.Name} is not a Module type");
-        }
-
-        if (!RegisteredModuleTypeValues.ContainsKey(key))
-        {
-            RegisteredModuleTypeValues[key] = new HashSet<Type>();
-        }
-        RegisteredModuleTypeValues[key].Add(moduleType);
-    }
+   
 
     public void SetLayer(FastName key, Layer value)
     {

@@ -154,6 +154,42 @@ task generateCSharpPredicates(type: JavaExec) {
 }
 
 
+// Custom task to test parameter instances
+task testParameterInstances(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'TestParameterInstances'
+    workingDir = projectDir
+}
+
+// Custom task to run simple parameter instance generator
+task generateSimpleParameterInstances(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'SimpleParameterInstanceGenerator'
+    workingDir = projectDir
+}
+
+// Custom task to test AST value structure
+task testASTValue(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'ASTValueTest'
+    workingDir = projectDir
+}
+
+// Custom task to test multiple instances
+task testMultipleInstances(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'TestMultipleInstances'
+    workingDir = projectDir
+}
+
+// Custom task to extract parameter instances
+task extractParameterInstances(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'ParameterInstanceExtractor'
+    workingDir = projectDir
+}
+
+
 
 
 defaultTasks 'build'

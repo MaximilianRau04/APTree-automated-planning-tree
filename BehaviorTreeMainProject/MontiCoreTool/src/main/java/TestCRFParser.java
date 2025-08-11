@@ -5,7 +5,7 @@ import java.util.Optional;
 public class TestCRFParser {
     public static void main(String[] args) {
         try {
-            System.out.println("🔍 Testing CRF Multiple Predicates Parser...");
+            System.out.println("TESTING: Testing CRF Multiple Predicates Parser...");
             
             CRFParser parser = new CRFParser();
             
@@ -33,11 +33,11 @@ public class TestCRFParser {
                 }
                 
             } else {
-                System.out.println("❌ FAILED: Could not parse CRF Multiple Predicates");
+                System.out.println("FAILED: Could not parse CRF Multiple Predicates");
             }
             
         } catch (Exception e) {
-            System.err.println("❌ ERROR: " + e.getMessage());
+            System.err.println("ERROR: " + e.getMessage());
             e.printStackTrace();
         }
     }
