@@ -40,6 +40,11 @@ public class Program
                 string parameterInstancesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "src", "InputInstances", "ParameterInstances.txt");
                 blackboardWriter.ParseAndRegisterMontiCoreGrammarFile(parameterInstancesPath);
 
+                // Parse and register predicate instances from MontiCore grammar file
+                Console.WriteLine("\n=== PARSING MONTICORE PREDICATE FILE ===");
+                string predicateInstancesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "src", "InputInstances", "PredicateInstances.txt");
+                blackboardWriter.ParseAndRegisterMontiCorePredicateFile(predicateInstancesPath, blackboard);
+
                 // Inspect the blackboard contents after registration
                 Console.WriteLine("\n=== INSPECTING BLACKBOARD CONTENTS ===");
                 InspectBlackboardContents(blackboard);
@@ -163,6 +168,18 @@ public class Program
             foreach (var kvp in moduleValues)
             {
                 Console.WriteLine($"  - {kvp.Key}: {kvp.Value?.ID ?? "null"} ({kvp.Value?.GetType().Name ?? "null"})");
+            }
+        }
+        
+        // Get predicate instances
+        var predicateValues = GetPrivateField<Dictionary<FastName, Predicate>>(blackboard, "PredicateValues");
+        
+        Console.WriteLine($"\nPredicate Instances ({predicateValues?.Count ?? 0}):");
+        if (predicateValues != null)
+        {
+            foreach (var kvp in predicateValues)
+            {
+                Console.WriteLine($"  - {kvp.Key}: {kvp.Value.GetType().Name} (isNegated: {kvp.Value.isNegated})");
             }
         }
     }

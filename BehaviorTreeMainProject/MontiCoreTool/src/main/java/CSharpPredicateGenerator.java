@@ -88,7 +88,7 @@ public class CSharpPredicateGenerator {
             
             writer.println();
             
-            // Generate constructor
+            // Generate constructor with parameters that calls base constructor
             writer.print("        public " + className + "(");
             if (predicate.getParameterDeclarationList() != null && !predicate.getParameterDeclarationList().isEmpty()) {
                 for (int i = 0; i < predicate.getParameterDeclarationList().size(); i++) {
@@ -101,8 +101,16 @@ public class CSharpPredicateGenerator {
                     }
                 }
             }
-            writer.println(")");
+            // Always add isNegated parameter
+            if (predicate.getParameterDeclarationList() != null && !predicate.getParameterDeclarationList().isEmpty()) {
+                writer.print(", ");
+            }
+            writer.print("bool isNegated");
+            writer.println(") : base(isNegated)");
             writer.println("        {");
+            
+            // Set PredicateName
+            writer.println("            PredicateName = new FastName(\"" + predicate.getName() + "\");");
             
             // Generate constructor body
             if (predicate.getParameterDeclarationList() != null) {

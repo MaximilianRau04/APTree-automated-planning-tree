@@ -7,8 +7,9 @@ namespace ModelLoader.PredicateTypes
         public Agent agent { get; set; }
         public Location location { get; set; }
 
-        public AtAgent(Agent agent, Location location)
+        public AtAgent(Agent agent, Location location, bool isNegated) : base(isNegated)
         {
+            PredicateName = new FastName("atAgent");
             this.agent = agent;
             this.location = location;
         }

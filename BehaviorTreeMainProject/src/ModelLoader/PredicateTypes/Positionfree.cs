@@ -6,8 +6,9 @@ namespace ModelLoader.PredicateTypes
     {
         public Location pos { get; set; }
 
-        public Positionfree(Location pos)
+        public Positionfree(Location pos, bool isNegated) : base(isNegated)
         {
+            PredicateName = new FastName("positionfree");
             this.pos = pos;
         }
     }

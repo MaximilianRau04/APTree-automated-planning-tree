@@ -6,8 +6,6 @@ using System.IO;
 using System.Reflection;
 
 
-
-
 /// <summary>
 /// This class is responsible for initializing the system by registering entity types, action types, and predicate types.
 /// It also creates initial entities and adds them to the blackboard.
@@ -329,35 +327,6 @@ public class BlackboardWriter
     }
 
     /// <summary>
-    /// Takes a single predicate instance and registers it in the appropriate blackboard dictionary
-    /// </summary>
-    /// <param name="predicateInstance">The predicate instance to register</param>
-    public void RegisterPredicateInstanceByType(Predicate predicateInstance)
-    {
-        try
-        {
-            // Get the predicate type name and instance name
-            string predicateTypeName = predicateInstance.GetType().Name;
-            string instanceName = predicateInstance.PredicateName.ToString();
-            
-            Console.WriteLine($"Registering {predicateTypeName} instance '{instanceName}'");
-            
-            // Create a key for the predicate (using instance name)
-            
-            
-            // Register the predicate in the blackboard
-            // Predicates are stored in PredicateValues dictionary as HashSet<Predicate>
-            blackboard.SetPredicate(predicateInstance.PredicateName, predicateInstance);
-            
-            Console.WriteLine($"  ✅ Registered {predicateTypeName} predicate with key '{instanceName}'");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"  ❌ Error registering predicate '{predicateInstance.GetType().Name}': {ex.Message}");
-        }
-    }
-
-    /// <summary>
     /// Parses a MontiCore grammar text file and generates parameter instances
     /// Expected format: ParameterInstance: typeName {instanceName}
     /// </summary>
@@ -504,6 +473,230 @@ public class BlackboardWriter
         Console.WriteLine($"\n📊 Registration Summary:");
         Console.WriteLine($"  ✅ Successfully registered: {registeredCount} instances");
         Console.WriteLine($"  ⚠️ Skipped: {skippedCount} instances");
+    }
+
+    /// <summary>
+    /// Parses a MontiCore grammar text file and generates predicate instances
+    /// Expected format: PredicateInstance: predicateName(parameterName = value, isNegated = false/true)
+    /// </summary>
+    /// <param name="filePath">Path to the MontiCore grammar text file</param>
+    /// <param name="blackboard">The blackboard to get entities from</param>
+    /// <returns>List of created predicate instances</returns>
+    public List<Predicate> ParseMontiCorePredicateFile(string filePath, Blackboard<FastName> blackboard)
+    {
+        List<Predicate> createdInstances = new List<Predicate>();
+        
+        try
+        {
+            Console.WriteLine($"Parsing MontiCore predicate file: {filePath}");
+            
+            if (!File.Exists(filePath))
+            {
+                Console.WriteLine($"❌ Error: File not found at {filePath}");
+                return createdInstances;
+            }
+            
+            string[] lines = File.ReadAllLines(filePath);
+            int lineNumber = 0;
+            int successCount = 0;
+            int errorCount = 0;
+            
+            foreach (string line in lines)
+            {
+                lineNumber++;
+                
+                // Skip empty lines and comments
+                if (string.IsNullOrWhiteSpace(line) || line.Trim().StartsWith("#"))
+                {
+                    continue;
+                }
+                
+                try
+                {
+                    // Parse the line: PredicateInstance: predicateName(parameterName = value, isNegated = false/true)
+                    var instance = ParsePredicateInstanceLine(line.Trim(), blackboard);
+                    
+                    if (instance != null)
+                    {
+                        createdInstances.Add(instance);
+                        successCount++;
+                        Console.WriteLine($"  ✅ Line {lineNumber}: Created {instance.GetType().Name} instance '{instance.PredicateName}'");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    errorCount++;
+                    Console.WriteLine($"  ❌ Line {lineNumber}: Error parsing '{line.Trim()}': {ex.Message}");
+                }
+            }
+            
+            Console.WriteLine($"\n📊 Parsing Summary:");
+            Console.WriteLine($"  ✅ Successfully created: {successCount} instances");
+            Console.WriteLine($"  ❌ Errors: {errorCount}");
+            Console.WriteLine($"  📄 Total lines processed: {lineNumber}");
+            
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error reading file {filePath}: {ex.Message}");
+        }
+        
+        return createdInstances;
+    }
+    
+    /// <summary>
+    /// Parses a single line in MontiCore predicate grammar format
+    /// Expected format: PredicateInstance: predicateName(parameterName = value, isNegated = false/true)
+    /// </summary>
+    /// <param name="line">The line to parse</param>
+    /// <param name="blackboard">The blackboard to get entities from</param>
+    /// <returns>Created Predicate instance or null if parsing failed</returns>
+    private Predicate ParsePredicateInstanceLine(string line, Blackboard<FastName> blackboard)
+    {
+        // Expected format: PredicateInstance: predicateName(parameterName = value, isNegated = false/true)
+        const string prefix = "PredicateInstance:";
+        
+        if (!line.StartsWith(prefix))
+        {
+            throw new ArgumentException($"Line does not start with '{prefix}'");
+        }
+        
+        // Remove the prefix and trim
+        string content = line.Substring(prefix.Length).Trim();
+        
+        // Find the opening and closing parentheses
+        int openParenIndex = content.IndexOf('(');
+        int closeParenIndex = content.LastIndexOf(')');
+        
+        if (openParenIndex == -1 || closeParenIndex == -1 || openParenIndex >= closeParenIndex)
+        {
+            throw new ArgumentException("Invalid parentheses format. Expected: predicateName(parameterName = value, isNegated = false/true)");
+        }
+        
+        // Extract predicate name and parameters
+        string predicateName = content.Substring(0, openParenIndex).Trim();
+        string parametersContent = content.Substring(openParenIndex + 1, closeParenIndex - openParenIndex - 1).Trim();
+        
+        if (string.IsNullOrWhiteSpace(predicateName))
+        {
+            throw new ArgumentException("Predicate name cannot be empty");
+        }
+        
+        // Parse parameters
+        var parameters = ParsePredicateParameters(parametersContent);
+        
+        // Create the predicate instance using the factory
+        return predicateFactory.CreatePredicateInstance(predicateName, ConvertToParameterMappingList(parameters), blackboard);
+    }
+    
+    /// <summary>
+    /// Parses predicate parameters from a string
+    /// Expected format: parameterName = value, isNegated = false/true
+    /// </summary>
+    /// <param name="parametersContent">The parameters string to parse</param>
+    /// <returns>Dictionary of parameter names and values</returns>
+    private Dictionary<string, object> ParsePredicateParameters(string parametersContent)
+    {
+        var parameters = new Dictionary<string, object>();
+        
+        if (string.IsNullOrWhiteSpace(parametersContent))
+        {
+            return parameters;
+        }
+        
+        // Split by comma, but be careful about commas inside parentheses
+        var parameterPairs = parametersContent.Split(',');
+        
+        foreach (var pair in parameterPairs)
+        {
+            var trimmedPair = pair.Trim();
+            if (string.IsNullOrWhiteSpace(trimmedPair))
+                continue;
+                
+            // Split by equals sign
+            var equalIndex = trimmedPair.IndexOf('=');
+            if (equalIndex == -1)
+            {
+                throw new ArgumentException($"Invalid parameter format: {trimmedPair}. Expected: parameterName = value");
+            }
+            
+            string paramName = trimmedPair.Substring(0, equalIndex).Trim();
+            string paramValue = trimmedPair.Substring(equalIndex + 1).Trim();
+            
+            if (string.IsNullOrWhiteSpace(paramName))
+            {
+                throw new ArgumentException($"Parameter name cannot be empty in: {trimmedPair}");
+            }
+            
+            if (string.IsNullOrWhiteSpace(paramValue))
+            {
+                throw new ArgumentException($"Parameter value cannot be empty in: {trimmedPair}");
+            }
+            
+            // Convert value to appropriate type
+            object convertedValue = ConvertParameterValue(paramValue);
+            parameters[paramName] = convertedValue;
+        }
+        
+        return parameters;
+    }
+    
+    /// <summary>
+    /// Converts a parameter value string to the appropriate type
+    /// </summary>
+    /// <param name="value">The value string to convert</param>
+    /// <returns>The converted value</returns>
+    private object ConvertParameterValue(string value)
+    {
+        // Handle boolean values
+        if (value.Equals("true", StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (value.Equals("false", StringComparison.OrdinalIgnoreCase))
+            return false;
+            
+        // Handle numeric values
+        if (int.TryParse(value, out int intValue))
+            return intValue;
+        if (double.TryParse(value, out double doubleValue))
+            return doubleValue;
+            
+        // Handle string values (remove quotes if present)
+        if (value.StartsWith("\"") && value.EndsWith("\""))
+            return value.Substring(1, value.Length - 2);
+            
+        // Default to string
+        return value;
+    }
+    
+    /// <summary>
+    /// Converts a Dictionary<string, object> to a List<ParameterMapping>
+    /// </summary>
+    /// <param name="parameters">The parameters dictionary to convert</param>
+    /// <returns>List of ParameterMapping</returns>
+    private List<ParameterMapping> ConvertToParameterMappingList(Dictionary<string, object> parameters)
+    {
+        var parameterMappings = new List<ParameterMapping>();
+        foreach (var kvp in parameters)
+        {
+            parameterMappings.Add(new ParameterMapping(kvp.Key, kvp.Value?.ToString() ?? ""));
+        }
+        return parameterMappings;
+    }
+    
+    /// <summary>
+    /// Parses a MontiCore predicate grammar text file and registers all predicate instances in the blackboard
+    /// </summary>
+    /// <param name="filePath">Path to the MontiCore predicate grammar text file</param>
+    /// <param name="blackboard">The blackboard to register predicates in</param>
+    public void ParseAndRegisterMontiCorePredicateFile(string filePath, Blackboard<FastName> blackboard)
+    {
+        Console.WriteLine($"\n=== PARSING AND REGISTERING MONTICORE PREDICATE FILE ===");
+        
+        var instances = ParseMontiCorePredicateFile(filePath, blackboard);
+        
+        Console.WriteLine($"\n=== PREDICATE INSTANCES CREATED AND REGISTERED ===");
+        Console.WriteLine($"  ✅ Successfully created and registered: {instances.Count} predicates");
+        Console.WriteLine($"  📝 Note: Predicates are automatically registered by the factory");
     }
 
 

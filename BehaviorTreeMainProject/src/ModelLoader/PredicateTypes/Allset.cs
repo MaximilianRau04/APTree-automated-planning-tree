@@ -7,8 +7,9 @@ namespace ModelLoader.PredicateTypes
         public Layer lay { get; set; }
         public Module mod { get; set; }
 
-        public Allset(Layer lay, Module mod)
+        public Allset(Layer lay, Module mod, bool isNegated) : base(isNegated)
         {
+            PredicateName = new FastName("allset");
             this.lay = lay;
             this.mod = mod;
         }

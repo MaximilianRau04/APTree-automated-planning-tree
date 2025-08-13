@@ -1,0 +1,52 @@
+# Predicate instances in CRF format
+# Format: PredicateInstance: predicateName(parameterName = value, isNegated = false/true)
+
+# atplace predicates
+PredicateInstance: atplace(myObject = lp1, place = fp1, isNegated = false)
+PredicateInstance: atplace(myObject = tp1, place = fp5, isNegated = false)
+PredicateInstance: atplace(myObject = b1, place = fp2, isNegated = false)
+PredicateInstance: atplace(myObject = b2, place = fp3, isNegated = false)
+PredicateInstance: atplace(myObject = b3, place = fp4, isNegated = false)
+PredicateInstance: atplace(myObject = b4, place = fp6, isNegated = false)
+PredicateInstance: atplace(myObject = b5, place = fp7, isNegated = false)
+PredicateInstance: atplace(myObject = b6, place = fp8, isNegated = false)
+
+# positionfree predicates (using positionOnRail instances)
+PredicateInstance: positionfree(pos = pr1, isNegated = false)
+PredicateInstance: positionfree(pos = pr2, isNegated = false)
+PredicateInstance: positionfree(pos = pr3, isNegated = false)
+PredicateInstance: positionfree(pos = pr4, isNegated = false)
+
+# hasTool predicates
+PredicateInstance: hasTool(agent = r1, tool = vg1, isNegated = false)
+PredicateInstance: hasTool(agent = r1, tool = gg1, isNegated = false)
+PredicateInstance: hasTool(agent = r1, tool = ng1, isNegated = false)
+
+# empty predicates
+PredicateInstance: empty(client = r1, isNegated = false)
+
+# clear predicates
+PredicateInstance: clear(myObject = lp1, isNegated = false)
+PredicateInstance: clear(myObject = tp1, isNegated = false)
+PredicateInstance: clear(myObject = b1, isNegated = false)
+PredicateInstance: clear(myObject = b2, isNegated = false)
+PredicateInstance: clear(myObject = b3, isNegated = false)
+PredicateInstance: clear(myObject = b4, isNegated = false)
+PredicateInstance: clear(myObject = b5, isNegated = false)
+PredicateInstance: clear(myObject = b6, isNegated = false)
+
+# belongstolayer predicates
+PredicateInstance: belongstolayer(myObject = b1, lay = l1, isNegated = false)
+PredicateInstance: belongstolayer(myObject = b2, lay = l1, isNegated = false)
+PredicateInstance: belongstolayer(myObject = b3, lay = l1, isNegated = false)
+PredicateInstance: belongstolayer(myObject = b4, lay = l1, isNegated = false)
+PredicateInstance: belongstolayer(myObject = b5, lay = l1, isNegated = false)
+PredicateInstance: belongstolayer(myObject = b6, lay = l1, isNegated = false)
+
+# belongstomodule predicates
+PredicateInstance: belongstomodule(myObject = b1, mod = c1, isNegated = false)
+PredicateInstance: belongstomodule(myObject = b2, mod = c1, isNegated = false)
+PredicateInstance: belongstomodule(myObject = b3, mod = c1, isNegated = false)
+PredicateInstance: belongstomodule(myObject = b4, mod = c1, isNegated = false)
+PredicateInstance: belongstomodule(myObject = b5, mod = c1, isNegated = true)
+PredicateInstance: belongstomodule(myObject = b6, mod = c1, isNegated = true) 

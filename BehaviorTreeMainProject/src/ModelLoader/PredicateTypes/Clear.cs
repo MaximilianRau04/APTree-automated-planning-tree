@@ -6,8 +6,9 @@ namespace ModelLoader.PredicateTypes
     {
         public Element myObject { get; set; }
 
-        public Clear(Element myObject)
+        public Clear(Element myObject, bool isNegated) : base(isNegated)
         {
+            PredicateName = new FastName("clear");
             this.myObject = myObject;
         }
     }

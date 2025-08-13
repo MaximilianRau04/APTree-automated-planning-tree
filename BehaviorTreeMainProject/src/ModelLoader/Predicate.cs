@@ -31,9 +31,9 @@ public abstract class Predicate
     // Add this method to expose parameters
    // public abstract Dictionary<string, IThings> GetParameters();
 
-    public Predicate()
+    public Predicate(bool isNegated)
     {
-        // Default constructor
+        this.isNegated = isNegated;
     }
 
     public Dictionary<string, object> GetAllProperties()

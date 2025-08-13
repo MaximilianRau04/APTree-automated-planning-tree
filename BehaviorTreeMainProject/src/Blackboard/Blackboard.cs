@@ -27,8 +27,8 @@ public class Blackboard<T> : IDisposable where T : class
     Dictionary<FastName, Element>   ElementValues =    new ();
     Dictionary<FastName, Location>   LocationValues =    new ();
     Dictionary<FastName, Agent>   AgentValues =    new ();
-    Dictionary<FastName, HashSet<Predicate>> PredicateValues = new();
-    Dictionary<FastName, HashSet<Action>> ActionValues = new();
+    Dictionary<FastName, Predicate> PredicateValues = new();
+    Dictionary<FastName, BTActionNodeBase> ActionValues = new();
      Dictionary<FastName, State> StateValues = new();
    
     private readonly IDriver _driver;
@@ -116,11 +116,11 @@ public class Blackboard<T> : IDisposable where T : class
     }
 
     // Get methods for predicates
-    public HashSet<Predicate> GetPredicates(FastName key)
+    public Predicate GetPredicate(FastName key)
     {
         if (!PredicateValues.ContainsKey(key))
         {
-            throw new ArgumentException($"Could not find predicates for {key}");
+            throw new ArgumentException($"Could not find predicate for {key}");
         }
         return PredicateValues[key];
     }
@@ -325,84 +325,76 @@ public void SetActionType(FastName key, BTActionNodeBase actionType)
     // Set methods for predicates
     private void SetPredicateSecondary(FastName key, Predicate predicate)
     {
-        string newPredicateStr = FormatPredicate(predicate);
-        
-        if (!PredicateValues.ContainsKey(key))
-        {
-            PredicateValues[key] = new HashSet<Predicate>();
-        }
+        string newPredicateStr = BlackboardExtensions.FormatPredicate(predicate);
         
         // Check if identical predicate exists
-        if (!PredicateValues[key].Any(p => FormatPredicate(p) == newPredicateStr))
+        if (!PredicateValues.ContainsKey(key) || BlackboardExtensions.FormatPredicate(PredicateValues[key]) != newPredicateStr)
         {
-            PredicateValues[key].Add(predicate);
+            PredicateValues[key] = predicate;
         }
     }
     
 
     public bool HasSimilarPredicate(Predicate newPredicate)
     {
-        foreach (var predicateSet in PredicateValues.Values)
+        foreach (var existingPredicate in PredicateValues.Values)
         {
-            foreach (var existingPredicate in predicateSet)
+            // First check if predicates have the same name
+            if (existingPredicate.PredicateName == newPredicate.PredicateName)
             {
-                // First check if predicates have the same name
-                if (existingPredicate.PredicateName == newPredicate.PredicateName)
+                Console.WriteLine($"\nComparing predicates:");
+                Console.WriteLine($"New: {newPredicate.PredicateName}");
+                Console.WriteLine($"Existing: {existingPredicate.PredicateName}");
+                
+                // Get properties of both predicates
+                var existingParams = existingPredicate.GetAllProperties();
+                var newParams = newPredicate.GetAllProperties();
+                
+                // Check if all parameter names and values match exactly
+                bool allParamsMatch = true;
+                foreach (var param in newParams)
                 {
-                    Console.WriteLine($"\nComparing predicates:");
-                    Console.WriteLine($"New: {newPredicate.PredicateName}");
-                    Console.WriteLine($"Existing: {existingPredicate.PredicateName}");
-                    
-                    // Get properties of both predicates
-                    var existingParams = existingPredicate.GetAllProperties();
-                    var newParams = newPredicate.GetAllProperties();
-                    
-                    // Check if all parameter names and values match exactly
-                    bool allParamsMatch = true;
-                    foreach (var param in newParams)
+                    // Skip metadata properties
+                    if (param.Key == "PredicateName" || param.Key == "PredicateType" || param.Key == "isNegated")
+                        continue;
+
+                    // If parameter doesn't exist in existing predicate
+                    if (!existingParams.ContainsKey(param.Key))
                     {
-                        // Skip metadata properties
-                        if (param.Key == "PredicateName" || param.Key == "PredicateType" || param.Key == "isNegated")
-                            continue;
-
-                        // If parameter doesn't exist in existing predicate
-                        if (!existingParams.ContainsKey(param.Key))
-                        {
-                            Console.WriteLine($"Parameter {param.Key} not found in existing predicate");
-                            allParamsMatch = false;
-                            break;
-                        }
-
-                        // Compare the actual instance names
-                        var existingValue = existingParams[param.Key];
-                        var newValue = param.Value;
-
-                        Console.WriteLine($"\nComparing parameter {param.Key}:");
-                        Console.WriteLine($"Existing value: {existingValue}");
-                        Console.WriteLine($"New value: {newValue}");
-
-                        // Get the instance identifiers for comparison
-                        var existingId = existingValue?.GetType().GetProperty("InstanceId")?.GetValue(existingValue)?.ToString()
-                            ?? existingValue?.ToString();
-                        var newId = newValue?.GetType().GetProperty("InstanceId")?.GetValue(newValue)?.ToString()
-                            ?? newValue?.ToString();
-
-                        Console.WriteLine($"Existing ID: {existingId}");
-                        Console.WriteLine($"New ID: {newId}");
-
-                        if (existingId != newId)
-                        {
-                            Console.WriteLine("IDs don't match");
-                            allParamsMatch = false;
-                            break;
-                        }
+                        Console.WriteLine($"Parameter {param.Key} not found in existing predicate");
+                        allParamsMatch = false;
+                        break;
                     }
-                    
-                    if (allParamsMatch)
+
+                    // Compare the actual instance names
+                    var existingValue = existingParams[param.Key];
+                    var newValue = param.Value;
+
+                    Console.WriteLine($"\nComparing parameter {param.Key}:");
+                    Console.WriteLine($"Existing value: {existingValue}");
+                    Console.WriteLine($"New value: {newValue}");
+
+                    // Get the instance identifiers for comparison
+                    var existingId = existingValue?.GetType().GetProperty("InstanceId")?.GetValue(existingValue)?.ToString()
+                        ?? existingValue?.ToString();
+                    var newId = newValue?.GetType().GetProperty("InstanceId")?.GetValue(newValue)?.ToString()
+                        ?? newValue?.ToString();
+
+                    Console.WriteLine($"Existing ID: {existingId}");
+                    Console.WriteLine($"New ID: {newId}");
+
+                    if (existingId != newId)
                     {
-                        Console.WriteLine("Found similar predicate!");
-                        return true;
+                        Console.WriteLine("IDs don't match");
+                        allParamsMatch = false;
+                        break;
                     }
+                }
+                
+                if (allParamsMatch)
+                {
+                    Console.WriteLine("Found similar predicate!");
+                    return true;
                 }
             }
         }
@@ -418,10 +410,10 @@ public void SetActionType(FastName key, BTActionNodeBase actionType)
     // Use it before adding new predicates
     public async Task SetPredicate(FastName key, Predicate predicate)
     {
-        string newPredicateStr = FormatPredicate(predicate);
+        string newPredicateStr = BlackboardExtensions.FormatPredicate(predicate);
         
         // Check for identical predicate
-        if (PredicateValues.Values.Any(set => set.Any(p => FormatPredicate(p) == newPredicateStr)))
+        if (PredicateValues.Values.Any(p => BlackboardExtensions.FormatPredicate(p) == newPredicateStr))
         {
             Console.WriteLine($"Identical predicate already exists: {newPredicateStr}");
             return;
@@ -570,36 +562,5 @@ public void SetActionType(FastName key, BTActionNodeBase actionType)
         if (_driver == null)
             throw new InvalidOperationException("Neo4j driver not initialized");
         return _driver;
-    }
-
-    private string FormatPredicate(Predicate predicate)
-    {
-        var parameters = predicate.GetAllProperties()
-            .Where(p => p.Key != "PredicateName" && p.Key != "PredicateType" && p.Key != "isNegated")
-            .Select(p => {
-                var value = p.Value;
-                if (value is Element element)
-                {
-                    return element.NameKey.ToString();
-                }
-                else if (value is Layer layer)
-                {
-                    return layer.NameKey.ToString();
-                }
-                else if (value is Module module)
-                {
-                    return module.NameKey.ToString();
-                }
-                else if (value is Location location)
-                {
-                    return location.NameKey.ToString();
-                }
-                return value?.ToString() ?? "";
-            })
-            .ToList();
-
-        var result = $"{predicate.PredicateName}({string.Join(",", parameters)})";
-        Console.WriteLine($"Formatted predicate: {result}");
-        return result;
     }
 }

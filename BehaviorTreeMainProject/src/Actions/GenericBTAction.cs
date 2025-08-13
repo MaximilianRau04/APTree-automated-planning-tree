@@ -151,7 +151,22 @@ public abstract class GenericBTAction : BTActionNodeBase
         }
         
         // Create predicate using PredicateFactory
-        return FactoryPredicate.Instance.CreatePredicateInstance(template.PredicateName, predicateParams, blackboard);
+        return FactoryPredicate.Instance.CreatePredicateInstance(template.PredicateName, ConvertToParameterMappingList(predicateParams), blackboard);
+    }
+    
+    /// <summary>
+    /// Converts a Dictionary<string, string> to a List<ParameterMapping>
+    /// </summary>
+    /// <param name="parameters">The parameters dictionary to convert</param>
+    /// <returns>List of ParameterMapping</returns>
+    private List<ParameterMapping> ConvertToParameterMappingList(Dictionary<string, string> parameters)
+    {
+        var parameterMappings = new List<ParameterMapping>();
+        foreach (var kvp in parameters)
+        {
+            parameterMappings.Add(new ParameterMapping(kvp.Key, kvp.Value));
+        }
+        return parameterMappings;
     }
     
     // Helper method to get parameter value by name using reflection

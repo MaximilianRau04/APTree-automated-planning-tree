@@ -6,8 +6,9 @@ namespace ModelLoader.PredicateTypes
     {
         public Element myObject { get; set; }
 
-        public Stacked(Element myObject)
+        public Stacked(Element myObject, bool isNegated) : base(isNegated)
         {
+            PredicateName = new FastName("stacked");
             this.myObject = myObject;
         }
     }

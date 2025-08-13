@@ -7,8 +7,9 @@ namespace ModelLoader.PredicateTypes
         public Agent agent { get; set; }
         public Element myObject { get; set; }
 
-        public Holding(Agent agent, Element myObject)
+        public Holding(Agent agent, Element myObject, bool isNegated) : base(isNegated)
         {
+            PredicateName = new FastName("holding");
             this.agent = agent;
             this.myObject = myObject;
         }
