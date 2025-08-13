@@ -15,10 +15,11 @@ public class Blackboard<T> : IDisposable where T : class
     Dictionary<FastName, bool>          BoolValues =           new (); 
     Dictionary<FastName, string>        StringValues =         new ();
  
-    // registeredtypes
-    Dictionary<FastName, BTActionNodeBase> RegisteredActionTypeValues = new();
-    Dictionary<FastName, Entity> RegisteredEntityTypeValues = new();
-     Dictionary<FastName, Predicate> RegisteredPredicateTypeValues = new(); 
+    
+    // registered types as lists
+    List<FastName> AvailableEntityTypes = new();
+    List<FastName> AvailablePredicateTypes = new();
+    List<FastName> AvailableActionTypes = new(); 
      // registered instances
      Dictionary<FastName, Layer> LayerValues = new();
      Dictionary<FastName, Module> ModuleValues = new();
@@ -125,34 +126,9 @@ public class Blackboard<T> : IDisposable where T : class
     }
 
      // Update corresponding Get methods
-public Entity GetElementTypes(FastName key)
-{
-    if (!RegisteredEntityTypeValues.ContainsKey(key))
-    {
-        throw new ArgumentException($"Could not find element types for {key}");
-    }
-    return RegisteredEntityTypeValues[key];
-}
 
 
 
-public Predicate GetPredicateTypes(FastName key)
-{
-    if (!RegisteredPredicateTypeValues.ContainsKey(key))
-    {
-        throw new ArgumentException($"Could not find predicate types for {key}");
-    }
-    return RegisteredPredicateTypeValues[key];
-}
-
-public BTActionNodeBase GetActionTypes(FastName key)
-{
-    if (!RegisteredActionTypeValues.ContainsKey(key))
-    {
-        throw new ArgumentException($"Could not find action types for {key}");
-    }
-    return RegisteredActionTypeValues[key];
-}
 
 // Get methods
 
@@ -215,11 +191,104 @@ public BTActionNodeBase GetActionTypes(FastName key)
         throw new ArgumentException($"Type {elementType.GetType().Name} is not an Entity type");
     }
 
-    if (!RegisteredEntityTypeValues.ContainsKey(key))
+    if (!AvailableEntityTypes.Contains(key))
     {
-        RegisteredEntityTypeValues[key] = elementType;
+        AvailableEntityTypes.Add(key);
     }
-    RegisteredEntityTypeValues[key] = elementType;
+    AvailableEntityTypes.Add(key);
+}
+
+/// <summary>
+/// Registers an entity type
+/// </summary>
+/// <param name="typeName"></param>
+public void RegisterEntityType(FastName typeName)
+{
+    if (!AvailableEntityTypes.Contains(typeName))
+    {
+        AvailableEntityTypes.Add(typeName);
+    }
+}
+
+/// <summary>
+/// Checks if an entity type is available
+/// </summary>
+/// <param name="typeName"></param>
+/// <returns></returns>
+public bool HasEntityType(FastName typeName)
+{
+    return AvailableEntityTypes.Contains(typeName);
+}
+
+/// <summary>
+/// Gets all available entity types
+/// </summary>
+/// <returns></returns>
+public List<FastName> GetAllEntityTypes()
+{
+    return AvailableEntityTypes.ToList();
+}
+
+/// <summary>
+/// Registers a predicate type
+/// </summary>
+/// <param name="typeName"></param>
+public void RegisterPredicateType(FastName typeName)
+{
+    if (!AvailablePredicateTypes.Contains(typeName))
+    {
+        AvailablePredicateTypes.Add(typeName);
+    }
+}
+
+/// <summary>
+/// Checks if a predicate type is available
+/// </summary>
+/// <param name="typeName"></param>
+/// <returns></returns>
+public bool HasPredicateType(FastName typeName)
+{
+    return AvailablePredicateTypes.Contains(typeName);
+}
+
+/// <summary>
+/// Gets all available predicate types
+/// </summary>
+/// <returns></returns>
+public List<FastName> GetAllPredicateTypes()
+{
+    return AvailablePredicateTypes.ToList();
+}
+
+/// <summary>
+/// Registers an action type
+/// </summary>
+/// <param name="typeName"></param>
+public void RegisterActionType(FastName typeName)
+{
+    if (!AvailableActionTypes.Contains(typeName))
+    {
+        AvailableActionTypes.Add(typeName);
+    }
+}
+
+/// <summary>
+/// Checks if an action type is available
+/// </summary>
+/// <param name="typeName"></param>
+/// <returns></returns>
+public bool HasActionType(FastName typeName)
+{
+    return AvailableActionTypes.Contains(typeName);
+}
+
+/// <summary>
+/// Gets all available action types
+/// </summary>
+/// <returns></returns>
+public List<FastName> GetAllActionTypes()
+{
+    return AvailableActionTypes.ToList();
 }
 
 
@@ -231,11 +300,11 @@ public void SetPredicateType(FastName key, Predicate predicateType)
         throw new ArgumentException($"Type {predicateType.GetType().Name} is not a Predicate type");
     }
 
-    if (!RegisteredPredicateTypeValues.ContainsKey(key))
+    if (!AvailablePredicateTypes.Contains(key))
     {
-        RegisteredPredicateTypeValues[key] = predicateType;
+        AvailablePredicateTypes.Add(key);
     }
-    RegisteredPredicateTypeValues[key] = predicateType;
+    AvailablePredicateTypes.Add(key);
 }
 
 // Action type methods
@@ -246,11 +315,11 @@ public void SetActionType(FastName key, BTActionNodeBase actionType)
         throw new ArgumentException($"Type {actionType.GetType().Name} is not an Action type");
     }
 
-    if (!RegisteredActionTypeValues.ContainsKey(key))
+    if (!AvailableActionTypes.Contains(key))
     {
-        RegisteredActionTypeValues[key] = actionType;
+        AvailableActionTypes.Add(key);
     }
-    RegisteredActionTypeValues[key] = actionType;
+    AvailableActionTypes.Add(key);
 }
 
     // Set methods for predicates

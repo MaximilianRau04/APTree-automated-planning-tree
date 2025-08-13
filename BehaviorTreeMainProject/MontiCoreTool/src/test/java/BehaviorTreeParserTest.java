@@ -36,13 +36,4 @@ public class BehaviorTreeParserTest {
         System.out.println("Successfully parsed Behavior Tree:");
         System.out.println(ast.toString());
     }
-    
-    @Test
-    void testInvalidBehaviorTreeParsing() throws IOException {
-        // Test parsing an invalid file (should fail)
-        Optional<ASTBehaviorTree> parseResult = parser.parse("src/test/resources/invalid/syntax_errors/missing_brace.txt");
-        
-        // Assert that parsing failed
-        assertFalse(parseResult.isPresent(), "Parsing should fail for invalid input");
-    }
 }

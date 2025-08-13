@@ -1,6 +1,6 @@
 grammar CRF extends BehaviorTree {
 // Root rule that allows multiple predicates, parameter types, parameter instances, predicate instances, and actions
-AllowedType = (PredicateTypeDef | ParameterTypeDef | ParameterInstanceDef | PredicateInstanceDef | Action)*;
+AllowedType = (PredicateTypeDef | ParameterTypeDef | ParameterInstanceDef | PredicateInstanceDef | Action | ActionInstance)*;
 
 // Parameter type definition with inheritance and properties
 ParameterTypeDef = "Parameter" Name ":" BasicType "{" (ParameterPropertyList)? "}";
@@ -18,7 +18,8 @@ Value = Name | INTEGER_VALUE | DOUBLE_VALUE | STRING_VALUE | "true" | "false";
 
 // Basic types for parameters - using named alternatives
 BasicType = element:"Element" | agent:"Agent" | location:"Location" | layer:"Layer" 
-    | module:"Module" | tool:"Tool" | string:"String" | double:"Double" | integer:"Integer" | boolean:"Boolean";    
+    | module:"Module" | tool:"Tool" | string:"String" | double:"Double" | integer:"Integer" | boolean:"Boolean"
+    | list:"List" "<" BasicType ">" | set:"Set" "<" BasicType ">" | map:"Map" "<" BasicType "," BasicType ">";    
 
 // Extend BTNodeBase to include CRF-specific components
 BTNodeBase = 
@@ -42,14 +43,13 @@ InitialState = "initial" State;
 GoalState = "goal" State;
 
 // ActionInstance definition - references action types
-ActionInstance = BTActionNode ActionTypeName "(" (ActionArgument ("," ActionArgument)*)? ")";    
+ActionInstance = "ActionInstance" ":" ActionTypeName "(" (ActionArgument ("," ActionArgument)*)? ")";    
 ActionTypeName = Name;  
-ActionArgument = Name "=" ParameterName;   
+ActionArgument = BasicType "=" ParameterName;   
 ParameterName = Name;  
        
 // Action type definition
 Action = "Action" Name "{"
-    NameBlock
     ActionParametersBlock
     PreconditionBlock
     EffectBlock
@@ -69,15 +69,15 @@ ImplementationBlock = "implementation" "{" FunctionReference "}";
 FunctionReference = Name; 
 
 // Predicate type definition
-PredicateTypeDef = "predicate" Name "{" (ParameterDeclaration ("," ParameterDeclaration)*)? "}";    
+PredicateTypeDef = "predicate" Name "{" (ParameterDeclaration (("," ParameterDeclaration)*)?)? "}";
 
 // Predicate instance definition (standalone)
-PredicateInstanceDef = "PredicateInstance" ":" Name "(" (PredicateArgument ("," PredicateArgument)*)? ")";   
+PredicateInstanceDef = "PredicateInstance" ":" Name "(" (PredicateArgument ("," PredicateArgument)*)? "," "isNegated" "=" PredicateValue ")";   
 // Predicate instance (for use within actions)
-PredicateInstance = Name "(" (PredicateArgument ("," PredicateArgument)*)? ")";   
+PredicateInstance = Name "(" (PredicateArgument ("," PredicateArgument)*)? "," "isNegated" "=" PredicateValue ")";   
 PredicateArgument = value: PredicateValue "=" name: Name;
 // Possible predicate values
-PredicateValue = Name | AttributeAccess;
+PredicateValue = Name | AttributeAccess | "true" | "false";
 // Attribute access with dot notation
 AttributeAccess = Name "." Name;
 }  

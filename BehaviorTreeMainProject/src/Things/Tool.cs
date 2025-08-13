@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 public abstract class Tool : Entity
 {
@@ -19,5 +20,12 @@ public abstract class Tool : Entity
     {
         BaseType = new FastName("Tool");
         TypeName = new FastName("Tool");
+    }
+
+    // Implement the abstract SetParameters method
+    public override void SetParameters(Dictionary<string, object> parameters)
+    {
+        // Tool base class doesn't have specific parameters to set
+        // Derived classes will override this method to set their specific properties
     }
 }

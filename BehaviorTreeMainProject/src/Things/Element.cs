@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 
-public abstract class Element : Entity  {
+public abstract class Element : Entity
+{
     public FastName NameKey { get; set; }
     public DateTime LastModified { get; set; }
     public string ID { get; set; }
@@ -19,5 +21,11 @@ public abstract class Element : Entity  {
     {
         BaseType = new FastName("Element");
         TypeName = new FastName("Element");
+    }
+    
+     public override void SetParameters(Dictionary<string, object> parameters)
+    {
+        // Location base class doesn't have specific parameters to set
+        // Derived classes will override this method to set their specific properties
     }
 }

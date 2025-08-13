@@ -1,10 +1,11 @@
 using System;
+using System.Collections.Generic;
 
 public abstract class Entity 
 {
    public FastName NameKey { get;  set; }
    public DateTime LastModified { get;  set; }
-   public string ID { get;  set; }
+   public string ID { get; set; }
    public FastName TypeName { get; set; }
    public abstract FastName BaseType { get; set; }
 
@@ -22,4 +23,10 @@ public abstract class Entity
        NameKey = new FastName(name);
        ID = name;
    }
+
+   /// <summary>
+   /// Abstract method to set parameter values from a dictionary
+   /// </summary>
+   /// <param name="parameters">Dictionary of parameter names and their values</param>
+   public abstract void SetParameters(Dictionary<string, object> parameters);
 }

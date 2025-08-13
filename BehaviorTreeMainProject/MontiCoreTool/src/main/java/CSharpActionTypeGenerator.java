@@ -32,6 +32,9 @@ public class CSharpActionTypeGenerator {
     }
     
     public static void generateCSharpClasses(ASTAllowedType ast) throws IOException {
+        // Clean the output directory first
+        cleanOutputDirectory();
+        
         // Ensure output directory exists
         Files.createDirectories(Paths.get(OUTPUT_DIR));
         
@@ -49,6 +52,24 @@ public class CSharpActionTypeGenerator {
         }
     }
     
+    private static void cleanOutputDirectory() throws IOException {
+        Path outputPath = Paths.get(OUTPUT_DIR);
+        
+        if (Files.exists(outputPath)) {
+            System.out.println("Cleaning output directory: " + OUTPUT_DIR);
+            
+            // Delete all .cs files in the directory
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(outputPath, "*.cs")) {
+                for (Path file : stream) {
+                    Files.delete(file);
+                    System.out.println("Deleted: " + file.getFileName());
+                }
+            }
+        } else {
+            System.out.println("Output directory does not exist, will be created: " + OUTPUT_DIR);
+        }
+    }
+    
     public static void generateActionTypeClass(ASTAction action) throws IOException {
         String className = capitalizeFirst(action.getName());
         String fileName = className + ".cs";
@@ -58,21 +79,39 @@ public class CSharpActionTypeGenerator {
             // Generate the C# class
             writer.println("using System;");
             writer.println("using System.Collections.Generic;");
+            writer.println("using ModelLoader.ParameterTypes;");
             writer.println();
-            writer.println("namespace ModelLoader.ActionTypes");
+            writer.println("namespace BehaviorTreeMainProject");
             writer.println("{");
             writer.println("    public class " + className + " : GenericBTAction");
             writer.println("    {");
             
+            // Generate parameter properties
+            generateParameterProperties(writer, action);
+            
             // Generate predicate templates
             generatePredicateTemplates(writer, action, className);
             
-            // Generate constructor with automatic predicate instantiation
-                         writer.print("        public " + className + "(string actionType, string instanceName, Blackboard blackboard, List<Parameter> parameters, object[] parameterValues");
+            // Generate constructor with all properties as parameters
+            writer.print("        public " + className + "(string actionType, string instanceName, Blackboard<FastName> blackboard");
+            if (action.getActionParametersBlock() != null && action.getActionParametersBlock().getParameterInstanceList() != null) {
+                for (ASTParameterInstance param : action.getActionParametersBlock().getParameterInstanceList()) {
+                    String paramName = param.getName(0);
+                    String paramTypeName = param.getName(1);
+                    String csharpType = getBasicTypeFromName(paramTypeName);
+                    writer.print(", " + csharpType + " " + paramName);
+                }
+            }
             writer.println(")");
-            writer.println("            : base(actionType, instanceName, blackboard, parameters, parameterValues)");
+            writer.println("            : base(actionType, instanceName, blackboard)");
             writer.println("        {");
-            writer.println("            // Parameters and predicates are handled by the base class");
+            // Set all properties directly
+            if (action.getActionParametersBlock() != null && action.getActionParametersBlock().getParameterInstanceList() != null) {
+                for (ASTParameterInstance param : action.getActionParametersBlock().getParameterInstanceList()) {
+                    String paramName = param.getName(0);
+                    writer.println("            this." + paramName + " = " + paramName + ";");
+                }
+            }
             writer.println("        }");
             writer.println();
             
@@ -80,13 +119,13 @@ public class CSharpActionTypeGenerator {
             writer.println("        protected override bool OnTick_NodeLogic(float InDeltaTime)");
             writer.println("        {");
             writer.println("            // TODO: Implement action logic for " + className);
-            writer.println("            // Access parameters via: parameterValues[index] or parameters[index]");
+            writer.println("            // Access parameters via properties: obj, rob, loc, tool, etc.");
             writer.println("            return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);");
             writer.println("        }");
             writer.println("    }");
             writer.println("}");
             
-                         System.out.println("Generated: " + fileName);
+            System.out.println("Generated: " + fileName);
         }
     }
     
@@ -95,6 +134,35 @@ public class CSharpActionTypeGenerator {
             return str;
         }
         return str.substring(0, 1).toUpperCase() + str.substring(1);
+    }
+    
+    private static void generateParameterProperties(PrintWriter writer, ASTAction action) throws IOException {
+        if (action.getActionParametersBlock() != null && action.getActionParametersBlock().getParameterInstanceList() != null) {
+            for (ASTParameterInstance param : action.getActionParametersBlock().getParameterInstanceList()) {
+                String paramName = param.getName(0);
+                String paramTypeName = param.getName(1);
+                String csharpType = getBasicTypeFromName(paramTypeName);
+                
+                writer.println("        // Parameter: " + paramName + " of type " + paramTypeName);
+                writer.println("        public " + csharpType + " " + paramName + " { get; private set; }");
+                writer.println();
+            }
+        }
+    }
+    
+    private static void initializeParameterProperties(PrintWriter writer, ASTAction action) throws IOException {
+        if (action.getActionParametersBlock() != null && action.getActionParametersBlock().getParameterInstanceList() != null) {
+            int paramIndex = 0;
+            for (ASTParameterInstance param : action.getActionParametersBlock().getParameterInstanceList()) {
+                String paramName = param.getName(0);
+                String paramTypeName = param.getName(1);
+                String csharpType = getBasicTypeFromName(paramTypeName);
+                
+                writer.println("            // Initialize " + paramName + " parameter");
+                writer.println("            " + paramName + " = (" + csharpType + ")parameterValues[" + paramIndex + "];");
+                paramIndex++;
+            }
+        }
     }
     
     private static String getParameterTypeFromReference(String paramTypeRef, ASTAction action) {
@@ -126,30 +194,13 @@ public class CSharpActionTypeGenerator {
     }
     
     private static String getBasicTypeFromName(String typeName) {
-        switch (typeName.toLowerCase()) {
-            case "element":
-                return "Element";
-            case "agent":
-                return "Agent";
-            case "location":
-                return "Location";
-            case "layer":
-                return "Layer";
-            case "module":
-                return "Module";
-            case "tool":
-                return "Tool";
-            case "string":
-                return "string";
-            case "double":
-                return "double";
-            case "integer":
-                return "int";
-            case "boolean":
-                return "bool";
-            default:
-                return "string"; // Default fallback
+        // Return the original type name as-is, but capitalize it for C# convention
+        if (typeName == null || typeName.isEmpty()) {
+            return "string";
         }
+        
+        // Capitalize the first letter for C# class naming convention
+        return typeName.substring(0, 1).toUpperCase() + typeName.substring(1);
     }
     
     private static String getBasicTypeName(Object basicType) {
@@ -252,15 +303,14 @@ public class CSharpActionTypeGenerator {
                         String predicateParamName = argument.getName();
                         System.out.println("Debug: Predicate param name: " + predicateParamName);
                         
-                                                 // For now, just use the predicate parameter name as the action parameter name
-                         // This avoids the Monticore AST issues entirely
-                         String actionParamName = predicateParamName;
-                         System.out.println("Debug: Using predicate param name as action param name: " + actionParamName);
+                        // Map predicate parameter names to action parameter names
+                        String actionParamName = mapPredicateParamToActionParam(predicateParamName, action);
+                        System.out.println("Debug: Mapped to action param name: " + actionParamName);
                         
                         String paramType = getParameterTypeFromReference(actionParamName, action);
                         System.out.println("Debug: Parameter type: " + paramType);
                         
-                        writer.println("                new PredicateParameterMapping(\"" + actionParamName + "\", \"" + predicateParamName + "\", \"" + paramType + "\"),");
+                        writer.println("                new PredicateParameterMapping(\"" + predicateParamName + "\", \"" + actionParamName + "\", \"" + paramType + "\"),");
                     } catch (Exception e) {
                         System.out.println("Debug: Error processing argument: " + e.getMessage());
                         // Continue with next argument
@@ -276,6 +326,84 @@ public class CSharpActionTypeGenerator {
             e.printStackTrace();
             // Write a minimal template to avoid breaking the generation
             writer.println("            new ActionPredicateTemplate(\"unknown\", new List<PredicateParameterMapping>()),");
+        }
+    }
+    
+    private static String mapPredicateParamToActionParam(String predicateParamName, ASTAction action) {
+        // Get the action parameter names
+        java.util.List<String> actionParamNames = new java.util.ArrayList<>();
+        if (action.getActionParametersBlock() != null && action.getActionParametersBlock().getParameterInstanceList() != null) {
+            for (ASTParameterInstance param : action.getActionParametersBlock().getParameterInstanceList()) {
+                actionParamNames.add(param.getName(0));
+            }
+        }
+        
+        System.out.println("Debug: Available action parameters: " + actionParamNames);
+        System.out.println("Debug: Looking for predicate parameter: " + predicateParamName);
+        
+        // Map predicate parameter names to action parameter names based on semantic meaning
+        switch (predicateParamName.toLowerCase()) {
+            case "myobject":
+            case "object":
+                // Look for object-related parameters in action
+                for (String actionParam : actionParamNames) {
+                    if (actionParam.toLowerCase().contains("obj") || actionParam.toLowerCase().contains("object")) {
+                        return actionParam;
+                    }
+                }
+                // Default fallback
+                return actionParamNames.size() > 0 ? actionParamNames.get(0) : predicateParamName;
+                
+            case "agent":
+                // Look for agent-related parameters in action
+                for (String actionParam : actionParamNames) {
+                    if (actionParam.toLowerCase().contains("rob") || actionParam.toLowerCase().contains("agent")) {
+                        return actionParam;
+                    }
+                }
+                // Default fallback
+                return actionParamNames.size() > 1 ? actionParamNames.get(1) : predicateParamName;
+                
+            case "location":
+            case "loc":
+                // Look for location-related parameters in action
+                for (String actionParam : actionParamNames) {
+                    if (actionParam.toLowerCase().contains("loc") || actionParam.toLowerCase().contains("location")) {
+                        return actionParam;
+                    }
+                }
+                // Default fallback
+                return actionParamNames.size() > 2 ? actionParamNames.get(2) : predicateParamName;
+                
+            case "tool":
+                // Look for tool-related parameters in action
+                for (String actionParam : actionParamNames) {
+                    if (actionParam.toLowerCase().contains("tool")) {
+                        return actionParam;
+                    }
+                }
+                // Default fallback
+                return actionParamNames.size() > 3 ? actionParamNames.get(3) : predicateParamName;
+                
+            default:
+                // Try exact match first
+                for (String actionParam : actionParamNames) {
+                    if (actionParam.equalsIgnoreCase(predicateParamName)) {
+                        return actionParam;
+                    }
+                }
+                
+                // Try partial match
+                for (String actionParam : actionParamNames) {
+                    if (actionParam.toLowerCase().contains(predicateParamName.toLowerCase()) || 
+                        predicateParamName.toLowerCase().contains(actionParam.toLowerCase())) {
+                        return actionParam;
+                    }
+                }
+                
+                // If no match found, return the predicate parameter name as fallback
+                System.out.println("Debug: No mapping found for predicate parameter '" + predicateParamName + "', using as-is");
+                return predicateParamName;
         }
     }
 }

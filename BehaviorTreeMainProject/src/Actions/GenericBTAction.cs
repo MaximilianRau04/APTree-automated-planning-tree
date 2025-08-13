@@ -7,11 +7,10 @@ using System.Collections.Generic;
 public abstract class GenericBTAction : BTActionNodeBase
 {
     private readonly FastName actionType;  
-    private readonly object[] parameterValues;
-    private readonly List<Parameter> parameters;
-    private readonly State preconditions;
-    private readonly State effects;
-    private string debugDisplayName;
+    private State preconditions;
+    private State effects;
+    private readonly Blackboard<FastName> blackboard;
+
     
     // Predicate templates for automatic instantiation
     protected abstract List<ActionPredicateTemplate> PreconditionTemplates { get; }
@@ -24,51 +23,87 @@ public abstract class GenericBTAction : BTActionNodeBase
     }
 
     public GenericBTAction(
-        string actionType,
         string instanceName,
         Blackboard<FastName> blackboard,
         State preconditions,
-        State effects,
-        List<Parameter> parameters,
-        object[] parameterValues
+        State effects
     ) : base(blackboard, instanceName)
     {
-        this.parameters = parameters;
-        this.parameterValues = parameterValues;
+        this.blackboard = blackboard;
         this.preconditions = preconditions;
         this.effects = effects;
-
-        // Set debug name based on action type and parameters
-        var paramNames = parameterValues.Select(p => p.ToString()).ToList();
-        this.DebugDisplayName = $"{instanceName} ({actionType} {string.Join(" ", paramNames)})";
     }
 
     // Constructor with automatic predicate instantiation
     public GenericBTAction(
         string actionType,
         string instanceName,
-        Blackboard<FastName> blackboard,
-        List<Parameter> parameters,
-        object[] parameterValues
+        Blackboard<FastName> blackboard
     ) : base(blackboard, instanceName)
     {
-        this.parameters = parameters;
-        this.parameterValues = parameterValues;
+        this.actionType = new FastName(actionType);
+        this.blackboard = blackboard;
         
-        // Automatically instantiate preconditions and effects
-        this.preconditions = InstantiatePredicates(PreconditionTemplates, StateType.Precondition, actionType);
-        this.effects = InstantiatePredicates(EffectTemplates, StateType.Effect, actionType);
-
-        // Set debug name based on action type and parameters
-        var paramNames = parameterValues.Select(p => p.ToString()).ToList();
-        this.DebugDisplayName = $"{instanceName} ({actionType} {string.Join(" ", paramNames)})";
+        // Note: Predicates will be instantiated after properties are set
+        // This is done in StorePredicatesInBlackboard() called by FactoryAction
     }
+
+
     public void applyEffects()
     {
         // foreach (var effect in effects)
         // {
         //     blackboard.SetValue(effect.Key, effect.Value);
         // }
+    }
+
+    // Store all predicates (preconditions and effects) in the blackboard
+    public void StorePredicatesInBlackboard()
+    {
+        try
+        {
+            // Instantiate predicates if they haven't been instantiated yet
+            if (preconditions == null)
+            {
+                this.preconditions = InstantiatePredicates(PreconditionTemplates, StateType.Precondition, actionType.ToString());
+            }
+            if (effects == null)
+            {
+                this.effects = InstantiatePredicates(EffectTemplates, StateType.Effect, actionType.ToString());
+            }
+
+            // Store precondition predicates
+            if (preconditions != null)
+            {
+                foreach (var objectKey in preconditions.GetAllObjects())
+                {
+                    var predicates = preconditions.GetPredicates(objectKey);
+                    foreach (var predicate in predicates)
+                    {
+                        blackboard.SetPredicate(predicate.PredicateName, predicate);
+                        Console.WriteLine($"Stored precondition predicate: {predicate.PredicateName}");
+                    }
+                }
+            }
+
+            // Store effect predicates
+            if (effects != null)
+            {
+                foreach (var objectKey in effects.GetAllObjects())
+                {
+                    var predicates = effects.GetPredicates(objectKey);
+                    foreach (var predicate in predicates)
+                    {
+                        blackboard.SetPredicate(predicate.PredicateName, predicate);
+                        Console.WriteLine($"Stored effect predicate: {predicate.PredicateName}");
+                    }
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Warning: Failed to store predicates in blackboard: {e.Message}");
+        }
     }
 
 
@@ -101,21 +136,35 @@ public abstract class GenericBTAction : BTActionNodeBase
     // Helper method to instantiate a single predicate
     private Predicate InstantiatePredicate(ActionPredicateTemplate template)
     {
-        var predicateParams = new Dictionary<string, object>();
+        var predicateParams = new Dictionary<string, string>();
         
         foreach (var mapping in template.ParameterMappings)
         {
-            // Find the parameter value by name
-            var paramIndex = parameters.FindIndex(p => p.Name.ToString() == mapping.ActionParameterName);
-            if (paramIndex == -1)
+            // Get the parameter value from the action's parameter properties
+            object parameterValue = GetParameterValue(mapping.ActionParameterName);
+            if (parameterValue == null)
             {
                 throw new ArgumentException($"Action parameter '{mapping.ActionParameterName}' not found for predicate '{template.PredicateName}'");
             }
             
-            predicateParams[mapping.PredicateParameterName] = parameterValues[paramIndex];
+            predicateParams[mapping.PredicateParameterName] = parameterValue.ToString();
         }
         
         // Create predicate using PredicateFactory
         return FactoryPredicate.Instance.CreatePredicateInstance(template.PredicateName, predicateParams, blackboard);
+    }
+    
+    // Helper method to get parameter value by name using reflection
+    private object GetParameterValue(string parameterName)
+    {
+        // Use reflection to get the property value by name
+        var property = this.GetType().GetProperty(parameterName);
+        if (property != null)
+        {
+            return property.GetValue(this);
+        }
+        
+        // If property not found, return null (will be handled by caller)
+        return null;
     }
 }

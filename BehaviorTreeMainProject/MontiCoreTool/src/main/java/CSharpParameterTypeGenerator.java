@@ -33,6 +33,9 @@ public class CSharpParameterTypeGenerator {
     }
     
     public static void generateCSharpClasses(ASTAllowedType ast) throws IOException {
+        // Clean the output directory first
+        cleanOutputDirectory();
+        
         // Ensure output directory exists
         Files.createDirectories(Paths.get(OUTPUT_DIR));
         
@@ -40,6 +43,24 @@ public class CSharpParameterTypeGenerator {
             for (ASTParameterTypeDef parameterType : ast.getParameterTypeDefList()) {
                 generateParameterTypeClass(parameterType);
             }
+        }
+    }
+    
+    private static void cleanOutputDirectory() throws IOException {
+        Path outputPath = Paths.get(OUTPUT_DIR);
+        
+        if (Files.exists(outputPath)) {
+            System.out.println("Cleaning output directory: " + OUTPUT_DIR);
+            
+            // Delete all .cs files in the directory
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(outputPath, "*.cs")) {
+                for (Path file : stream) {
+                    Files.delete(file);
+                    System.out.println("Deleted: " + file.getFileName());
+                }
+            }
+        } else {
+            System.out.println("Output directory does not exist, will be created: " + OUTPUT_DIR);
         }
     }
     
@@ -51,6 +72,7 @@ public class CSharpParameterTypeGenerator {
         try (PrintWriter writer = new PrintWriter(new FileWriter(filePath))) {
             // Generate the C# class
             writer.println("using System;");
+            writer.println("using System.Collections.Generic;");
             writer.println();
             writer.println("namespace ModelLoader.ParameterTypes");
             writer.println("{");
@@ -141,6 +163,9 @@ public class CSharpParameterTypeGenerator {
                 }
             }
             
+            // Generate SetParameters method
+            generateSetParametersMethod(writer, parameterType);
+            
             writer.println("    }");
             writer.println("}");
             
@@ -226,5 +251,50 @@ public class CSharpParameterTypeGenerator {
             default:
                 return "Entity"; // For primitive types, inherit directly from Entity
         }
+    }
+    
+    private static void generateSetParametersMethod(PrintWriter writer, ASTParameterTypeDef parameterType) throws IOException {
+        writer.println();
+        writer.println("        // Override SetParameters to set " + capitalizeFirst(parameterType.getName()) + "-specific properties");
+        writer.println("        public override void SetParameters(Dictionary<string, object> parameters)");
+        writer.println("        {");
+        writer.println("            // Call base implementation first");
+        writer.println("            base.SetParameters(parameters);");
+        writer.println();
+        
+        if (parameterType.isPresentParameterPropertyList()) {
+            ASTParameterPropertyList propertyList = parameterType.getParameterPropertyList();
+            for (ASTParameterProperty property : propertyList.getParameterPropertyList()) {
+                String propertyName = property.getName();
+                String propertyType = getBasicTypeName(property.getBasicType());
+                String capitalizedPropertyName = capitalizeFirst(propertyName);
+                
+                writer.println("            // Set " + capitalizedPropertyName + " property");
+                writer.println("            if (parameters.ContainsKey(\"" + propertyName + "\"))");
+                writer.println("            {");
+                
+                // Handle different property types
+                if (propertyType.equals("string")) {
+                    writer.println("                " + capitalizedPropertyName + " = parameters[\"" + propertyName + "\"].ToString();");
+                } else if (propertyType.equals("int")) {
+                    writer.println("                " + capitalizedPropertyName + " = Convert.ToInt32(parameters[\"" + propertyName + "\"]);");
+                } else if (propertyType.equals("double")) {
+                    writer.println("                " + capitalizedPropertyName + " = Convert.ToDouble(parameters[\"" + propertyName + "\"]);");
+                } else if (propertyType.equals("bool") || propertyType.equals("Boolean")) {
+                    writer.println("                " + capitalizedPropertyName + " = Convert.ToBoolean(parameters[\"" + propertyName + "\"]);");
+                } else {
+                    // For complex types, try to cast
+                    writer.println("                if (parameters[\"" + propertyName + "\"] is " + propertyType + " " + propertyName + "Value)");
+                    writer.println("                {");
+                    writer.println("                    " + capitalizedPropertyName + " = " + propertyName + "Value;");
+                    writer.println("                }");
+                }
+                
+                writer.println("            }");
+                writer.println();
+            }
+        }
+        
+        writer.println("        }");
     }
 }

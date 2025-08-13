@@ -1,0 +1,46 @@
+grammar DynamicBTFlowNode extends CRF {
+
+    // Dynamic BTflow node definition - separate production to avoid conflicts
+    DynamicBTFlowNode = "BTFlownode" Name "{"
+                    ParametersBlock
+                    PreconditionBlock
+                    EffectBlock
+                    CostDefinition
+                    SuccessDefinition
+                    NodeGraphDefinition
+                "}";
+
+    CostDefinition = "cost:" INTEGER_VALUE ";"; 
+    SuccessDefinition = "success:" SuccessType ";";
+    SuccessType = "ALL" | "ANY" | "COUNT" | "PERCENTAGE" | "SIGNAL";  
+
+    // NodeGraph definition
+    NodeGraphDefinition = "Nodegraph" "{"
+                    NodesDefinition
+                    RelationsDefinition
+                    PlannerDefinition
+                "}";                     
+
+    NodesDefinition = (NodeDefinition)*;
+    RelationsDefinition = (RelationDefinition)*;
+
+    NodeDefinition = "BTNodeBase" Name "{" (Parameter ("," Parameter)*)? "}";
+    
+    RelationDefinition = SourceNode "->" TargetNode "{"
+                    PriorityDefinition
+                    TemporalDefinition 
+                "}";
+    
+    SourceNode = Name;
+    TargetNode = Name;
+    
+    PriorityDefinition = "priority:" "Order" "=" BOOLEAN_VALUE ",";
+    TemporalDefinition = "temporal:" TemporalType;
+    TemporalType = "MEETS" | "BEFORE" | "AFTER" | "OVERLAPS" | "DURING";
+    
+    PlannerDefinition = "planner" "{" PlannerTypeDefinition "}";
+    PlannerTypeDefinition = "type" "=" PlannerType;
+    PlannerType = "GOAPPlanner" | "FSMPlanner" | "PDDLPlanner" | "ManualPlanner";
+
+
+}

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace ModelLoader.ParameterTypes
 {
@@ -28,6 +29,26 @@ namespace ModelLoader.ParameterTypes
             this.Material = material;
             BaseType = new FastName("Element");
             // TypeName is automatically set in base constructor
+        }
+
+        // Override SetParameters to set Plate-specific properties
+        public override void SetParameters(Dictionary<string, object> parameters)
+        {
+            // Call base implementation first
+            base.SetParameters(parameters);
+
+            // Set Thickness property
+            if (parameters.ContainsKey("thickness"))
+            {
+                Thickness = Convert.ToDouble(parameters["thickness"]);
+            }
+
+            // Set Material property
+            if (parameters.ContainsKey("material"))
+            {
+                Material = parameters["material"].ToString();
+            }
+
         }
     }
 }

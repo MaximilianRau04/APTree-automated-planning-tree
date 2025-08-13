@@ -4,10 +4,10 @@ namespace ModelLoader.PredicateTypes
 {
     public class AtAgent : Predicate
     {
-        public String agent { get; set; }
-        public String location { get; set; }
+        public Agent agent { get; set; }
+        public Location location { get; set; }
 
-        public AtAgent(String agent, String location)
+        public AtAgent(Agent agent, Location location)
         {
             this.agent = agent;
             this.location = location;

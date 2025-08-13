@@ -26,7 +26,10 @@ public class BlackboardWriter
         this.actionFactory = FactoryAction.Instance;
         this.predicateFactory = FactoryPredicate.Instance;
     }
-
+/// <summary>
+/// Registers all input parameter instances from the parameter_instances.txt file into the blackboard
+/// </summary>
+/// <returns></returns>
         public List<Entity> registerInputParameterInstances()
     {
         List<Entity> inputInstances = new List<Entity>();
@@ -97,19 +100,9 @@ public class BlackboardWriter
                     
                     try
                     {
-                        // Load the type using reflection
-                        Type parameterType = Type.GetType($"ModelLoader.ParameterTypes.{fileName}, BehaviorTreeMainProject");
-                        
-                        if (parameterType != null && typeof(Entity).IsAssignableFrom(parameterType))
-                        {
-                            // Register the type in the blackboard
-                            blackboard.SetEntityType(new FastName(fileName), parameterType);
-                            Console.WriteLine($"Registered parameter type: {fileName}");
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Warning: Could not load or validate type {fileName}");
-                        }
+                        // Register the entity type
+                        blackboard.RegisterEntityType(new FastName(fileName));
+                        Console.WriteLine($"Registered entity type: {fileName}");
                     }
                     catch (Exception ex)
                     {
@@ -154,19 +147,9 @@ public class BlackboardWriter
                     
                     try
                     {
-                        // Load the type using reflection
-                        Type predicateType = Type.GetType($"ModelLoader.PredicateTypes.{fileName}, BehaviorTreeMainProject");
-                        
-                        if (predicateType != null && typeof(Predicate).IsAssignableFrom(predicateType))
-                        {
-                            // Register the type in the blackboard
-                            blackboard.SetPredicateType(new FastName(fileName), predicateType);
-                            Console.WriteLine($"Registered predicate type: {fileName}");
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Warning: Could not load or validate type {fileName}");
-                        }
+                        // Register the predicate type
+                        blackboard.RegisterPredicateType(new FastName(fileName));
+                        Console.WriteLine($"Registered predicate type: {fileName}");
                     }
                     catch (Exception ex)
                     {
@@ -211,19 +194,9 @@ public class BlackboardWriter
                     
                     try
                     {
-                        // Load the type using reflection
-                        Type actionType = Type.GetType($"ModelLoader.ActionTypes.{fileName}, BehaviorTreeMainProject");
-                        
-                        if (actionType != null && typeof(Action).IsAssignableFrom(actionType))
-                        {
-                            // Register the type in the blackboard
-                            blackboard.SetActionType(new FastName(fileName), actionType);
-                            Console.WriteLine($"Registered action type: {fileName}");
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Warning: Could not load or validate type {fileName}");
-                        }
+                        // Register the action type
+                        blackboard.RegisterActionType(new FastName(fileName));
+                        Console.WriteLine($"Registered action type: {fileName}");
                     }
                     catch (Exception ex)
                     {
@@ -257,6 +230,281 @@ public class BlackboardWriter
         
         Console.WriteLine("All types registration completed");
     }
+
+    /// <summary>
+    /// Takes a single parameter instance, determines its base type, and registers it in the appropriate blackboard dictionary
+    /// </summary>
+    /// <param name="parameterInstance">The parameter instance to register</param>
+    public void RegisterParameterInstanceByBaseType(Entity parameterInstance)
+    {
+        try
+        {
+            // Get the base type from the entity
+            string baseTypeName = GetBaseTypeName(parameterInstance);
+            
+            Console.WriteLine($"Registering {parameterInstance.GetType().Name} instance '{parameterInstance.ID}' as base type '{baseTypeName}'");
+            
+            // Register the instance in the appropriate blackboard dictionary based on base type
+            switch (baseTypeName.ToLower())
+            {
+                case "element":
+                    blackboard.RegisterEntityIfNotExists(parameterInstance);
+                    Console.WriteLine($"  ✅ Registered as Element: {parameterInstance.ID}");
+                    break;
+                    
+                case "agent":
+                    blackboard.RegisterEntityIfNotExists(parameterInstance);
+                    Console.WriteLine($"  ✅ Registered as Agent: {parameterInstance.ID}");
+                    break;
+                    
+                case "location":
+                    blackboard.RegisterEntityIfNotExists(parameterInstance);
+                    Console.WriteLine($"  ✅ Registered as Location: {parameterInstance.ID}");
+                    break;
+                    
+                case "tool":
+                    blackboard.RegisterEntityIfNotExists(parameterInstance);
+                    Console.WriteLine($"  ✅ Registered as Tool: {parameterInstance.ID}");
+                    break;
+                    
+                case "layer":
+                    blackboard.RegisterEntityIfNotExists(parameterInstance);
+                    Console.WriteLine($"  ✅ Registered as Layer: {parameterInstance.ID}");
+                    break;
+                    
+                case "module":
+                    blackboard.RegisterEntityIfNotExists(parameterInstance);
+                    Console.WriteLine($"  ✅ Registered as Module: {parameterInstance.ID}");
+                    break;
+                    
+                default:
+                    Console.WriteLine($"  ⚠️ Unknown base type '{baseTypeName}' for instance '{parameterInstance.ID}', registering as generic Entity");
+                    blackboard.RegisterEntityIfNotExists(parameterInstance);
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"  ❌ Error registering instance '{parameterInstance.ID}': {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Determines the base type name of an entity instance
+    /// </summary>
+    /// <param name="instance">The entity instance</param>
+    /// <returns>The base type name (e.g., "Element", "Agent", "Location")</returns>
+    private string GetBaseTypeName(Entity instance)
+    {
+        // Get the base type from the entity's BaseType property
+        if (instance.BaseType != null)
+        {
+            return instance.BaseType.ToString();
+        }
+        
+        // Fallback: determine base type from inheritance hierarchy
+        Type currentType = instance.GetType();
+        
+        // Check inheritance hierarchy to find the base type
+        while (currentType != null && currentType != typeof(Entity))
+        {
+            if (currentType == typeof(Element))
+                return "Element";
+            if (currentType == typeof(Agent))
+                return "Agent";
+            if (currentType == typeof(Location))
+                return "Location";
+            if (currentType == typeof(Tool))
+                return "Tool";
+            if (currentType == typeof(Layer))
+                return "Layer";
+            if (currentType == typeof(Module))
+                return "Module";
+                
+            currentType = currentType.BaseType;
+        }
+        
+        // If no specific base type found, return the actual type name
+        return instance.GetType().Name;
+    }
+
+    /// <summary>
+    /// Takes a single predicate instance and registers it in the appropriate blackboard dictionary
+    /// </summary>
+    /// <param name="predicateInstance">The predicate instance to register</param>
+    public void RegisterPredicateInstanceByType(Predicate predicateInstance)
+    {
+        try
+        {
+            // Get the predicate type name and instance name
+            string predicateTypeName = predicateInstance.GetType().Name;
+            string instanceName = predicateInstance.PredicateName.ToString();
+            
+            Console.WriteLine($"Registering {predicateTypeName} instance '{instanceName}'");
+            
+            // Create a key for the predicate (using instance name)
+            
+            
+            // Register the predicate in the blackboard
+            // Predicates are stored in PredicateValues dictionary as HashSet<Predicate>
+            blackboard.SetPredicate(predicateInstance.PredicateName, predicateInstance);
+            
+            Console.WriteLine($"  ✅ Registered {predicateTypeName} predicate with key '{instanceName}'");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"  ❌ Error registering predicate '{predicateInstance.GetType().Name}': {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Parses a MontiCore grammar text file and generates parameter instances
+    /// Expected format: ParameterInstance: typeName {instanceName}
+    /// </summary>
+    /// <param name="filePath">Path to the MontiCore grammar text file</param>
+    /// <returns>List of created parameter instances</returns>
+    public List<Entity> ParseMontiCoreGrammarFile(string filePath)
+    {
+        List<Entity> createdInstances = new List<Entity>();
+        
+        try
+        {
+            Console.WriteLine($"Parsing MontiCore grammar file: {filePath}");
+            
+            if (!File.Exists(filePath))
+            {
+                Console.WriteLine($"❌ Error: File not found at {filePath}");
+                return createdInstances;
+            }
+            
+            string[] lines = File.ReadAllLines(filePath);
+            int lineNumber = 0;
+            int successCount = 0;
+            int errorCount = 0;
+            
+            foreach (string line in lines)
+            {
+                lineNumber++;
+                
+                // Skip empty lines and comments
+                if (string.IsNullOrWhiteSpace(line) || line.Trim().StartsWith("#"))
+                {
+                    continue;
+                }
+                
+                try
+                {
+                    // Parse the line: ParameterInstance: typeName {instanceName}
+                    var instance = ParseParameterInstanceLine(line.Trim());
+                    
+                    if (instance != null)
+                    {
+                        createdInstances.Add(instance);
+                        successCount++;
+                        Console.WriteLine($"  ✅ Line {lineNumber}: Created {instance.GetType().Name} instance '{instance.ID}'");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    errorCount++;
+                    Console.WriteLine($"  ❌ Line {lineNumber}: Error parsing '{line.Trim()}': {ex.Message}");
+                }
+            }
+            
+            Console.WriteLine($"\n📊 Parsing Summary:");
+            Console.WriteLine($"  ✅ Successfully created: {successCount} instances");
+            Console.WriteLine($"  ❌ Errors: {errorCount}");
+            Console.WriteLine($"  📄 Total lines processed: {lineNumber}");
+            
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error reading file {filePath}: {ex.Message}");
+        }
+        
+        return createdInstances;
+    }
     
+    /// <summary>
+    /// Parses a single line in MontiCore grammar format
+    /// Expected format: ParameterInstance: typeName {instanceName}
+    /// </summary>
+    /// <param name="line">The line to parse</param>
+    /// <returns>Created Entity instance or null if parsing failed</returns>
+    private Entity ParseParameterInstanceLine(string line)
+    {
+        // Expected format: ParameterInstance: typeName {instanceName}
+        const string prefix = "ParameterInstance:";
+        
+        if (!line.StartsWith(prefix))
+        {
+            throw new ArgumentException($"Line does not start with '{prefix}'");
+        }
+        
+        // Remove the prefix and trim
+        string content = line.Substring(prefix.Length).Trim();
+        
+        // Find the opening and closing braces
+        int openBraceIndex = content.IndexOf('{');
+        int closeBraceIndex = content.LastIndexOf('}');
+        
+        if (openBraceIndex == -1 || closeBraceIndex == -1 || openBraceIndex >= closeBraceIndex)
+        {
+            throw new ArgumentException("Invalid brace format. Expected: typeName {instanceName}");
+        }
+        
+        // Extract type name and instance name
+        string typeName = content.Substring(0, openBraceIndex).Trim();
+        string instanceName = content.Substring(openBraceIndex + 1, closeBraceIndex - openBraceIndex - 1).Trim();
+        
+        if (string.IsNullOrWhiteSpace(typeName))
+        {
+            throw new ArgumentException("Type name cannot be empty");
+        }
+        
+        if (string.IsNullOrWhiteSpace(instanceName))
+        {
+            throw new ArgumentException("Instance name cannot be empty");
+        }
+        
+        // Create the parameter instance using the factory
+        return entityFactory.CreateParameter(typeName, instanceName);
+    }
+    
+    /// <summary>
+    /// Parses a MontiCore grammar text file and registers all parameter instances in the blackboard
+    /// </summary>
+    /// <param name="filePath">Path to the MontiCore grammar text file</param>
+    public void ParseAndRegisterMontiCoreGrammarFile(string filePath)
+    {
+        Console.WriteLine($"\n=== PARSING AND REGISTERING MONTICORE GRAMMAR FILE ===");
+        
+        var instances = ParseMontiCoreGrammarFile(filePath);
+        
+        Console.WriteLine($"\n=== REGISTERING {instances.Count} INSTANCES IN BLACKBOARD ===");
+        
+        int registeredCount = 0;
+        int skippedCount = 0;
+        
+        foreach (var instance in instances)
+        {
+            try
+            {
+                // Register the instance by its base type
+                RegisterParameterInstanceByBaseType(instance);
+                registeredCount++;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"  ❌ Error registering instance '{instance.ID}': {ex.Message}");
+                skippedCount++;
+            }
+        }
+        
+        Console.WriteLine($"\n📊 Registration Summary:");
+        Console.WriteLine($"  ✅ Successfully registered: {registeredCount} instances");
+        Console.WriteLine($"  ⚠️ Skipped: {skippedCount} instances");
+    }
+
 
 }

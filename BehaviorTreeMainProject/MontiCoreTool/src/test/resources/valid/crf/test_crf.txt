@@ -1,8 +1,24 @@
+
+// parameter type definition
+
 Parameter beam : Element {
     length: Double
 }
 
+Parameter plate : Element {
+    thickness: Double,
+    material: String
+}
+
 Parameter vacuumGripper : Tool {
+    isOn: Boolean
+}
+
+Parameter nailGripper : Tool {
+    isOn: Boolean
+}
+
+Parameter glueGun : Tool {
     isOn: Boolean
 }
 
@@ -11,20 +27,27 @@ Parameter robot : Agent {
     speed: Double
 }
 
-Parameter plate : Element {
-    thickness: Double,
-    material: String
+Parameter stack : Layer {
+    level: Integer,
+    belongsToModule: Module
 }
 
-Parameter firstLocation : Location {
-    xcoordinate: Double,
-    ycoordinate: Double
+Parameter cassette : Module {
+    layers: List<Layer>
 }
 
 Parameter positionOnRail : Location {
-    position: Double,
-    direction: String
 }
+
+Parameter equipposition : Location {
+}
+
+Parameter firstposition : Location {
+}
+
+Parameter stackposition : Location {
+}
+
 
 // parameter instance
 
@@ -32,15 +55,15 @@ ParameterInstance: beam {b1}
 ParameterInstance: beam {b3}
 ParameterInstance: beam {b2}
 ParameterInstance: robot {r1}
-ParameterInstance: firstLocation {fp1}
+ParameterInstance: firstposition {fp1}
+ParameterInstance: vacuumGripper {vg1}
 
 // Predicate definition
 
 predicate isAt {
-    object - Element,
+    myObject - Element,
     location - Location
 }
-
 
 predicate atAgent {
     agent - Agent,
@@ -52,30 +75,84 @@ predicate hasTool {
     tool - Tool
 }
 
+predicate holding {
+    agent - Agent,
+    myObject - Element
+}
+
+predicate atplace {
+    myObject - Element,
+    place - Location
+}
+
+predicate empty {
+    client - Agent
+}
+
+predicate clear {
+    myObject - Element
+}
+
+predicate ontop {
+    myObject1 - Element,
+    myObject2 - Element
+}
+
+predicate allset {
+    lay - Layer,
+    mod - Module
+}
+
+predicate belongstolayer {
+    myObject - Element,
+    lay - Layer
+}
+
+predicate belongstomodule {
+    myObject - Element,
+    mod - Module
+}
+
+predicate positionfree {
+    pos - Location
+}
+
+predicate stacked {
+    myObject - Element
+}
+
 //predicate instances
 
-PredicateInstance: isAt(b1 = object, fp1 = location)
+PredicateInstance: isAt(myObject = b1, location = fp1, isNegated = false)
+PredicateInstance: hasTool(agent = r1, tool = vg1, isNegated = false)
 
 // Action definition 
 
 Action pickUp {
-    name = "pickup"   
     parameters {
-        obj : beam
-        rob : robot
-        loc : firstLocation   
-        tool : vacuumGripper}
+        pickedObject: beam
+        rob: robot
+        loc: firstposition
+        robTool: vacuumGripper
+    }
     preconditions {
-        isat(obj = object, loc = location)
-        atAgent(robot = agent, loc = location)
-        hasTool(agent = robot, tool = tool) }    
+        isAt(myObject = pickedObject, location = loc, isNegated = false)
+        atAgent(agent = rob, location = loc, isNegated = false)
+        hasTool(agent = rob, tool = robTool, isNegated = false)
+    }    
     effects {
-        holding(robot = agent, obj = object)
-        at(robot = agent, loc = location) }   
-    function {{obj,robot},{Boolean}}
+        holding(agent = rob, myObject = pickedObject, isNegated = false)
+        atAgent(agent = rob, location = loc, isNegated = false)
+    }   
+    function {
+        {pickedObject,rob},
+        {Boolean}
+    }
     implementation {
-        pickupImplementation }
+        pickupImplementation
+    }
 }
+
 
 
 

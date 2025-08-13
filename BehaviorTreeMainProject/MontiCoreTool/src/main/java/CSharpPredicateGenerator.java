@@ -32,6 +32,9 @@ public class CSharpPredicateGenerator {
     }
     
     public static void generateCSharpClasses(ASTAllowedType ast) throws IOException {
+        // Clean the output directory first
+        cleanOutputDirectory();
+        
         // Ensure output directory exists
         Files.createDirectories(Paths.get(OUTPUT_DIR));
         
@@ -39,6 +42,24 @@ public class CSharpPredicateGenerator {
             for (ASTPredicateTypeDef predicate : ast.getPredicateTypeDefList()) {
                 generatePredicateClass(predicate);
             }
+        }
+    }
+    
+    private static void cleanOutputDirectory() throws IOException {
+        Path outputPath = Paths.get(OUTPUT_DIR);
+        
+        if (Files.exists(outputPath)) {
+            System.out.println("Cleaning output directory: " + OUTPUT_DIR);
+            
+            // Delete all .cs files in the directory
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(outputPath, "*.cs")) {
+                for (Path file : stream) {
+                    Files.delete(file);
+                    System.out.println("Deleted: " + file.getFileName());
+                }
+            }
+        } else {
+            System.out.println("Output directory does not exist, will be created: " + OUTPUT_DIR);
         }
     }
     
@@ -107,24 +128,64 @@ public class CSharpPredicateGenerator {
     }
     
     private static String getBasicTypeName(Object basicType) {
-        // Extract the actual type name from the AST node
-        String typeString = basicType.toString();
-        
-        // Remove the AST class prefix and get just the type name
-        if (typeString.contains("ASTBasicType")) {
-            // Extract the actual type value from the AST
-            // This is a simplified approach - you might need to adjust based on your AST structure
-            return "String"; // Default fallback
+        // Check if the basicType is an ASTBasicType and use the named alternative methods
+        if (basicType instanceof crf._ast.ASTBasicType) {
+            crf._ast.ASTBasicType astBasicType = (crf._ast.ASTBasicType) basicType;
+            
+            // Use the named alternative methods to determine the type
+            if (astBasicType.isPresentElement()) {
+                return "Element";
+            } else if (astBasicType.isPresentAgent()) {
+                return "Agent";
+            } else if (astBasicType.isPresentLocation()) {
+                return "Location";
+            } else if (astBasicType.isPresentLayer()) {
+                return "Layer";
+            } else if (astBasicType.isPresentModule()) {
+                return "Module";
+            } else if (astBasicType.isPresentTool()) {
+                return "Tool";
+            } else if (astBasicType.isPresentString()) {
+                return "String";
+            } else if (astBasicType.isPresentDouble()) {
+                return "double";
+            } else if (astBasicType.isPresentInteger()) {
+                return "int";
+            } else if (astBasicType.isPresentBoolean()) {
+                return "bool";
+            }
         }
         
-        // Try to extract the type name from the string representation
-        if (typeString.contains("Agent")) return "Agent";
-        if (typeString.contains("Location")) return "Location";
-        if (typeString.contains("Tool")) return "Tool";
-        if (typeString.contains("String")) return "String";
-        if (typeString.contains("Integer")) return "int";
-        if (typeString.contains("Double")) return "double";
+        // Fallback: check the class name as before
+        String className = basicType.getClass().getSimpleName();
+        System.out.println("Debug getBasicTypeName: class = '" + className + "'");
         
-        return "String"; // Default fallback
+        // Map specific AST classes to their corresponding types
+        switch (className) {
+            case "ASTElementType":
+                return "Element";
+            case "ASTAgentType":
+                return "Agent";
+            case "ASTLocationType":
+                return "Location";
+            case "ASTLayerType":
+                return "Layer";
+            case "ASTModuleType":
+                return "Module";
+            case "ASTToolType":
+                return "Tool";
+            case "ASTStringType":
+                return "String";
+            case "ASTIntegerType":
+                return "int";
+            case "ASTDoubleType":
+                return "double";
+            case "ASTBooleanType":
+                return "bool";
+            default:
+                System.err.println("WARNING: Could not determine type for: " + className);
+                return "String"; // Default fallback
+        }
     }
 }
+

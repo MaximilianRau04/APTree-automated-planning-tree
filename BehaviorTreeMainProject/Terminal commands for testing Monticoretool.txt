@@ -1,0 +1,21 @@
+gradle clean              //cleans up the previous files
+gradle generateMCGrammars
+
+gradle build -x test
+
+gradle compileJava
+
+gradle runTestCRFParser
+
+gradle generateCSharpParameterTypes
+
+gradle generateCSharpPredicates
+
+
+gradle generateCSharpActionTypes
+
+
+
+gradle  testParameterInstances
+
+gradle testASTValue

@@ -1,8 +1,0 @@
-# Parameter Instances extracted from CRF model
-# Format: type,name
-# Example: beam,b1
-
-beam,b1
-beam,b2
-beam,b3
-robot,r1

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace ModelLoader.ParameterTypes
 {
@@ -25,6 +26,20 @@ namespace ModelLoader.ParameterTypes
             this.IsOn = isOn;
             BaseType = new FastName("Tool");
             // TypeName is automatically set in base constructor
+        }
+
+        // Override SetParameters to set VacuumGripper-specific properties
+        public override void SetParameters(Dictionary<string, object> parameters)
+        {
+            // Call base implementation first
+            base.SetParameters(parameters);
+
+            // Set IsOn property
+            if (parameters.ContainsKey("isOn"))
+            {
+                IsOn = parameters["isOn"].ToString();
+            }
+
         }
     }
 }

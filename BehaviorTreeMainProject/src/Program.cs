@@ -1,48 +1,181 @@
 ﻿using Neo4j.Driver;
+using ModelLoader;
+using ModelLoader.ParameterTypes;
+using ModelLoader.PredicateTypes;
 
-// public class Program
-// {
-//     // Test method for ParameterFactory functions
-//     public static void Main(string[] args)
-//     {
-//         try
-//         {
-//             Console.WriteLine("=== Testing ParameterFactory ===");
-            
-//             var factory = ParameterFactory.Instance;
-            
-//             // Test 1: Create a beam instance
-//             Console.WriteLine("\n1. Testing CreateParameter for Beam:");
-//             var beam1 = factory.CreateParameter("beam", "b1");
-//             Console.WriteLine($"   Created: {beam1.GetType().Name} with NameKey={beam1.NameKey}, ID={beam1.ID}");
-//             Console.WriteLine($"   BaseType={beam1.BaseType}, TypeName={beam1.TypeName}");
-            
-//             // Test 2: Create a robot instance
-//             Console.WriteLine("\n2. Testing CreateParameter for Robot:");
-//             var robot1 = factory.CreateParameter("robot", "r1");
-//             Console.WriteLine($"   Created: {robot1.GetType().Name} with NameKey={robot1.NameKey}, ID={robot1.ID}");
-//             Console.WriteLine($"   BaseType={robot1.BaseType}, TypeName={robot1.TypeName}");
-            
-//             // Test 3: Create a location instance
-//             Console.WriteLine("\n3. Testing CreateParameter for FirstLocation:");
-//             var location1 = factory.CreateParameter("firstlocation", "loc1");
-//             Console.WriteLine($"   Created: {location1.GetType().Name} with NameKey={location1.NameKey}, ID={location1.ID}");
-//             Console.WriteLine($"   BaseType={location1.BaseType}, TypeName={location1.TypeName}");
-            
-//             // Test 4: Test parameter metadata creation
-//             Console.WriteLine("\n4. Testing CreateParameterMetadata:");
-//             var beamMetadata = factory.CreateParameterMetadata("testBeam", "beam");
-//             Console.WriteLine($"   Created metadata: Name={beamMetadata.Name}, Type={beamMetadata.Type.Name}");
-            
-//             Console.WriteLine("\n=== All ParameterFactory tests passed! ===");
-//         }
-//         catch (Exception ex)
-//         {
-//             Console.WriteLine($"\n=== ParameterFactory test failed: {ex.Message} ===");
-//             Console.WriteLine($"Stack trace: {ex.StackTrace}");
-//         }
-//     }
-// }
+public class Program
+{
+    // Test method for ParameterFactory functions
+    public static async Task Main(string[] args)
+    {
+        await TestBlackboardandNeo4JConnection();
+    }
+
+    static async Task TestBlackboardandNeo4JConnection()
+    {
+        try
+        {
+            Console.WriteLine("Setting up Blackboard...");
+
+            // setting up the blackboard
+            using var blackboard = new Blackboard<FastName>("bolt://localhost:7687", "neo4j", "12345678");
+
+            // Test the connection
+            Console.WriteLine("Testing Neo4j connection...");
+            bool connectionSuccess = await blackboard.TestNeo4jConnection();
+
+            if (connectionSuccess)
+            {
+                Console.WriteLine("✅ Neo4j connection successful!");
+
+                // Create BlackboardWriter for type registration
+                var blackboardWriter = new BlackboardWriter(blackboard);
+
+                // Register all types
+                Console.WriteLine("\n=== REGISTERING ALL TYPES ===");
+                blackboardWriter.RegisterAllTypes();
+                
+                // Parse and register parameter instances from MontiCore grammar file
+                Console.WriteLine("\n=== PARSING MONTICORE GRAMMAR FILE ===");
+                string parameterInstancesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "src", "InputInstances", "ParameterInstances.txt");
+                blackboardWriter.ParseAndRegisterMontiCoreGrammarFile(parameterInstancesPath);
+
+                // Inspect the blackboard contents after registration
+                Console.WriteLine("\n=== INSPECTING BLACKBOARD CONTENTS ===");
+                InspectBlackboardContents(blackboard);
+                
+                
+            }
+            else
+            {
+                Console.WriteLine("❌ Neo4j connection failed!");
+                Console.WriteLine("Please make sure:");
+                Console.WriteLine("1. Neo4j Desktop is running");
+                Console.WriteLine("2. Your database is started");
+                Console.WriteLine("3. The password '12345678' is correct");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error: {ex.Message}");
+            Console.WriteLine("Please check your Neo4j setup and credentials.");
+        }
+    }
+    
+    static void InspectBlackboardContents(Blackboard<FastName> blackboard)
+    {
+        Console.WriteLine("\n--- Available Types Lists ---");
+        
+        // Get available types using reflection since they're private fields
+        var availableEntityTypes = GetPrivateField<List<FastName>>(blackboard, "AvailableEntityTypes");
+        var availablePredicateTypes = GetPrivateField<List<FastName>>(blackboard, "AvailablePredicateTypes");
+        var availableActionTypes = GetPrivateField<List<FastName>>(blackboard, "AvailableActionTypes");
+        
+        Console.WriteLine($"Available Entity Types ({availableEntityTypes?.Count ?? 0}):");
+        if (availableEntityTypes != null)
+        {
+            foreach (var type in availableEntityTypes)
+            {
+                Console.WriteLine($"  - {type}");
+            }
+        }
+        
+        Console.WriteLine($"\nAvailable Predicate Types ({availablePredicateTypes?.Count ?? 0}):");
+        if (availablePredicateTypes != null)
+        {
+            foreach (var type in availablePredicateTypes)
+            {
+                Console.WriteLine($"  - {type}");
+            }
+        }
+        
+        Console.WriteLine($"\nAvailable Action Types ({availableActionTypes?.Count ?? 0}):");
+        if (availableActionTypes != null)
+        {
+            foreach (var type in availableActionTypes)
+            {
+                Console.WriteLine($"  - {type}");
+            }
+        }
+        
+        Console.WriteLine("\n--- Registered Type Dictionaries ---");
+        
+       
+        
+        Console.WriteLine("\n--- Instance Dictionaries ---");
+        
+        // Get instance dictionaries
+        var elementValues = GetPrivateField<Dictionary<FastName, Element>>(blackboard, "ElementValues");
+        var locationValues = GetPrivateField<Dictionary<FastName, Location>>(blackboard, "LocationValues");
+        var agentValues = GetPrivateField<Dictionary<FastName, Agent>>(blackboard, "AgentValues");
+        var toolValues = GetPrivateField<Dictionary<FastName, Tool>>(blackboard, "ToolValues");
+        var layerValues = GetPrivateField<Dictionary<FastName, Layer>>(blackboard, "LayerValues");
+        var moduleValues = GetPrivateField<Dictionary<FastName, Module>>(blackboard, "ModuleValues");
+        
+        Console.WriteLine($"Element Instances ({elementValues?.Count ?? 0}):");
+        if (elementValues != null)
+        {
+            foreach (var kvp in elementValues)
+            {
+                Console.WriteLine($"  - {kvp.Key}: {kvp.Value?.ID ?? "null"} ({kvp.Value?.GetType().Name ?? "null"})");
+            }
+        }
+        
+        Console.WriteLine($"\nLocation Instances ({locationValues?.Count ?? 0}):");
+        if (locationValues != null)
+        {
+            foreach (var kvp in locationValues)
+            {
+                Console.WriteLine($"  - {kvp.Key}: {kvp.Value?.ID ?? "null"} ({kvp.Value?.GetType().Name ?? "null"})");
+            }
+        }
+        
+        Console.WriteLine($"\nAgent Instances ({agentValues?.Count ?? 0}):");
+        if (agentValues != null)
+        {
+            foreach (var kvp in agentValues)
+            {
+                Console.WriteLine($"  - {kvp.Key}: {kvp.Value?.ID ?? "null"} ({kvp.Value?.GetType().Name ?? "null"})");
+            }
+        }
+        
+        Console.WriteLine($"\nTool Instances ({toolValues?.Count ?? 0}):");
+        if (toolValues != null)
+        {
+            foreach (var kvp in toolValues)
+            {
+                Console.WriteLine($"  - {kvp.Key}: {kvp.Value?.ID ?? "null"} ({kvp.Value?.GetType().Name ?? "null"})");
+            }
+        }
+        
+        Console.WriteLine($"\nLayer Instances ({layerValues?.Count ?? 0}):");
+        if (layerValues != null)
+        {
+            foreach (var kvp in layerValues)
+            {
+                Console.WriteLine($"  - {kvp.Key}: {kvp.Value?.ID ?? "null"} ({kvp.Value?.GetType().Name ?? "null"})");
+            }
+        }
+        
+        Console.WriteLine($"\nModule Instances ({moduleValues?.Count ?? 0}):");
+        if (moduleValues != null)
+        {
+            foreach (var kvp in moduleValues)
+            {
+                Console.WriteLine($"  - {kvp.Key}: {kvp.Value?.ID ?? "null"} ({kvp.Value?.GetType().Name ?? "null"})");
+            }
+        }
+    }
+    
+    static T GetPrivateField<T>(object obj, string fieldName)
+    {
+        var field = obj.GetType().GetField(fieldName, 
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        return field != null ? (T)field.GetValue(obj) : default(T);
+    }
+}
+
+
 
 
 

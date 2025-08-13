@@ -19,18 +19,16 @@ public class FactoryPredicate
 
    
 
-  
-
     // Create a predicate instance by predicate name and parameter mappings
     public Predicate CreatePredicateInstance(string predicateName, Dictionary<string, string> parameterMappings, Blackboard<FastName> blackboard)
     {
-        // Map predicate names to actual predicate types
-        Type predicateType = predicateName.ToLower() switch
+        // Dynamically find the predicate type
+        Type predicateType = FindPredicateType(predicateName);
+        
+        if (predicateType == null)
         {
-            "isat" => typeof(IsAt),
-            "hastool" => typeof(HasTool),
-            _ => throw new ArgumentException($"Unknown predicate type: {predicateName}")
-        };
+            throw new ArgumentException($"Unknown predicate type: {predicateName}");
+        }
 
         // Create instance using empty constructor
         var instance = Activator.CreateInstance(predicateType) as Predicate;
@@ -48,23 +46,7 @@ public class FactoryPredicate
             {
                 // Get the actual entity from blackboard using the parameter name
                 var key = new FastName(kvp.Value);
-                object value = null;
-
-                // Map property types to blackboard getter methods
-                if (property.PropertyType == typeof(Element))
-                    value = blackboard.GetElement(key);
-                else if (property.PropertyType == typeof(Agent))
-                    value = blackboard.GetAgent(key);
-                else if (property.PropertyType == typeof(Location))
-                    value = blackboard.GetLocation(key);
-                else if (property.PropertyType == typeof(Tool))
-                    value = blackboard.GetTool(key);
-                else if (property.PropertyType == typeof(Layer))
-                    value = blackboard.GetLayer(key);
-                else if (property.PropertyType == typeof(Module))
-                    value = blackboard.GetModule(key);
-                else
-                    throw new ArgumentException($"Unsupported property type: {property.PropertyType.Name} for property {kvp.Key}");
+                object value = GetEntityFromBlackboard(blackboard, key, property.PropertyType);
 
                 // Set the property value
                 property.SetValue(instance, value);
@@ -77,6 +59,55 @@ public class FactoryPredicate
         }
 
         return instance;
+    }
+
+    // Dynamically find predicate type by name
+    private Type FindPredicateType(string predicateName)
+    {
+        // Get the assembly containing Predicate types
+        var assembly = typeof(Predicate).Assembly;
+        
+        // Search for types that inherit from Predicate
+        var predicateTypes = assembly.GetTypes()
+            .Where(t => t.IsSubclassOf(typeof(Predicate)) && !t.IsAbstract)
+            .ToList();
+        
+        // Try exact match first (case-insensitive)
+        var exactMatch = predicateTypes.FirstOrDefault(t => 
+            string.Equals(t.Name, predicateName, StringComparison.OrdinalIgnoreCase));
+        
+        if (exactMatch != null)
+        {
+            return exactMatch;
+        }
+        
+        // Try partial match (e.g., "isat" matches "IsAt")
+        var partialMatch = predicateTypes.FirstOrDefault(t => 
+            string.Equals(t.Name.Replace(" ", ""), predicateName.Replace(" ", ""), StringComparison.OrdinalIgnoreCase));
+        
+        if (partialMatch != null)
+        {
+            return partialMatch;
+        }
+        
+        // If no match found, return null
+        return null;
+    }
+
+    // Get entity from blackboard based on type
+    private object GetEntityFromBlackboard(Blackboard<FastName> blackboard, FastName key, Type entityType)
+    {
+        // Use a simple switch expression to map types to blackboard methods
+        return entityType.Name switch
+        {
+            "Element" => blackboard.GetElement(key),
+            "Agent" => blackboard.GetAgent(key),
+            "Location" => blackboard.GetLocation(key),
+            "Tool" => blackboard.GetTool(key),
+            "Layer" => blackboard.GetLayer(key),
+            "Module" => blackboard.GetModule(key),
+            _ => throw new ArgumentException($"Unsupported entity type: {entityType.Name}")
+        };
     }
 
     

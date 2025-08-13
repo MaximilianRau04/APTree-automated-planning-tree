@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace ModelLoader.ParameterTypes
 {
@@ -25,6 +26,20 @@ namespace ModelLoader.ParameterTypes
             this.Length = length;
             BaseType = new FastName("Element");
             // TypeName is automatically set in base constructor
+        }
+
+        // Override SetParameters to set Beam-specific properties
+        public override void SetParameters(Dictionary<string, object> parameters)
+        {
+            // Call base implementation first
+            base.SetParameters(parameters);
+
+            // Set Length property
+            if (parameters.ContainsKey("length"))
+            {
+                Length = Convert.ToDouble(parameters["length"]);
+            }
+
         }
     }
 }

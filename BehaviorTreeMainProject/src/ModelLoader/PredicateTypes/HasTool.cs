@@ -4,10 +4,10 @@ namespace ModelLoader.PredicateTypes
 {
     public class HasTool : Predicate
     {
-        public String agent { get; set; }
-        public String tool { get; set; }
+        public Agent agent { get; set; }
+        public Tool tool { get; set; }
 
-        public HasTool(String agent, String tool)
+        public HasTool(Agent agent, Tool tool)
         {
             this.agent = agent;
             this.tool = tool;

@@ -13,7 +13,7 @@ public class TestCRFParser {
             Optional<ASTAllowedType> result = parser.parse("src/test/resources/valid/crf/test_crf.txt");
             
             if (result.isPresent()) {
-                System.out.println("✅ SUCCESS: CRF Multiple Predicates parsed successfully!");
+                System.out.println("ERROR: SUCCESS: CRF Multiple Predicates parsed successfully!");
                 ASTAllowedType ast = result.get();
                 System.out.println("AST: " + ast.toString());
                 

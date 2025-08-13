@@ -4,12 +4,12 @@ namespace ModelLoader.PredicateTypes
 {
     public class IsAt : Predicate
     {
-        public String object { get; set; }
-        public String location { get; set; }
+        public Element myObject { get; set; }
+        public Location location { get; set; }
 
-        public IsAt(String object, String location)
+        public IsAt(Element myObject, Location location)
         {
-            this.object = object;
+            this.myObject = myObject;
             this.location = location;
         }
     }
