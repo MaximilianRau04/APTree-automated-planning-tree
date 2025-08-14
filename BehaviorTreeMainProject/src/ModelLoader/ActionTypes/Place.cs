@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using ModelLoader.ParameterTypes;
+using ModelLoader.PredicateTypes;
 
 namespace BehaviorTreeMainProject
 {
@@ -15,20 +16,9 @@ namespace BehaviorTreeMainProject
         // Parameter: client of type robot
         public Robot client { get; private set; }
 
-        protected override List<string> PreconditionTemplates => new List<string>
-        {
-            "PredicateInstance: holding(agent = client, myObject = obj, isNegated = false)",
-            "PredicateInstance: clear(myObject = obj, isNegated = true)",
-            "PredicateInstance: positionfree(pos = placePos, isNegated = false)",
-        };
-
-        protected override List<string> EffectTemplates => new List<string>
-        {
-            "PredicateInstance: atplace(myObject = obj, place = placePos, isNegated = false)",
-            "PredicateInstance: holding(agent = client, myObject = obj, isNegated = true)",
-            "PredicateInstance: clear(myObject = obj, isNegated = false)",
-            "PredicateInstance: positionfree(pos = placePos, isNegated = true)",
-        };
+        // Preconditions and Effects as State objects
+        private State preconditions;
+        private State effects;
 
         public Place(string actionType, string instanceName, Blackboard<FastName> blackboard, Beam obj, Firstposition placePos, Robot client)
             : base(actionType, instanceName, blackboard)
@@ -36,7 +26,20 @@ namespace BehaviorTreeMainProject
             this.obj = obj;
             this.placePos = placePos;
             this.client = client;
+            InitializePredicates();
         }
+
+        private void InitializePredicates()
+        {
+            // Initialize preconditions
+            preconditions = new State(StateType.Precondition, new FastName("place_preconditions"));
+
+            // Initialize effects
+            effects = new State(StateType.Effect, new FastName("place_effects"));
+        }
+
+        protected override State Preconditions => preconditions;
+        protected override State Effects => effects;
 
         protected override bool OnTick_NodeLogic(float InDeltaTime)
         {

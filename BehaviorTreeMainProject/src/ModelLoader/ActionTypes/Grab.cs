@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using ModelLoader.ParameterTypes;
+using ModelLoader.PredicateTypes;
 
 namespace BehaviorTreeMainProject
 {
@@ -15,22 +16,9 @@ namespace BehaviorTreeMainProject
         // Parameter: client of type robot
         public Robot client { get; private set; }
 
-        protected override List<string> PreconditionTemplates => new List<string>
-        {
-            "PredicateInstance: atplace(myObject = obj, place = grabPos, isNegated = false)",
-            "PredicateInstance: holding(agent = client, myObject = obj, isNegated = true)",
-            "PredicateInstance: positionfree(pos = grabPos, isNegated = true)",
-            "PredicateInstance: clear(myObject = obj, isNegated = false)",
-            "PredicateInstance: stacked(myObject = obj, isNegated = true)",
-        };
-
-        protected override List<string> EffectTemplates => new List<string>
-        {
-            "PredicateInstance: holding(agent = client, myObject = obj, isNegated = false)",
-            "PredicateInstance: atplace(myObject = obj, place = grabPos, isNegated = true)",
-            "PredicateInstance: clear(myObject = obj, isNegated = true)",
-            "PredicateInstance: positionfree(pos = grabPos, isNegated = false)",
-        };
+        // Preconditions and Effects as State objects
+        private State preconditions;
+        private State effects;
 
         public Grab(string actionType, string instanceName, Blackboard<FastName> blackboard, Beam obj, Firstposition grabPos, Robot client)
             : base(actionType, instanceName, blackboard)
@@ -38,7 +26,20 @@ namespace BehaviorTreeMainProject
             this.obj = obj;
             this.grabPos = grabPos;
             this.client = client;
+            InitializePredicates();
         }
+
+        private void InitializePredicates()
+        {
+            // Initialize preconditions
+            preconditions = new State(StateType.Precondition, new FastName("grab_preconditions"));
+
+            // Initialize effects
+            effects = new State(StateType.Effect, new FastName("grab_effects"));
+        }
+
+        protected override State Preconditions => preconditions;
+        protected override State Effects => effects;
 
         protected override bool OnTick_NodeLogic(float InDeltaTime)
         {

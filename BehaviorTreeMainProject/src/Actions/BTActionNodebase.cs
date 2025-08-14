@@ -9,6 +9,9 @@ public abstract class BTActionNodeBase :BTNodeBase
     protected FastName instanceName;
     protected string debugDisplayName;
 
+    // Public property to access the instance name
+    public FastName InstanceName => instanceName;
+
     protected BTActionNodeBase(Blackboard<FastName> blackboard, string instanceName)
     {
         this.blackboard = blackboard;

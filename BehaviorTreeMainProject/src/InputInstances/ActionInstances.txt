@@ -1,3 +1,3 @@
-ActionInstance: pickUp(pickedObject = b1, rob = r1, loc = fp1, robTool = vg1)
-ActionInstance: grab(obj = b2, grabPos = fp2, client = r1)
-ActionInstance: place(obj = b3, placePos = fp3, client = r1)
+ActionInstance: pickUp(pickedObject : b1, rob : r1, loc : fp1, robTool : vg1)
+ActionInstance: grab(obj : b2, grabPos : fp2, client : r1)
+ActionInstance: place(obj : b3, placePos : fp3, client : r1)

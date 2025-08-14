@@ -5,54 +5,40 @@ using ModelLoader.PredicateTypes;
 
 public class Program
 {
-    // Test method for ParameterFactory functions
     public static async Task Main(string[] args)
-    {
-        await TestBlackboardandNeo4JConnection();
-    }
-
-    static async Task TestBlackboardandNeo4JConnection()
     {
         try
         {
             Console.WriteLine("Setting up Blackboard...");
-
-            // setting up the blackboard
+            
+            // Create blackboard instance
             using var blackboard = new Blackboard<FastName>("bolt://localhost:7687", "neo4j", "12345678");
-
+            
             // Test the connection
             Console.WriteLine("Testing Neo4j connection...");
             bool connectionSuccess = await blackboard.TestNeo4jConnection();
-
+            
             if (connectionSuccess)
             {
                 Console.WriteLine("✅ Neo4j connection successful!");
-
+                
                 // Create BlackboardWriter for type registration
                 var blackboardWriter = new BlackboardWriter(blackboard);
-
+                
                 // Register all types
                 Console.WriteLine("\n=== REGISTERING ALL TYPES ===");
                 blackboardWriter.RegisterAllTypes();
                 
-                // Parse and register parameter instances from MontiCore grammar file
-                Console.WriteLine("\n=== PARSING MONTICORE GRAMMAR FILE ===");
-                string parameterInstancesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "src", "InputInstances", "ParameterInstances.txt");
-                blackboardWriter.ParseAndRegisterMontiCoreGrammarFile(parameterInstancesPath);
-
-                // Parse and register predicate instances from MontiCore grammar file
-                Console.WriteLine("\n=== PARSING MONTICORE PREDICATE FILE ===");
-                string predicateInstancesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "src", "InputInstances", "PredicateInstances.txt");
-                blackboardWriter.ParseAndRegisterMontiCorePredicateFile(predicateInstancesPath, blackboard);
-
-                // Inspect the blackboard contents after registration
-                Console.WriteLine("\n=== INSPECTING BLACKBOARD CONTENTS ===");
-                InspectBlackboardContents(blackboard);
+                // Register all instances from files
+                Console.WriteLine("\n=== REGISTERING ALL INSTANCES FROM FILES ===");
+                string actionInstancesFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "src", "InputInstances", "ActionInstances.txt");
+                blackboardWriter.RegisterAllInstances(actionInstancesFile);
                 
-                // Test FactoryAction
-                Console.WriteLine("\n=== TESTING FACTORY ACTION ===");
-                TestFactoryAction(blackboard);
+                Console.WriteLine("✅ All operations completed successfully!");
                 
+                // Test Flow Node Logic and Graph
+                Console.WriteLine("\n=== TESTING FLOW NODE LOGIC AND GRAPH ===");
+                await TestFlowNodeLogic(blackboard);
             }
             else
             {
@@ -70,203 +56,246 @@ public class Program
         }
     }
     
-    static void InspectBlackboardContents(Blackboard<FastName> blackboard)
+    /// <summary>
+    /// Comprehensive test function to demonstrate flow node logic and graph execution
+    /// This function shows exactly what happens when a flow node is created and ticked
+    /// </summary>
+    private static async Task TestFlowNodeLogic(Blackboard<FastName> blackboard)
     {
-        Console.WriteLine("\n--- Available Types Lists ---");
+        Console.WriteLine("\n🔧 STEP 1: Creating Behavior Tree Instance");
+        Console.WriteLine("==========================================");
         
-        // Get available types using reflection since they're private fields
-        var availableEntityTypes = GetPrivateField<List<FastName>>(blackboard, "AvailableEntityTypes");
-        var availablePredicateTypes = GetPrivateField<List<FastName>>(blackboard, "AvailablePredicateTypes");
-        var availableActionTypes = GetPrivateField<List<FastName>>(blackboard, "AvailableActionTypes");
+        // Create behavior tree instance
+        var behaviorTree = new BTInstance();
+        behaviorTree.Initialise(blackboard, "TestFlowTree");
+        Console.WriteLine($"✅ Created behavior tree: {behaviorTree.DebugDisplayName}");
         
-        Console.WriteLine($"Available Entity Types ({availableEntityTypes?.Count ?? 0}):");
-        if (availableEntityTypes != null)
+        Console.WriteLine("\n🔧 STEP 2: Creating Dynamic Flow Node");
+        Console.WriteLine("=====================================");
+        
+        // Create a dynamic flow node with different success criteria for testing
+        var flowNode = new BTFlowNode_Dynamic(
+            behaviorTree, 
+            SuccessCriteria.ANY,  // At least one child must succeed
+            0.0f
+        );
+        Console.WriteLine($"✅ Created flow node: {flowNode.DebugDisplayName}");
+        Console.WriteLine($"   Success Criteria: {flowNode.successCriteria}");
+        Console.WriteLine($"   Success Threshold: 0.0f (configured for ANY criteria)");
+        
+        Console.WriteLine("\n🔧 STEP 3: Getting Registered Action Instances from Blackboard");
+        Console.WriteLine("=============================================================");
+        
+        
+        
+        // Get all action instances directly from blackboard
+        var allActionInstances = blackboard.GetAllActionInstances();
+        Console.WriteLine($"📋 Available action instances: {allActionInstances.Count}");
+        
+        if (allActionInstances.Count > 0)
         {
-            foreach (var type in availableEntityTypes)
-            {
-                Console.WriteLine($"  - {type}");
-            }
+            // Use all available action instances for testing
+          
+            
+                         foreach (var actionInstance in allActionInstances)
+             {
+                 Console.WriteLine($"✅ Retrieved action: {actionInstance.InstanceName.ToString()} (Type: {actionInstance.actionType.ToString()})");
+             }
+        }
+        else
+        {
+            Console.WriteLine("❌ No action instances found in blackboard!");
+            Console.WriteLine("Make sure the InputInstances folder contains action definitions.");
+            return; // Exit the test if no actions are available
         }
         
-        Console.WriteLine($"\nAvailable Predicate Types ({availablePredicateTypes?.Count ?? 0}):");
-        if (availablePredicateTypes != null)
+        Console.WriteLine($"📊 Total action nodes created: {allActionInstances.Count}");
+        
+        Console.WriteLine("\n🔧 STEP 4: Creating NodeGraph from Actions");
+        Console.WriteLine("===========================================");
+        
+        // Create a NodeGraph from the action instances with default relations
+        var nodeGraph = flowNode.CreateNodeGraphFromActions(allActionInstances);
+        
+        // Replace the flow node's action graph with our new one
+        // Note: This would require making actionGraph accessible or adding a method to set it
+        // For now, we'll add actions individually and show the graph structure
+        
+        Console.WriteLine($"📊 Created NodeGraph with {nodeGraph.GetAllActionNodes().Count} nodes");
+        Console.WriteLine($"📊 Execution order: {string.Join(" → ", nodeGraph.GetExecutionOrder().Select(a => a.InstanceName.ToString()))}");
+        
+        Console.WriteLine("\n🔧 STEP 5: Using NodeGraph for Flow Node");
+        Console.WriteLine("=========================================");
+        
+        // Use the NodeGraph we created instead of adding actions individually
+        flowNode.SetActionGraph(nodeGraph);
+        Console.WriteLine($"✅ Set NodeGraph with {nodeGraph.GetAllActionNodes().Count} nodes as flow node's action graph");
+        Console.WriteLine($"📊 NodeGraph execution order: {string.Join(" → ", nodeGraph.GetExecutionOrder().Select(a => a.InstanceName.ToString()))}");
+        
+        // Debug: Show what's in the NodeGraph
+        Console.WriteLine("\n🔍 DEBUG: NodeGraph Contents:");
+        var allNodes = nodeGraph.GetAllActionNodes();
+        for (int i = 0; i < allNodes.Count; i++)
         {
-            foreach (var type in availablePredicateTypes)
-            {
-                Console.WriteLine($"  - {type}");
-            }
+            Console.WriteLine($"   Node {i}: {allNodes[i].InstanceName.ToString()}");
         }
         
-        Console.WriteLine($"\nAvailable Action Types ({availableActionTypes?.Count ?? 0}):");
-        if (availableActionTypes != null)
+        // Note: We don't need to add actions individually anymore since the NodeGraph contains them
+        
+        Console.WriteLine("\n🔧 STEP 6: Examining Flow Node Structure");
+        Console.WriteLine("=========================================");
+        
+        // Examine the flow node structure through public interface
+        Console.WriteLine($"📊 Flow node debug name: {flowNode.DebugDisplayName}");
+        Console.WriteLine($"📊 Flow node has children: {flowNode.HasChildren}");
+        Console.WriteLine($"📊 Flow node last status: {flowNode.LastStatus}");
+        Console.WriteLine($"📊 Flow node has finished: {flowNode.HasFinished}");
+        
+        Console.WriteLine("\n🔧 STEP 7: Testing Flow Node Tick Logic");
+        Console.WriteLine("======================================");
+        
+        // Test the tick logic step by step
+        float deltaTime = 0.016f; // 60 FPS simulation
+        
+        for (int tick = 1; tick <= 5; tick++)
         {
-            foreach (var type in availableActionTypes)
+            Console.WriteLine($"\n🔄 TICK {tick}:");
+            Console.WriteLine("   " + new string('-', 40));
+            
+            // Show flow node status before tick
+            Console.WriteLine($"   📊 Flow node status before tick: {flowNode.LastStatus}");
+            Console.WriteLine($"   🎯 Flow node finished: {flowNode.HasFinished}");
+            
+            // Execute the tick
+            Console.WriteLine($"   ⚡ Executing flow node tick...");
+            var tickResult = flowNode.Tick(deltaTime);
+            Console.WriteLine($"   📊 Tick result: {tickResult}");
+            
+            // Check flow node status after tick
+            Console.WriteLine($"   📊 Flow node status after tick: {flowNode.LastStatus}");
+            Console.WriteLine($"   🎯 Flow node finished: {flowNode.HasFinished}");
+            
+            // If flow node is finished, break
+            if (flowNode.HasFinished)
             {
-                Console.WriteLine($"  - {type}");
+                Console.WriteLine($"   🏁 Flow node completed on tick {tick}");
+                break;
             }
+            
+            // Small delay to simulate real-time execution
+            await Task.Delay(100);
         }
         
-        Console.WriteLine("\n--- Registered Type Dictionaries ---");
+        Console.WriteLine("\n🔧 STEP 8: Final Results");
+        Console.WriteLine("=======================");
         
-       
+        Console.WriteLine($"📊 Final flow node status: {flowNode.LastStatus}");
+        Console.WriteLine($"🎯 Flow node finished: {flowNode.HasFinished}");
+        Console.WriteLine($"✅ Success criteria evaluation completed");
         
-        Console.WriteLine("\n--- Instance Dictionaries ---");
+        Console.WriteLine("\n📋 Test completed successfully!");
         
-        // Get instance dictionaries
-        var elementValues = GetPrivateField<Dictionary<FastName, Element>>(blackboard, "ElementValues");
-        var locationValues = GetPrivateField<Dictionary<FastName, Location>>(blackboard, "LocationValues");
-        var agentValues = GetPrivateField<Dictionary<FastName, Agent>>(blackboard, "AgentValues");
-        var toolValues = GetPrivateField<Dictionary<FastName, Tool>>(blackboard, "ToolValues");
-        var layerValues = GetPrivateField<Dictionary<FastName, Layer>>(blackboard, "LayerValues");
-        var moduleValues = GetPrivateField<Dictionary<FastName, Module>>(blackboard, "ModuleValues");
+        Console.WriteLine("\n✅ Flow Node Logic Test Completed!");
+        Console.WriteLine("This test demonstrates:");
+        Console.WriteLine("1. Flow node creation and configuration");
+        Console.WriteLine("2. Action node addition to the graph");
+        Console.WriteLine("3. Flow node structure examination");
+        Console.WriteLine("4. Step-by-step tick execution");
+        Console.WriteLine("5. Success criteria evaluation");
+        Console.WriteLine("6. Node status tracking");
         
-        Console.WriteLine($"Element Instances ({elementValues?.Count ?? 0}):");
-        if (elementValues != null)
-        {
-            foreach (var kvp in elementValues)
-            {
-                Console.WriteLine($"  - {kvp.Key}: {kvp.Value?.ID ?? "null"} ({kvp.Value?.GetType().Name ?? "null"})");
-            }
-        }
+        // Test different success criteria
+        Console.WriteLine("\n🔧 STEP 9: Testing Different Success Criteria");
+        Console.WriteLine("============================================");
         
-        Console.WriteLine($"\nLocation Instances ({locationValues?.Count ?? 0}):");
-        if (locationValues != null)
-        {
-            foreach (var kvp in locationValues)
-            {
-                Console.WriteLine($"  - {kvp.Key}: {kvp.Value?.ID ?? "null"} ({kvp.Value?.GetType().Name ?? "null"})");
-            }
-        }
-        
-        Console.WriteLine($"\nAgent Instances ({agentValues?.Count ?? 0}):");
-        if (agentValues != null)
-        {
-            foreach (var kvp in agentValues)
-            {
-                Console.WriteLine($"  - {kvp.Key}: {kvp.Value?.ID ?? "null"} ({kvp.Value?.GetType().Name ?? "null"})");
-            }
-        }
-        
-        Console.WriteLine($"\nTool Instances ({toolValues?.Count ?? 0}):");
-        if (toolValues != null)
-        {
-            foreach (var kvp in toolValues)
-            {
-                Console.WriteLine($"  - {kvp.Key}: {kvp.Value?.ID ?? "null"} ({kvp.Value?.GetType().Name ?? "null"})");
-            }
-        }
-        
-        Console.WriteLine($"\nLayer Instances ({layerValues?.Count ?? 0}):");
-        if (layerValues != null)
-        {
-            foreach (var kvp in layerValues)
-            {
-                Console.WriteLine($"  - {kvp.Key}: {kvp.Value?.ID ?? "null"} ({kvp.Value?.GetType().Name ?? "null"})");
-            }
-        }
-        
-        Console.WriteLine($"\nModule Instances ({moduleValues?.Count ?? 0}):");
-        if (moduleValues != null)
-        {
-            foreach (var kvp in moduleValues)
-            {
-                Console.WriteLine($"  - {kvp.Key}: {kvp.Value?.ID ?? "null"} ({kvp.Value?.GetType().Name ?? "null"})");
-            }
-        }
-        
-        // Get predicate instances
-        var predicateValues = GetPrivateField<Dictionary<FastName, Predicate>>(blackboard, "PredicateValues");
-        
-        Console.WriteLine($"\nPredicate Instances ({predicateValues?.Count ?? 0}):");
-        if (predicateValues != null)
-        {
-            foreach (var kvp in predicateValues)
-            {
-                Console.WriteLine($"  - {kvp.Key}: {kvp.Value.GetType().Name} (isNegated: {kvp.Value.isNegated})");
-            }
-        }
+        await TestDifferentSuccessCriteria(blackboard);
     }
     
-    static T GetPrivateField<T>(object obj, string fieldName)
+        /// <summary>
+    /// Test different success criteria to show how they affect flow node behavior
+    /// </summary>
+    private static async Task TestDifferentSuccessCriteria(Blackboard<FastName> blackboard)
     {
-        var field = obj.GetType().GetField(fieldName, 
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        return field != null ? (T)field.GetValue(obj) : default(T);
-    }
-    
-    static void TestFactoryAction(Blackboard<FastName> blackboard)
-    {
-        Console.WriteLine("🔧 Testing FactoryAction functionality...");
+        // Reset all action instances before testing different success criteria
+        Console.WriteLine("🔄 Resetting all action instances for clean test...");
+        var actionInstancesToReset = blackboard.GetAllActionInstances();
+        foreach (var actionInstance in actionInstancesToReset)
+        {
+            actionInstance.Reset();
+        }
+        Console.WriteLine($"✅ Reset {actionInstancesToReset.Count} action instances");
         
-        try
+        Console.WriteLine("\n🔧 Testing SuccessCriteria.ALL (all children must succeed)");
+        Console.WriteLine("========================================================");
+        
+        var behaviorTree = new BTInstance();
+        behaviorTree.Initialise(blackboard, "TestALL");
+        
+        var flowNodeALL = new BTFlowNode_Dynamic(behaviorTree, SuccessCriteria.ALL, 1.0f);
+        
+        // Get real actions from blackboard and create a proper NodeGraph
+        var allActionInstances = blackboard.GetAllActionInstances();
+        if (allActionInstances.Count >= 3)
         {
-            // Test 1: Create a simple action instance with string parameters
-            Console.WriteLine("\n📋 Test 1: Creating action instance with string parameters");
+            // Take first 3 actions and create a NodeGraph with proper relations
+            var testActions = allActionInstances.Take(3).Cast<GenericBTAction>().ToList();
+            var nodeGraphALL = flowNodeALL.CreateNodeGraphFromActions(testActions);
+            flowNodeALL.SetActionGraph(nodeGraphALL);
             
-            var actionFactory = FactoryAction.Instance;
-            var parameterValues = new Dictionary<string, string>
-            {
-                { "pickedObject", "b1" },
-                { "rob", "r1" },
-                { "loc", "fp1" },
-                { "robTool", "vg1" }
-            };
-            
-            var actionInstance = actionFactory.CreateActionInstance(
-                "pickUp", 
-                blackboard, 
-                "testPickUpInstance", 
-                parameterValues
-            );
-            
-            Console.WriteLine($"✅ Successfully created action instance: {actionInstance.GetType().Name}");
-            Console.WriteLine($"   Debug Display Name: {actionInstance.DebugDisplayName}");
-            
-            // Test 2: Create action instance with object parameters
-            Console.WriteLine("\n📋 Test 2: Creating action instance with object parameters");
-            
-            var objectParameterValues = new Dictionary<string, object>
-            {
-                { "obj", blackboard.GetElement(new FastName("b2")) },
-                { "grabPos", blackboard.GetLocation(new FastName("fp2")) },
-                { "client", blackboard.GetAgent(new FastName("r1")) }
-            };
-            
-            var grabActionInstance = actionFactory.CreateActionInstance(
-                "grab", 
-                blackboard, 
-                "testGrabInstance", 
-                objectParameterValues
-            );
-            
-            Console.WriteLine($"✅ Successfully created grab action instance: {grabActionInstance.GetType().Name}");
-            Console.WriteLine($"   Debug Display Name: {grabActionInstance.DebugDisplayName}");
-            
-            // Test 3: Test error handling for unknown action type
-            Console.WriteLine("\n📋 Test 3: Testing error handling for unknown action type");
-            
-            try
-            {
-                var unknownAction = actionFactory.CreateActionInstance(
-                    "UnknownAction", 
-                    blackboard, 
-                    "testUnknownInstance", 
-                    parameterValues
-                );
-                Console.WriteLine("❌ ERROR: Should have thrown an exception for unknown action type");
-            }
-            catch (ArgumentException ex)
-            {
-                Console.WriteLine($"✅ Correctly caught error: {ex.Message}");
-            }
-            
-            Console.WriteLine("\n🎉 FactoryAction tests completed successfully!");
+            Console.WriteLine($"   Created NodeGraph with {nodeGraphALL.GetAllActionNodes().Count} nodes");
+            Console.WriteLine($"   Execution order: {string.Join(" → ", nodeGraphALL.GetExecutionOrder().Select(a => a.InstanceName.ToString()))}");
         }
-        catch (Exception ex)
+        else
         {
-            Console.WriteLine($"❌ Error testing FactoryAction: {ex.Message}");
-            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            Console.WriteLine("   ⚠️  Not enough actions available for ALL test");
+            return;
         }
+        
+        // Tick until completion
+        for (int tick = 1; tick <= 5; tick++)
+        {
+            Console.WriteLine($"   Tick {tick}: Status = {flowNodeALL.LastStatus}, Finished = {flowNodeALL.HasFinished}");
+            flowNodeALL.Tick(0.016f);
+            if (flowNodeALL.HasFinished) break;
+            await Task.Delay(50);
+        }
+        
+        Console.WriteLine($"   Final Result: {flowNodeALL.LastStatus}");
+        
+        Console.WriteLine("\n🔧 Testing SuccessCriteria.ANY (at least one child must succeed)");
+        Console.WriteLine("=============================================================");
+        
+        var flowNodeANY = new BTFlowNode_Dynamic(behaviorTree, SuccessCriteria.ANY, 0.0f);
+        
+        // Get real actions from blackboard and create a proper NodeGraph
+        if (allActionInstances.Count >= 3)
+        {
+            // Take first 3 actions and create a NodeGraph with proper relations
+            var testActions = allActionInstances.Take(3).Cast<GenericBTAction>().ToList();
+            var nodeGraphANY = flowNodeANY.CreateNodeGraphFromActions(testActions);
+            flowNodeANY.SetActionGraph(nodeGraphANY);
+            
+            Console.WriteLine($"   Created NodeGraph with {nodeGraphANY.GetAllActionNodes().Count} nodes");
+            Console.WriteLine($"   Execution order: {string.Join(" → ", nodeGraphANY.GetExecutionOrder().Select(a => a.InstanceName.ToString()))}");
+        }
+        else
+        {
+            Console.WriteLine("   ⚠️  Not enough actions available for ANY test");
+            return;
+        }
+        
+        // Tick until completion
+        for (int tick = 1; tick <= 5; tick++)
+        {
+            Console.WriteLine($"   Tick {tick}: Status = {flowNodeANY.LastStatus}, Finished = {flowNodeANY.HasFinished}");
+            flowNodeANY.Tick(0.016f);
+            if (flowNodeANY.HasFinished) break;
+            await Task.Delay(50);
+        }
+        
+        Console.WriteLine($"   Final Result: {flowNodeANY.LastStatus}");
+        
+        Console.WriteLine("\n✅ Success Criteria Tests Completed!");
     }
 }
 

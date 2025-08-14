@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using ModelLoader.ParameterTypes;
+using ModelLoader.PredicateTypes;
 
 namespace BehaviorTreeMainProject
 {
@@ -18,18 +19,9 @@ namespace BehaviorTreeMainProject
         // Parameter: ng of type nailGripper
         public NailGripper ng { get; private set; }
 
-        protected override List<string> PreconditionTemplates => new List<string>
-        {
-            "PredicateInstance: empty(client = client, isNegated = true)",
-            "PredicateInstance: hasTool(agent = client, tool = ng, isNegated = false)",
-            "PredicateInstance: atplace(myObject = obj, place = pos, isNegated = false)",
-            "PredicateInstance: clear(myObject = obj, isNegated = false)",
-        };
-
-        protected override List<string> EffectTemplates => new List<string>
-        {
-            "PredicateInstance: nailed(myObject = obj, isNegated = false)",
-        };
+        // Preconditions and Effects as State objects
+        private State preconditions;
+        private State effects;
 
         public Nailing(string actionType, string instanceName, Blackboard<FastName> blackboard, Beam obj, PositionOnRail pos, Robot client, NailGripper ng)
             : base(actionType, instanceName, blackboard)
@@ -38,7 +30,20 @@ namespace BehaviorTreeMainProject
             this.pos = pos;
             this.client = client;
             this.ng = ng;
+            InitializePredicates();
         }
+
+        private void InitializePredicates()
+        {
+            // Initialize preconditions
+            preconditions = new State(StateType.Precondition, new FastName("nailing_preconditions"));
+
+            // Initialize effects
+            effects = new State(StateType.Effect, new FastName("nailing_effects"));
+        }
+
+        protected override State Preconditions => preconditions;
+        protected override State Effects => effects;
 
         protected override bool OnTick_NodeLogic(float InDeltaTime)
         {

@@ -28,7 +28,7 @@ public class Blackboard<T> : IDisposable where T : class
     Dictionary<FastName, Location>   LocationValues =    new ();
     Dictionary<FastName, Agent>   AgentValues =    new ();
     Dictionary<FastName, Predicate> PredicateValues = new();
-    Dictionary<FastName, BTActionNodeBase> ActionValues = new();
+    Dictionary<FastName, GenericBTAction> ActionValues = new();
      Dictionary<FastName, State> StateValues = new();
    
     private readonly IDriver _driver;
@@ -308,9 +308,9 @@ public void SetPredicateType(FastName key, Predicate predicateType)
 }
 
 // Action type methods
-public void SetActionType(FastName key, BTActionNodeBase actionType)
+public void SetActionType(FastName key, GenericBTAction actionType)
 {
-    if (!typeof(BTActionNodeBase).IsAssignableFrom(actionType.GetType()))
+    if (!typeof(GenericBTAction).IsAssignableFrom(actionType.GetType()))
     {
         throw new ArgumentException($"Type {actionType.GetType().Name} is not an Action type");
     }
@@ -320,6 +320,27 @@ public void SetActionType(FastName key, BTActionNodeBase actionType)
         AvailableActionTypes.Add(key);
     }
     AvailableActionTypes.Add(key);
+    
+    // Store the action instance
+    ActionValues[key] = actionType;
+}
+
+public BTActionNodeBase GetAction(FastName key)
+{
+    if (!ActionValues.ContainsKey(key))
+    {
+        throw new ArgumentException($"Could not find action for {key}");
+    }
+    return ActionValues[key];
+}
+
+/// <summary>
+/// Gets all action instances from the blackboard
+/// </summary>
+/// <returns>List of all action instances</returns>
+public List<GenericBTAction> GetAllActionInstances()
+{
+    return ActionValues.Values.ToList();
 }
 
     // Set methods for predicates

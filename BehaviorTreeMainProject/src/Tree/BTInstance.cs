@@ -27,7 +27,7 @@ public class BTInstance : IBehaviorTree
      public IBTNode AddChildToRootNode<NodeType>(IBTNode InNode) 
     {
         InNode.SetOwiningTree(this);
-        return (RootNode as IBTFlowNode).AddChild(InNode);
+        return (RootNode as BTFlowNodeBase).AddChild(InNode);
         
     }
 

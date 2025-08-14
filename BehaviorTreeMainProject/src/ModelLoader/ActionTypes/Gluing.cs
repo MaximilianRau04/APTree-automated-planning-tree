@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using ModelLoader.ParameterTypes;
+using ModelLoader.PredicateTypes;
 
 namespace BehaviorTreeMainProject
 {
@@ -18,18 +19,9 @@ namespace BehaviorTreeMainProject
         // Parameter: gg of type glueGun
         public GlueGun gg { get; private set; }
 
-        protected override List<string> PreconditionTemplates => new List<string>
-        {
-            "PredicateInstance: hasTool(agent = client, tool = gg, isNegated = false)",
-            "PredicateInstance: empty(client = client, isNegated = true)",
-            "PredicateInstance: atplace(myObject = obj, place = pos, isNegated = false)",
-            "PredicateInstance: clear(myObject = obj, isNegated = false)",
-        };
-
-        protected override List<string> EffectTemplates => new List<string>
-        {
-            "PredicateInstance: glued(myObject = obj, isNegated = false)",
-        };
+        // Preconditions and Effects as State objects
+        private State preconditions;
+        private State effects;
 
         public Gluing(string actionType, string instanceName, Blackboard<FastName> blackboard, Beam obj, PositionOnRail pos, Robot client, GlueGun gg)
             : base(actionType, instanceName, blackboard)
@@ -38,7 +30,20 @@ namespace BehaviorTreeMainProject
             this.pos = pos;
             this.client = client;
             this.gg = gg;
+            InitializePredicates();
         }
+
+        private void InitializePredicates()
+        {
+            // Initialize preconditions
+            preconditions = new State(StateType.Precondition, new FastName("gluing_preconditions"));
+
+            // Initialize effects
+            effects = new State(StateType.Effect, new FastName("gluing_effects"));
+        }
+
+        protected override State Preconditions => preconditions;
+        protected override State Effects => effects;
 
         protected override bool OnTick_NodeLogic(float InDeltaTime)
         {

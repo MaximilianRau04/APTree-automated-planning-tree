@@ -169,14 +169,12 @@ Action equipe {
         ep: equipposition
     }
     precondition {
-        PredicateInstance: atplace(myObject = too, place = ep, isNegated = false)
         PredicateInstance: empty(client = client, isNegated = false)
         PredicateInstance: positionfree(pos = ep, isNegated = true)
     }    
     effect {
         PredicateInstance: hasTool(agent = client, tool = too, isNegated = false)
         PredicateInstance: empty(client = client, isNegated = true)
-        PredicateInstance: atplace(myObject = too, place = ep, isNegated = true)
         PredicateInstance: positionfree(pos = ep, isNegated = false)
     }   
     function {
@@ -197,12 +195,10 @@ Action deequip {
     }
     precondition {
         PredicateInstance: hasTool(agent = client, tool = too, isNegated = false)
-        PredicateInstance: atplace(myObject = too, place = ep, isNegated = true)
         PredicateInstance: empty(client = client, isNegated = true)
         PredicateInstance: positionfree(pos = ep, isNegated = false)
     }    
     effect {
-        PredicateInstance: atplace(myObject = too, place = ep, isNegated = false)
         PredicateInstance: empty(client = client, isNegated = false)
         PredicateInstance: hasTool(agent = client, tool = too, isNegated = true)
         PredicateInstance: positionfree(pos = ep, isNegated = true)
@@ -273,7 +269,7 @@ Action place {
 }
 
 // Robot stacks one object on top of another object
-Action stack {
+Action stackHL {
     parameters {
         obj1: beam
         obj2: beam
@@ -386,6 +382,7 @@ Action nailing {
         nailingImplementation
     }
 }
+
 
 // Action instances
 

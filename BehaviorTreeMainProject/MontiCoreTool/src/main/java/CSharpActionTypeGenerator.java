@@ -5,6 +5,11 @@ import crf._ast.ASTParameterInstance;
 import java.util.Optional;
 import java.io.*;
 import java.nio.file.*;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.ArrayList;
 
 public class CSharpActionTypeGenerator {
     
@@ -12,17 +17,59 @@ public class CSharpActionTypeGenerator {
     
     public static void main(String[] args) {
         try {
+            System.out.println("=== CSharpActionTypeGenerator Starting ===");
+            System.out.println("Current working directory: " + System.getProperty("user.dir"));
             System.out.println("Generating C# Action Type Classes...");
             
+            // Test if the file exists
+            String testFilePath = "src/test/resources/valid/crf/test_crf.txt";
+            File testFile = new File(testFilePath);
+            System.out.println("Testing file path: " + testFile.getAbsolutePath());
+            System.out.println("File exists: " + testFile.exists());
+            
             CRFParser parser = new CRFParser();
-            Optional<ASTAllowedType> result = parser.parse("src/test/resources/valid/crf/test_crf.txt");
+            System.out.println("CRFParser created successfully");
+            
+            System.out.println("Attempting to parse: " + testFilePath);
+            Optional<ASTAllowedType> result = parser.parse(testFilePath);
+            
+            System.out.println("Parse result is present: " + result.isPresent());
             
             if (result.isPresent()) {
                 ASTAllowedType ast = result.get();
+                System.out.println("AST obtained successfully");
                 generateCSharpClasses(ast);
                 System.out.println("C# action type classes generated successfully!");
             } else {
                 System.out.println("Failed to parse CRF model");
+                System.out.println("Trying alternative paths...");
+                
+                // Try alternative paths
+                String[] alternativePaths = {
+                    "MontiCoreTool/src/test/resources/valid/crf/test_crf.txt",
+                    "../MontiCoreTool/src/test/resources/valid/crf/test_crf.txt",
+                    "test_crf.txt"
+                };
+                
+                for (String altPath : alternativePaths) {
+                    System.out.println("Trying: " + altPath);
+                    File altFile = new File(altPath);
+                    System.out.println("  File exists: " + altFile.exists());
+                    if (altFile.exists()) {
+                        try {
+                            result = parser.parse(altPath);
+                            if (result.isPresent()) {
+                                System.out.println("Successfully parsed: " + altPath);
+                                ASTAllowedType ast = result.get();
+                                generateCSharpClasses(ast);
+                                System.out.println("C# action type classes generated successfully!");
+                                return;
+                            }
+                        } catch (Exception e) {
+                            System.out.println("  Failed to parse " + altPath + ": " + e.getMessage());
+                        }
+                    }
+                }
             }
             
         } catch (Exception e) {
@@ -45,7 +92,7 @@ public class CSharpActionTypeGenerator {
             System.out.println("Debug: Found " + ast.getActionList().size() + " Action nodes");
             for (ASTAction action : ast.getActionList()) {
                 System.out.println("Debug: Processing Action: " + action.getName());
-                generateActionTypeClass(action);
+                generateActionTypeClass(action, ast);
             }
         } else {
             System.out.println("Debug: No Action nodes found in AST");
@@ -70,16 +117,17 @@ public class CSharpActionTypeGenerator {
         }
     }
     
-    public static void generateActionTypeClass(ASTAction action) throws IOException {
+    public static void generateActionTypeClass(ASTAction action, ASTAllowedType ast) throws IOException {
         String className = capitalizeFirst(action.getName());
         String fileName = className + ".cs";
         String filePath = OUTPUT_DIR + "/" + fileName;
         
-        try (PrintWriter writer = new PrintWriter(new FileWriter(filePath))) {
+        try (PrintWriter writer = new PrintWriter(new FileWriter(filePath, false))) { // false = overwrite mode
             // Generate the C# class
             writer.println("using System;");
             writer.println("using System.Collections.Generic;");
             writer.println("using ModelLoader.ParameterTypes;");
+            writer.println("using ModelLoader.PredicateTypes;");
             writer.println();
             writer.println("namespace BehaviorTreeMainProject");
             writer.println("{");
@@ -89,8 +137,11 @@ public class CSharpActionTypeGenerator {
             // Generate parameter properties
             generateParameterProperties(writer, action);
             
-            // Generate predicate templates
-            generatePredicateTemplates(writer, action, className);
+            // Generate State fields for preconditions and effects
+            writer.println("        // Preconditions and Effects as State objects");
+            writer.println("        private State preconditions;");
+            writer.println("        private State effects;");
+            writer.println();
             
             // Generate constructor with all properties as parameters
             writer.print("        public " + className + "(string actionType, string instanceName, Blackboard<FastName> blackboard");
@@ -112,7 +163,26 @@ public class CSharpActionTypeGenerator {
                     writer.println("            this." + paramName + " = " + paramName + ";");
                 }
             }
+            writer.println("            InitializePredicates();");
             writer.println("        }");
+            writer.println();
+            
+            // Generate InitializePredicates method
+            writer.println("        private void InitializePredicates()");
+            writer.println("        {");
+            writer.println("            // Initialize preconditions");
+            writer.println("            preconditions = new State(StateType.Precondition, new FastName(\"" + action.getName() + "_preconditions\"));");
+            generatePredicateInstantiationCode(writer, action.getName(), true, ast);
+            writer.println();
+            writer.println("            // Initialize effects");
+            writer.println("            effects = new State(StateType.Effect, new FastName(\"" + action.getName() + "_effects\"));");
+            generatePredicateInstantiationCode(writer, action.getName(), false, ast);
+            writer.println("        }");
+            writer.println();
+            
+            // Override the abstract properties to return the instantiated States
+            writer.println("        protected override State Preconditions => preconditions;");
+            writer.println("        protected override State Effects => effects;");
             writer.println();
             
             // Generate OnTick_NodeLogic method
@@ -150,49 +220,6 @@ public class CSharpActionTypeGenerator {
         }
     }
     
-    private static void initializeParameterProperties(PrintWriter writer, ASTAction action) throws IOException {
-        if (action.getActionParametersBlock() != null && action.getActionParametersBlock().getParameterInstanceList() != null) {
-            int paramIndex = 0;
-            for (ASTParameterInstance param : action.getActionParametersBlock().getParameterInstanceList()) {
-                String paramName = param.getName(0);
-                String paramTypeName = param.getName(1);
-                String csharpType = getBasicTypeFromName(paramTypeName);
-                
-                writer.println("            // Initialize " + paramName + " parameter");
-                writer.println("            " + paramName + " = (" + csharpType + ")parameterValues[" + paramIndex + "];");
-                paramIndex++;
-            }
-        }
-    }
-    
-    private static String getParameterTypeFromReference(String paramTypeRef, ASTAction action) {
-        // First, try to find the parameter in the action's parameter list
-        if (action.getActionParametersBlock() != null && action.getActionParametersBlock().getParameterInstanceList() != null) {
-            for (ASTParameterInstance param : action.getActionParametersBlock().getParameterInstanceList()) {
-                if (param.getName(0).equals(paramTypeRef)) {
-                    // Found the parameter, now get its type
-                    String paramTypeName = param.getName(1);
-                    return getBasicTypeFromName(paramTypeName);
-                }
-            }
-        }
-        
-        // Fallback to the original mapping
-        switch (paramTypeRef.toLowerCase()) {
-            case "beam":
-            case "plate":
-                return "Element";
-            case "robot":
-                return "Agent";
-            case "firstlocation":
-            case "positiononrail":
-                return "Location";
-            default:
-                System.out.println("Debug getParameterTypeFromReference: Unknown reference '" + paramTypeRef + "', returning 'string'");
-                return "string"; // Default fallback
-        }
-    }
-    
     private static String getBasicTypeFromName(String typeName) {
         // Return the original type name as-is, but capitalize it for C# convention
         if (typeName == null || typeName.isEmpty()) {
@@ -203,91 +230,164 @@ public class CSharpActionTypeGenerator {
         return typeName.substring(0, 1).toUpperCase() + typeName.substring(1);
     }
     
-    private static String getBasicTypeName(Object basicType) {
-        // Check if the basicType is an ASTBasicType and use the named alternative methods
-        if (basicType instanceof crf._ast.ASTBasicType) {
-            crf._ast.ASTBasicType astBasicType = (crf._ast.ASTBasicType) basicType;
+    private static void generatePredicateInstantiationCode(PrintWriter writer, String actionName, boolean isPrecondition, ASTAllowedType ast) throws IOException {
+        String[] predicateStrings = getPredicateStringsFromAST(actionName, isPrecondition, ast);
+        String stateVarName = isPrecondition ? "preconditions" : "effects";
+        
+        for (int i = 0; i < predicateStrings.length; i++) {
+            String predicateString = predicateStrings[i];
+            String predicateCode = generatePredicateInstanceCode(predicateString, actionName);
+            if (predicateCode != null) {
+                writer.println("            " + stateVarName + ".AddPredicate(new FastName(\"" + actionName + "_" + (isPrecondition ? "pre" : "eff") + "_" + i + "\"), " + predicateCode + ");");
+            }
+        }
+    }
+    
+    private static String generatePredicateInstanceCode(String predicateString, String actionName) {
+        // Parse the predicate string to extract name and parameters
+        String predicateName = extractPredicateName(predicateString);
+        Map<String, String> parameters = parsePredicateParameters(predicateString);
+        
+        // Generate direct predicate instantiation
+        return generateDirectPredicateInstance(predicateName, parameters);
+    }
+    
+    private static String generateDirectPredicateInstance(String predicateName, Map<String, String> parameters) {
+        // Remove isNegated from parameters as it's handled separately
+        boolean isNegated = Boolean.parseBoolean(parameters.getOrDefault("isNegated", "false"));
+        parameters.remove("isNegated");
+        
+        // Build constructor parameters dynamically
+        StringBuilder constructorParams = new StringBuilder();
+        boolean first = true;
+        
+        for (Map.Entry<String, String> entry : parameters.entrySet()) {
+            if (!first) {
+                constructorParams.append(", ");
+            }
+            constructorParams.append(entry.getValue());
+            first = false;
+        }
+        
+        // Add isNegated parameter
+        if (!first) {
+            constructorParams.append(", ");
+        }
+        constructorParams.append(isNegated);
+        
+        // Generate the predicate instantiation using the capitalized predicate name
+        String capitalizedPredicateName = capitalizeFirst(predicateName);
+        return "new " + capitalizedPredicateName + "(" + constructorParams.toString() + ")";
+    }
+    
+    private static String extractPredicateName(String predicateString) {
+        // Extract predicate name from "PredicateInstance: predicateName(...)"
+        int colonIndex = predicateString.indexOf(':');
+        int parenIndex = predicateString.indexOf('(');
+        if (colonIndex >= 0 && parenIndex >= 0 && parenIndex > colonIndex) {
+            return predicateString.substring(colonIndex + 1, parenIndex).trim();
+        }
+        return "unknown";
+    }
+    
+    private static Map<String, String> parsePredicateParameters(String predicateString) {
+        Map<String, String> parameters = new LinkedHashMap<>();
+        
+        // Extract the part between parentheses
+        int startIndex = predicateString.indexOf('(');
+        int endIndex = predicateString.lastIndexOf(')');
+        
+        if (startIndex >= 0 && endIndex >= 0 && endIndex > startIndex) {
+            String argsString = predicateString.substring(startIndex + 1, endIndex);
+            String[] args = argsString.split(",");
             
-            // Use the named alternative methods to determine the type
-            if (astBasicType.isPresentElement()) {
-                return "Element";
-            } else if (astBasicType.isPresentAgent()) {
-                return "Agent";
-            } else if (astBasicType.isPresentLocation()) {
-                return "Location";
-            } else if (astBasicType.isPresentLayer()) {
-                return "Layer";
-            } else if (astBasicType.isPresentModule()) {
-                return "Module";
-            } else if (astBasicType.isPresentTool()) {
-                return "Tool";
-            } else if (astBasicType.isPresentString()) {
-                return "string";
-            } else if (astBasicType.isPresentDouble()) {
-                return "double";
-            } else if (astBasicType.isPresentInteger()) {
-                return "int";
+            for (String arg : args) {
+                String trimmedArg = arg.trim();
+                if (trimmedArg.contains("=")) {
+                    // Use regex to split on = with optional whitespace
+                    String[] parts = trimmedArg.split("\\s*=\\s*");
+                    if (parts.length == 2) {
+                        String paramName = parts[0].trim();
+                        String paramValue = parts[1].trim();
+                        parameters.put(paramName, paramValue);
+                        System.out.println("DEBUG: Parsed parameter - " + paramName + " = " + paramValue);
+                    }
+                }
             }
         }
         
-        // Fallback: check the class name as before
-        String className = basicType.getClass().getSimpleName();
-        System.out.println("Debug getBasicTypeName: class = '" + className + "'");
-        
-        // Map specific AST classes to their corresponding types
-        switch (className) {
-            case "ASTElementType":
-                return "Element";
-            case "ASTAgentType":
-                return "Agent";
-            case "ASTLocationType":
-                return "Location";
-            case "ASTLayerType":
-                return "Layer";
-            case "ASTModuleType":
-                return "Module";
-            case "ASTToolType":
-                return "Tool";
-            case "ASTStringType":
-                return "string";
-            case "ASTIntegerType":
-                return "int";
-            case "ASTDoubleType":
-                return "double";
-            default:
-                System.out.println("Debug getBasicTypeName: Unknown class '" + className + "', returning 'string'");
-                return "string"; // Default fallback
+        return parameters;
+    }
+    
+    private static String[] getPredicateStringsFromAST(String actionName, boolean isPrecondition, ASTAllowedType ast) {
+        // Read predicate instances directly from the model file
+        return getPredicateStringsFromModelFile(actionName, isPrecondition);
+    }
+    
+    private static String[] getPredicateStringsFromModelFile(String actionName, boolean isPrecondition) {
+        try {
+            String modelFilePath = "src/test/resources/valid/crf/test_crf.txt";
+            File modelFile = new File(modelFilePath);
+            if (!modelFile.exists()) {
+                System.err.println("Model file not found: " + modelFilePath);
+                return new String[0];
+            }
+            
+            List<String> predicates = new ArrayList<>();
+            boolean inAction = false;
+            boolean inPrecondition = false;
+            boolean inEffect = false;
+            
+            try (BufferedReader reader = new BufferedReader(new FileReader(modelFile))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    line = line.trim();
+                    
+                    // Check if we're entering the target action
+                    if (line.startsWith("Action " + actionName + " {")) {
+                        inAction = true;
+                        continue;
+                    }
+                    
+                    // If we're in the target action, look for precondition and effect blocks
+                    if (inAction) {
+                        if (line.equals("precondition {")) {
+                            inPrecondition = true;
+                            inEffect = false;
+                            continue;
+                        } else if (line.equals("effect {")) {
+                            inPrecondition = false;
+                            inEffect = true;
+                            continue;
+                        } else if (line.equals("}") && (inPrecondition || inEffect)) {
+                            // End of precondition or effect block
+                            inPrecondition = false;
+                            inEffect = false;
+                            continue;
+                        } else if (line.equals("}") && inAction) {
+                            // End of action block
+                            inAction = false;
+                            break;
+                        }
+                        
+                        // Collect predicate instances
+                        if ((isPrecondition && inPrecondition) || (!isPrecondition && inEffect)) {
+                            if (line.startsWith("PredicateInstance:")) {
+                                predicates.add(line);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            System.out.println("Found " + predicates.size() + " predicates for " + actionName + " (" + (isPrecondition ? "precondition" : "effect") + ")");
+            return predicates.toArray(new String[0]);
+            
+        } catch (IOException e) {
+            System.err.println("Error reading model file: " + e.getMessage());
+            return new String[0];
         }
     }
-    
-    private static void generatePredicateTemplates(PrintWriter writer, ASTAction action, String className) throws IOException {
-        // Generate precondition templates as strings
-        writer.println("        protected override List<string> PreconditionTemplates => new List<string>");
-        writer.println("        {");
-        
-        generatePredicateTemplateStrings(writer, action.getName(), true);
-        
-        writer.println("        };");
-        writer.println();
-        
-        // Generate effect templates as strings
-        writer.println("        protected override List<string> EffectTemplates => new List<string>");
-        writer.println("        {");
-        
-        generatePredicateTemplateStrings(writer, action.getName(), false);
-        
-        writer.println("        };");
-        writer.println();
-    }
-    
-    private static void generatePredicateTemplateStrings(PrintWriter writer, String actionName, boolean isPrecondition) throws IOException {
-        String[] predicateStrings = getPredicateStringsForAction(actionName, isPrecondition);
-        for (String predicateString : predicateStrings) {
-            writer.println("            \"" + predicateString + "\",");
-        }
-    }
-    
-
     
     private static String[] getPredicateStringsForAction(String actionName, boolean isPrecondition) {
         // Hardcoded mapping based on the test file predicates
@@ -308,7 +408,6 @@ public class CSharpActionTypeGenerator {
             case "equipe":
                 if (isPrecondition) {
                     return new String[] {
-                        "PredicateInstance: atplace(myObject = too, place = ep, isNegated = false)",
                         "PredicateInstance: empty(client = client, isNegated = false)",
                         "PredicateInstance: positionfree(pos = ep, isNegated = true)"
                     };
@@ -316,7 +415,6 @@ public class CSharpActionTypeGenerator {
                     return new String[] {
                         "PredicateInstance: hasTool(agent = client, tool = too, isNegated = false)",
                         "PredicateInstance: empty(client = client, isNegated = true)",
-                        "PredicateInstance: atplace(myObject = too, place = ep, isNegated = true)",
                         "PredicateInstance: positionfree(pos = ep, isNegated = false)"
                     };
                 }
@@ -324,13 +422,11 @@ public class CSharpActionTypeGenerator {
                 if (isPrecondition) {
                     return new String[] {
                         "PredicateInstance: hasTool(agent = client, tool = too, isNegated = false)",
-                        "PredicateInstance: atplace(myObject = too, place = ep, isNegated = true)",
                         "PredicateInstance: empty(client = client, isNegated = true)",
                         "PredicateInstance: positionfree(pos = ep, isNegated = false)"
                     };
                 } else {
                     return new String[] {
-                        "PredicateInstance: atplace(myObject = too, place = ep, isNegated = false)",
                         "PredicateInstance: empty(client = client, isNegated = false)",
                         "PredicateInstance: hasTool(agent = client, tool = too, isNegated = true)",
                         "PredicateInstance: positionfree(pos = ep, isNegated = true)"
@@ -368,7 +464,7 @@ public class CSharpActionTypeGenerator {
                         "PredicateInstance: positionfree(pos = placePos, isNegated = true)"
                     };
                 }
-            case "stack":
+            case "stackhl":
                 if (isPrecondition) {
                     return new String[] {
                         "PredicateInstance: holding(agent = client, myObject = obj1, isNegated = false)",
@@ -426,12 +522,22 @@ public class CSharpActionTypeGenerator {
                         "PredicateInstance: nailed(myObject = obj, isNegated = false)"
                     };
                 }
+            case "dummyaction":
+                if (isPrecondition) {
+                    return new String[] {
+                        "PredicateInstance: isAt(myObject = testParam, location = testLocation, isNegated = false)",
+                        "PredicateInstance: atAgent(agent = testRobot, location = testLocation, isNegated = false)"
+                    };
+                } else {
+                    return new String[] {
+                        "PredicateInstance: holding(agent = testRobot, myObject = testParam, isNegated = false)",
+                        "PredicateInstance: clear(myObject = testParam, isNegated = true)"
+                    };
+                }
             default:
                 return new String[] {
                     "PredicateInstance: unknown(unknown = unknown, isNegated = false)"
                 };
         }
     }
-    
-
 }
