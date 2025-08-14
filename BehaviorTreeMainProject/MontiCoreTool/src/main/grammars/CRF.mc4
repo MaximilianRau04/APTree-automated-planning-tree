@@ -35,32 +35,28 @@ ParameterDeclaration = Name "-" BasicType;
 ParameterInstance = Name ":" Name; 
 
 // State-related rules
-State = Name? "{" (PredicateInstance)+ "}";   
+State = Name? "{" (PredicateInstanceDef)* "}";    
 StateType = "precondition" | "effect" | "initial" | "goal"; 
-PreconditionState = "precondition" State;
-EffectState = "effect" State;
-InitialState = "initial" State;
-GoalState = "goal" State;
+PreconditionState = "precondition" "{" (PredicateInstanceDef)* "}"; 
+EffectState = "effect" "{" (PredicateInstanceDef)* "}"; 
+InitialState = "initial" "{" (PredicateInstanceDef)* "}"; 
+GoalState = "goal" "{" (PredicateInstanceDef)* "}";
 
 // ActionInstance definition - references action types
-ActionInstance = "ActionInstance" ":" ActionTypeName "(" (ActionArgument ("," ActionArgument)*)? ")";    
-ActionTypeName = Name;  
-ActionArgument = BasicType "=" ParameterName;   
-ParameterName = Name;  
+ActionInstance = "ActionInstance" ":" ActionTypeName "(" (ParameterInstance ("," ParameterInstance)*)? ")";    
+ActionTypeName = Name;    
        
 // Action type definition
 Action = "Action" Name "{"
     ActionParametersBlock
-    PreconditionBlock
-    EffectBlock
+    PreconditionState
+    EffectState
     FunctionBlock
     ImplementationBlock"}";
 
 // Action parameters block (uses parameter instances)
 ActionParametersBlock = "parameters" "{" (ParameterInstance)* "}";       
-NameBlock = "name" "=" STRING_VALUE;     
-PreconditionBlock = "preconditions" "{" (PredicateInstance)* "}";   
-EffectBlock = "effects" "{" (PredicateInstance)* "}";    
+NameBlock = "name" "=" STRING_VALUE;       
 FunctionBlock = "function" "{" 
     "{" (Name ("," Name)*)? "}" ","
     "{" ReturnType "}" "}";   
@@ -73,8 +69,7 @@ PredicateTypeDef = "predicate" Name "{" (ParameterDeclaration (("," ParameterDec
 
 // Predicate instance definition (standalone)
 PredicateInstanceDef = "PredicateInstance" ":" Name "(" (PredicateArgument ("," PredicateArgument)*)? "," "isNegated" "=" PredicateValue ")";   
-// Predicate instance (for use within actions)
-PredicateInstance = Name "(" (PredicateArgument ("," PredicateArgument)*)? "," "isNegated" "=" PredicateValue ")";   
+
 PredicateArgument = value: PredicateValue "=" name: Name;
 // Possible predicate values
 PredicateValue = Name | AttributeAccess | "true" | "false";

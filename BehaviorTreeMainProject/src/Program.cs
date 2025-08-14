@@ -49,6 +49,9 @@ public class Program
                 Console.WriteLine("\n=== INSPECTING BLACKBOARD CONTENTS ===");
                 InspectBlackboardContents(blackboard);
                 
+                // Test FactoryAction
+                Console.WriteLine("\n=== TESTING FACTORY ACTION ===");
+                TestFactoryAction(blackboard);
                 
             }
             else
@@ -189,6 +192,81 @@ public class Program
         var field = obj.GetType().GetField(fieldName, 
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         return field != null ? (T)field.GetValue(obj) : default(T);
+    }
+    
+    static void TestFactoryAction(Blackboard<FastName> blackboard)
+    {
+        Console.WriteLine("🔧 Testing FactoryAction functionality...");
+        
+        try
+        {
+            // Test 1: Create a simple action instance with string parameters
+            Console.WriteLine("\n📋 Test 1: Creating action instance with string parameters");
+            
+            var actionFactory = FactoryAction.Instance;
+            var parameterValues = new Dictionary<string, string>
+            {
+                { "pickedObject", "b1" },
+                { "rob", "r1" },
+                { "loc", "fp1" },
+                { "robTool", "vg1" }
+            };
+            
+            var actionInstance = actionFactory.CreateActionInstance(
+                "pickUp", 
+                blackboard, 
+                "testPickUpInstance", 
+                parameterValues
+            );
+            
+            Console.WriteLine($"✅ Successfully created action instance: {actionInstance.GetType().Name}");
+            Console.WriteLine($"   Debug Display Name: {actionInstance.DebugDisplayName}");
+            
+            // Test 2: Create action instance with object parameters
+            Console.WriteLine("\n📋 Test 2: Creating action instance with object parameters");
+            
+            var objectParameterValues = new Dictionary<string, object>
+            {
+                { "obj", blackboard.GetElement(new FastName("b2")) },
+                { "grabPos", blackboard.GetLocation(new FastName("fp2")) },
+                { "client", blackboard.GetAgent(new FastName("r1")) }
+            };
+            
+            var grabActionInstance = actionFactory.CreateActionInstance(
+                "grab", 
+                blackboard, 
+                "testGrabInstance", 
+                objectParameterValues
+            );
+            
+            Console.WriteLine($"✅ Successfully created grab action instance: {grabActionInstance.GetType().Name}");
+            Console.WriteLine($"   Debug Display Name: {grabActionInstance.DebugDisplayName}");
+            
+            // Test 3: Test error handling for unknown action type
+            Console.WriteLine("\n📋 Test 3: Testing error handling for unknown action type");
+            
+            try
+            {
+                var unknownAction = actionFactory.CreateActionInstance(
+                    "UnknownAction", 
+                    blackboard, 
+                    "testUnknownInstance", 
+                    parameterValues
+                );
+                Console.WriteLine("❌ ERROR: Should have thrown an exception for unknown action type");
+            }
+            catch (ArgumentException ex)
+            {
+                Console.WriteLine($"✅ Correctly caught error: {ex.Message}");
+            }
+            
+            Console.WriteLine("\n🎉 FactoryAction tests completed successfully!");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error testing FactoryAction: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        }
     }
 }
 

@@ -3,8 +3,8 @@ grammar DynamicBTFlowNode extends CRF {
     // Dynamic BTflow node definition - separate production to avoid conflicts
     DynamicBTFlowNode = "BTFlownode" Name "{"
                     ParametersBlock
-                    PreconditionBlock
-                    EffectBlock
+                    PreconditionState
+                    EffectState
                     CostDefinition
                     SuccessDefinition
                     NodeGraphDefinition

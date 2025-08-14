@@ -18,37 +18,17 @@ namespace BehaviorTreeMainProject
         // Parameter: robTool of type vacuumGripper
         public VacuumGripper robTool { get; private set; }
 
-        protected override List<ActionPredicateTemplate> PreconditionTemplates => new List<ActionPredicateTemplate>
+        protected override List<string> PreconditionTemplates => new List<string>
         {
-            new ActionPredicateTemplate("isAt", new List<PredicateParameterMapping>
-            {
-                new PredicateParameterMapping("pickedObject", "pickedObject", "Beam"),
-                new PredicateParameterMapping("loc", "loc", "Firstposition"),
-            }),
-            new ActionPredicateTemplate("atAgent", new List<PredicateParameterMapping>
-            {
-                new PredicateParameterMapping("rob", "rob", "Robot"),
-                new PredicateParameterMapping("loc", "loc", "Firstposition"),
-            }),
-            new ActionPredicateTemplate("hasTool", new List<PredicateParameterMapping>
-            {
-                new PredicateParameterMapping("rob", "rob", "Robot"),
-                new PredicateParameterMapping("robTool", "robTool", "VacuumGripper"),
-            }),
+            "PredicateInstance: isAt(myObject = pickedObject, location = loc, isNegated = false)",
+            "PredicateInstance: atAgent(agent = rob, location = loc, isNegated = false)",
+            "PredicateInstance: hasTool(agent = rob, tool = robTool, isNegated = false)",
         };
 
-        protected override List<ActionPredicateTemplate> EffectTemplates => new List<ActionPredicateTemplate>
+        protected override List<string> EffectTemplates => new List<string>
         {
-            new ActionPredicateTemplate("holding", new List<PredicateParameterMapping>
-            {
-                new PredicateParameterMapping("rob", "rob", "Robot"),
-                new PredicateParameterMapping("pickedObject", "pickedObject", "Beam"),
-            }),
-            new ActionPredicateTemplate("atAgent", new List<PredicateParameterMapping>
-            {
-                new PredicateParameterMapping("rob", "rob", "Robot"),
-                new PredicateParameterMapping("loc", "loc", "Firstposition"),
-            }),
+            "PredicateInstance: holding(agent = rob, myObject = pickedObject, isNegated = false)",
+            "PredicateInstance: atAgent(agent = rob, location = loc, isNegated = false)",
         };
 
         public PickUp(string actionType, string instanceName, Blackboard<FastName> blackboard, Beam pickedObject, Robot rob, Firstposition loc, VacuumGripper robTool)

@@ -32,11 +32,11 @@ public class CRFParserTest {
                 if (ast.getActionParametersBlock() != null) {
                     System.out.println("Parameters Block: " + ast.getActionParametersBlock().toString());
                 }
-                if (ast.getPreconditionBlock() != null) {
-                    System.out.println("Precondition Block: " + ast.getPreconditionBlock().toString());
+                if (ast.getPreconditionState() != null) {
+                    System.out.println("Precondition State: " + ast.getPreconditionState().toString());
                 }
-                if (ast.getEffectBlock() != null) {
-                    System.out.println("Effect Block: " + ast.getEffectBlock().toString());
+                if (ast.getEffectState() != null) {
+                    System.out.println("Effect State: " + ast.getEffectState().toString());
                 }
                 if (ast.getFunctionBlock() != null) {
                     System.out.println("Function Block: " + ast.getFunctionBlock().toString());
