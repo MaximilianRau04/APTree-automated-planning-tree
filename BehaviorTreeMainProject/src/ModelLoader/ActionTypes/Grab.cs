@@ -7,11 +7,11 @@ namespace BehaviorTreeMainProject
 {
     public class Grab : GenericBTAction
     {
-        // Parameter: obj of type beam
-        public Beam obj { get; private set; }
+        // Parameter: obj of type element
+        public Element obj { get; private set; }
 
-        // Parameter: grabPos of type firstposition
-        public Firstposition grabPos { get; private set; }
+        // Parameter: grabPos of type location
+        public Location grabPos { get; private set; }
 
         // Parameter: client of type robot
         public Robot client { get; private set; }
@@ -20,7 +20,7 @@ namespace BehaviorTreeMainProject
         private State preconditions;
         private State effects;
 
-        public Grab(string actionType, string instanceName, Blackboard<FastName> blackboard, Beam obj, Firstposition grabPos, Robot client)
+        public Grab(string actionType, string instanceName, Blackboard<FastName> blackboard, Element obj, Location grabPos, Robot client)
             : base(actionType, instanceName, blackboard)
         {
             this.obj = obj;
@@ -43,8 +43,7 @@ namespace BehaviorTreeMainProject
 
         protected override bool OnTick_NodeLogic(float InDeltaTime)
         {
-            // TODO: Implement action logic for Grab
-            // Access parameters via properties: obj, rob, loc, tool, etc.
+            Console.WriteLine($"Grab: {obj.ToString()} at {grabPos.ToString()} by {client.ToString()}");
             return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);
         }
     }

@@ -7,14 +7,14 @@ namespace BehaviorTreeMainProject
 {
     public class PickUp : GenericBTAction
     {
-        // Parameter: pickedObject of type beam
-        public Beam pickedObject { get; private set; }
+        // Parameter: pickedObject of type element
+        public Element pickedObject { get; private set; }
 
         // Parameter: rob of type robot
         public Robot rob { get; private set; }
 
-        // Parameter: loc of type firstposition
-        public Firstposition loc { get; private set; }
+        // Parameter: loc of type location
+        public Location loc { get; private set; }
 
         // Parameter: robTool of type vacuumGripper
         public VacuumGripper robTool { get; private set; }
@@ -23,7 +23,7 @@ namespace BehaviorTreeMainProject
         private State preconditions;
         private State effects;
 
-        public PickUp(string actionType, string instanceName, Blackboard<FastName> blackboard, Beam pickedObject, Robot rob, Firstposition loc, VacuumGripper robTool)
+        public PickUp(string actionType, string instanceName, Blackboard<FastName> blackboard, Element pickedObject, Robot rob, Location loc, VacuumGripper robTool)
             : base(actionType, instanceName, blackboard)
         {
             this.pickedObject = pickedObject;
@@ -47,8 +47,7 @@ namespace BehaviorTreeMainProject
 
         protected override bool OnTick_NodeLogic(float InDeltaTime)
         {
-            // TODO: Implement action logic for PickUp
-            // Access parameters via properties: obj, rob, loc, tool, etc.
+            Console.WriteLine($"PickUp: the objjjject is being picked up");
             return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);
         }
     }

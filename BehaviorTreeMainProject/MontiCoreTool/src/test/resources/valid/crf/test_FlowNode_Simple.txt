@@ -1,0 +1,12 @@
+BTFlownode SimpleTaskNode {
+    success: ANY;
+}
+
+Nodegraph SimpleTaskGraph {
+    ActionInstance: deequip(client : r1, too : vg1, ep : fp1)
+    ActionInstance: nailing(obj : b1, pos : fp1, client : r1, ng : nailGripper1)
+    deequip -> nailing {
+        priority: Order = true,
+        temporal: DURING
+    }
+}

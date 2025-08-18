@@ -7,14 +7,14 @@ namespace BehaviorTreeMainProject
 {
     public class Stackonmultiple : GenericBTAction
     {
-        // Parameter: plate of type plate
-        public Plate plate { get; private set; }
+        // Parameter: plate of type element
+        public Element plate { get; private set; }
 
         // Parameter: client of type robot
         public Robot client { get; private set; }
 
-        // Parameter: pos of type positionOnRail
-        public PositionOnRail pos { get; private set; }
+        // Parameter: pos of type location
+        public Location pos { get; private set; }
 
         // Parameter: vg of type vacuumGripper
         public VacuumGripper vg { get; private set; }
@@ -29,7 +29,7 @@ namespace BehaviorTreeMainProject
         private State preconditions;
         private State effects;
 
-        public Stackonmultiple(string actionType, string instanceName, Blackboard<FastName> blackboard, Plate plate, Robot client, PositionOnRail pos, VacuumGripper vg, Cassette mod, Stack lay)
+        public Stackonmultiple(string actionType, string instanceName, Blackboard<FastName> blackboard, Element plate, Robot client, Location pos, VacuumGripper vg, Cassette mod, Stack lay)
             : base(actionType, instanceName, blackboard)
         {
             this.plate = plate;
@@ -55,8 +55,7 @@ namespace BehaviorTreeMainProject
 
         protected override bool OnTick_NodeLogic(float InDeltaTime)
         {
-            // TODO: Implement action logic for Stackonmultiple
-            // Access parameters via properties: obj, rob, loc, tool, etc.
+            Console.WriteLine($"Stackonmultiple: {plate.ToString()} at {pos.ToString()} by {client.ToString()} using {vg.ToString()} in {lay.ToString()} of {mod.ToString()}");
             return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);
         }
     }

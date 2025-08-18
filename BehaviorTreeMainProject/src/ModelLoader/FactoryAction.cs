@@ -29,23 +29,56 @@ public class FactoryAction : Singleton<FactoryAction>
         
         Console.WriteLine($"✅ Found action type: {actionType.Name}");
 
-        // Convert parameter values to actual instances from blackboard
+        // Get the constructor that matches our expected signature
+        var constructors = actionType.GetConstructors();
+        var targetConstructor = constructors.FirstOrDefault(c => 
+        {
+            var parameters = c.GetParameters();
+            // Check if this constructor has the expected signature: (string, string, Blackboard, ...)
+            return parameters.Length >= 3 && 
+                   parameters[0].ParameterType == typeof(string) &&
+                   parameters[1].ParameterType == typeof(string) &&
+                   parameters[2].ParameterType == typeof(Blackboard<FastName>);
+        });
+
+        if (targetConstructor == null)
+        {
+            throw new ArgumentException($"No suitable constructor found for action type {actionTypeName}");
+        }
+
+        Console.WriteLine($"✅ Found constructor with {targetConstructor.GetParameters().Length} parameters");
+
+        // Build constructor arguments in the correct order
         var constructorArgs = new List<object> { actionTypeName, instanceName, blackboard };
         
-        foreach (var kvp in parameterValues)
+        // Get constructor parameters (skip the first 3: actionType, instanceName, blackboard)
+        var constructorParams = targetConstructor.GetParameters().Skip(3).ToArray();
+        
+        // Match parameters by name and add them in constructor order
+        foreach (var param in constructorParams)
         {
-            Console.WriteLine($"  📋 Processing parameter: {kvp.Key} = {kvp.Value}");
+            Console.WriteLine($"🔍 Looking for constructor parameter: {param.Name} of type {param.ParameterType.Name}");
             
-            // Get the parameter instance from blackboard
-            object parameterInstance = GetParameterInstanceFromBlackboard(blackboard, kvp.Value, actionType, kvp.Key);
-            
-            if (parameterInstance == null)
+            // Find the corresponding parameter value from the action definition
+            if (parameterValues.TryGetValue(param.Name, out string paramValue))
             {
-                throw new ArgumentException($"Parameter instance '{kvp.Value}' not found in blackboard");
+                Console.WriteLine($"  📋 Found parameter value: {param.Name} = {paramValue}");
+                
+                // Get the parameter instance from blackboard
+                object parameterInstance = GetParameterInstanceFromBlackboard(blackboard, paramValue, actionType, param.Name);
+                
+                if (parameterInstance == null)
+                {
+                    throw new ArgumentException($"Parameter instance '{paramValue}' not found in blackboard");
+                }
+                
+                Console.WriteLine($"  ✅ Retrieved from blackboard: {paramValue} -> {parameterInstance.GetType().Name}");
+                constructorArgs.Add(parameterInstance);
             }
-            
-            Console.WriteLine($"  ✅ Retrieved from blackboard: {kvp.Value} -> {parameterInstance.GetType().Name}");
-            constructorArgs.Add(parameterInstance);
+            else
+            {
+                throw new ArgumentException($"Required parameter '{param.Name}' not found in action definition");
+            }
         }
 
         // Create the action instance
@@ -53,7 +86,7 @@ public class FactoryAction : Singleton<FactoryAction>
         GenericBTAction instance;
         try
         {
-            instance = Activator.CreateInstance(actionType, constructorArgs.ToArray()) as GenericBTAction;
+            instance = targetConstructor.Invoke(constructorArgs.ToArray()) as GenericBTAction;
             
             if (instance == null)
             {

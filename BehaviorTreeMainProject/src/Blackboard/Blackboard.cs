@@ -30,6 +30,7 @@ public class Blackboard<T> : IDisposable where T : class
     Dictionary<FastName, Predicate> PredicateValues = new();
     Dictionary<FastName, GenericBTAction> ActionValues = new();
      Dictionary<FastName, State> StateValues = new();
+    Dictionary<FastName, NodeGraph> NodeGraphValues = new();
    
     private readonly IDriver _driver;
     private readonly Neo4jService _graphService;
@@ -576,6 +577,31 @@ public List<GenericBTAction> GetAllActionInstances()
         }
         StateValues[key] = value;
         Console.WriteLine($"Successfully added State to Blackboard with key: {key}");
+    }
+
+    // Get and Set methods for NodeGraphs
+    public NodeGraph GetNodeGraph(FastName key)
+    {
+        if (!NodeGraphValues.ContainsKey(key))
+        {
+            throw new ArgumentException($"Could not find NodeGraph for key: {key}");
+        }
+        return NodeGraphValues[key];
+    }
+
+    public void SetNodeGraph(FastName key, NodeGraph value)
+    {
+        NodeGraphValues[key] = value;
+        Console.WriteLine($"Successfully added NodeGraph to Blackboard with key: {key}");
+    }
+
+    /// <summary>
+    /// Gets all NodeGraph instances from the blackboard
+    /// </summary>
+    /// <returns>List of all NodeGraph instances</returns>
+    public List<NodeGraph> GetAllNodeGraphs()
+    {
+        return NodeGraphValues.Values.ToList();
     }
 
     public IDriver GetDriver()

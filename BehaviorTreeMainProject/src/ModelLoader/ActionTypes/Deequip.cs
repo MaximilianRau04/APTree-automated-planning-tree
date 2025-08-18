@@ -43,8 +43,7 @@ namespace BehaviorTreeMainProject
 
         protected override bool OnTick_NodeLogic(float InDeltaTime)
         {
-            // TODO: Implement action logic for Deequip
-            // Access parameters via properties: obj, rob, loc, tool, etc.
+            Console.WriteLine($"Deequip: {client.ToString()} deequips {too.ToString()} at {ep.ToString()}");
             return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);
         }
     }

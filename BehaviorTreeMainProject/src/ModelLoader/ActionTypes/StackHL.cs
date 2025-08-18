@@ -7,11 +7,11 @@ namespace BehaviorTreeMainProject
 {
     public class StackHL : GenericBTAction
     {
-        // Parameter: obj1 of type beam
-        public Beam obj1 { get; private set; }
+        // Parameter: obj1 of type element
+        public Element obj1 { get; private set; }
 
-        // Parameter: obj2 of type beam
-        public Beam obj2 { get; private set; }
+        // Parameter: obj2 of type element
+        public Element obj2 { get; private set; }
 
         // Parameter: client of type robot
         public Robot client { get; private set; }
@@ -19,8 +19,8 @@ namespace BehaviorTreeMainProject
         // Parameter: vg of type vacuumGripper
         public VacuumGripper vg { get; private set; }
 
-        // Parameter: pr of type positionOnRail
-        public PositionOnRail pr { get; private set; }
+        // Parameter: pr of type location
+        public Location pr { get; private set; }
 
         // Parameter: lay of type stack
         public Stack lay { get; private set; }
@@ -32,7 +32,7 @@ namespace BehaviorTreeMainProject
         private State preconditions;
         private State effects;
 
-        public StackHL(string actionType, string instanceName, Blackboard<FastName> blackboard, Beam obj1, Beam obj2, Robot client, VacuumGripper vg, PositionOnRail pr, Stack lay, Cassette mod)
+        public StackHL(string actionType, string instanceName, Blackboard<FastName> blackboard, Element obj1, Element obj2, Robot client, VacuumGripper vg, Location pr, Stack lay, Cassette mod)
             : base(actionType, instanceName, blackboard)
         {
             this.obj1 = obj1;
@@ -59,8 +59,7 @@ namespace BehaviorTreeMainProject
 
         protected override bool OnTick_NodeLogic(float InDeltaTime)
         {
-            // TODO: Implement action logic for StackHL
-            // Access parameters via properties: obj, rob, loc, tool, etc.
+            Console.WriteLine($"StackHL: {obj1.ToString()} on {obj2.ToString()} at {pr.ToString()} by {client.ToString()} using {vg.ToString()} in {lay.ToString()} of {mod.ToString()}");
             return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);
         }
     }

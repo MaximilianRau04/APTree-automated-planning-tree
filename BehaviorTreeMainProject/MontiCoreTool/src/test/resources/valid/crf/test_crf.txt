@@ -138,9 +138,9 @@ PredicateInstance: hasTool(agent = r1, tool = vg1, isNegated = false)
 
 Action pickUp {
     parameters {
-        pickedObject: beam
+        pickedObject: element
         rob: robot
-        loc: firstposition
+        loc: location
         robTool: vacuumGripper
     }
     precondition {
@@ -215,8 +215,8 @@ Action deequip {
 // Robot grabs an object from the table
 Action grab {
     parameters {
-        obj: beam
-        grabPos: firstposition
+        obj: element
+        grabPos: location
         client: robot
     }
     precondition {
@@ -244,8 +244,8 @@ Action grab {
 // Robot places an object
 Action place {
     parameters {
-        obj: beam
-        placePos: firstposition
+        obj: element
+        placePos: location
         client: robot
     }
     precondition {
@@ -271,11 +271,11 @@ Action place {
 // Robot stacks one object on top of another object
 Action stackHL {
     parameters {
-        obj1: beam
-        obj2: beam
+        obj1: element
+        obj2: element
         client: robot
         vg: vacuumGripper
-        pr: positionOnRail
+        pr: location
         lay: stack
         mod: cassette
     }
@@ -306,9 +306,9 @@ Action stackHL {
 // Robot stacks one bigger object on top of multiple objects
 Action stackonmultiple {
     parameters {
-        plate: plate
+        plate: element
         client: robot
-        pos: positionOnRail
+        pos: location
         vg: vacuumGripper
         mod: cassette
         lay: stack

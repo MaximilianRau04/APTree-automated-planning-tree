@@ -300,6 +300,42 @@ public class BlackboardWriter
     }
 
     /// <summary>
+    /// Creates and registers all instances including NodeGraphs using file paths
+    /// </summary>
+    /// <param name="parameterInstancesFile">Path to the parameter instances file</param>
+    /// <param name="predicateInstancesFile">Path to the predicate instances file</param>
+    /// <param name="actionInstancesFile">Path to the action instances file</param>
+    /// <param name="nodeGraphFile">Path to the NodeGraph file</param>
+    public void CreateAndRegisterAllInstancesWithNodeGraph(string parameterInstancesFile, string predicateInstancesFile, string actionInstancesFile, string nodeGraphFile)
+    {
+        Console.WriteLine("Starting creation and registration of all instances with NodeGraph...");
+        
+        // Register parameters, predicates, and actions first
+        RegisterParameterInstances(parameterInstancesFile);
+        RegisterPredicateInstances(predicateInstancesFile);
+        RegisterActionInstancesFromFile(actionInstancesFile);
+        
+        // Parse and register the NodeGraph
+        ParseAndRegisterNodeGraph(nodeGraphFile);
+        
+        Console.WriteLine("All instances and NodeGraph registration completed");
+    }
+
+    /// <summary>
+    /// Creates and registers all instances including NodeGraphs using default file paths
+    /// </summary>
+    /// <param name="actionInstancesFile">Path to the action instances file</param>
+    /// <param name="nodeGraphFile">Path to the NodeGraph file</param>
+    public void CreateAndRegisterAllInstancesWithNodeGraph(string actionInstancesFile, string nodeGraphFile)
+    {
+        // Use default file paths for parameters and predicates
+        string parameterInstancesFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "src", "InputInstances", "ParameterInstances.txt");
+        string predicateInstancesFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "src", "InputInstances", "PredicateInstances.txt");
+        
+        CreateAndRegisterAllInstancesWithNodeGraph(parameterInstancesFile, predicateInstancesFile, actionInstancesFile, nodeGraphFile);
+    }
+
+    /// <summary>
     /// Reads action definition strings from a file
     /// Expected format: one action definition per line
     /// </summary>
@@ -926,7 +962,86 @@ public class BlackboardWriter
         
         return key;
     }
+
+    /// <summary>
+    /// Parses a NodeGraph from a file and stores it in the blackboard
+    /// Expected format: Nodegraph Name { ActionInstance: ... Relations: ... }
+    /// </summary>
+    /// <param name="nodeGraphFile">Path to the NodeGraph file</param>
+    /// <returns>The created NodeGraph instance</returns>
+    public NodeGraph ParseAndRegisterNodeGraph(string nodeGraphFile)
+    {
+        Console.WriteLine($"\n=== PARSING AND REGISTERING NODEGRAPH FROM FILE ===");
+        Console.WriteLine($"📁 File: {nodeGraphFile}");
+        
+        try
+        {
+            if (!File.Exists(nodeGraphFile))
+            {
+                throw new FileNotFoundException($"NodeGraph file not found: {nodeGraphFile}");
+            }
+            
+            // Read the file content
+            string content = File.ReadAllText(nodeGraphFile);
+            Console.WriteLine($"📄 File content length: {content.Length} characters");
+            
+            // Extract the NodeGraph name from the first line
+            string nodeGraphName = ExtractNodeGraphName(content);
+            Console.WriteLine($"🔍 Extracted NodeGraph name: {nodeGraphName}");
+            
+            // Use the existing Parser to create the NodeGraph
+            var nodeGraph = Parser.ParseNodeGraph(content, blackboard);
+            
+            // Register the NodeGraph in the blackboard
+            var fastNameKey = new FastName(nodeGraphName);
+            blackboard.SetNodeGraph(fastNameKey, nodeGraph);
+            
+            Console.WriteLine($"✅ Successfully created and registered NodeGraph: {nodeGraphName}");
+            Console.WriteLine($"📊 NodeGraph contains {nodeGraph.GetAllActionNodes().Count} action nodes");
+            Console.WriteLine($"📊 Execution order: {string.Join(" → ", nodeGraph.GetExecutionOrder().Select(a => a.InstanceName.ToString()))}");
+            
+            return nodeGraph;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error parsing NodeGraph file {nodeGraphFile}: {ex.Message}");
+            throw;
+        }
+    }
     
+    /// <summary>
+    /// Extracts the NodeGraph name from the file content
+    /// Expected format: Nodegraph Name { ... }
+    /// </summary>
+    /// <param name="content">The file content</param>
+    /// <returns>The NodeGraph name</returns>
+    private string ExtractNodeGraphName(string content)
+    {
+        // Split into lines and find the first line that starts with "Nodegraph"
+        string[] lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        
+        foreach (string line in lines)
+        {
+            string trimmedLine = line.Trim();
+            if (trimmedLine.StartsWith("Nodegraph", StringComparison.OrdinalIgnoreCase))
+            {
+                // Extract the name between "Nodegraph" and "{"
+                int startIndex = trimmedLine.IndexOf(' ');
+                if (startIndex != -1)
+                {
+                    int endIndex = trimmedLine.IndexOf('{');
+                    if (endIndex != -1 && endIndex > startIndex)
+                    {
+                        return trimmedLine.Substring(startIndex + 1, endIndex - startIndex - 1).Trim();
+                    }
+                }
+            }
+        }
+        
+        // If no name found, generate a default name
+        return "DefaultNodeGraph";
+    }
+
     /// <summary>
     /// Parses action parameters to extract instance names
     /// Expected format: parameter1 : value1, parameter2 : value2, ...

@@ -1,0 +1,17 @@
+BTFlownode ComplexAssemblyNode {
+    success: PERCENTAGE;
+}
+
+Nodegraph ComplexAssemblyGraph {
+    ActionInstance: grab(obj : b2, grabPos : fp1, client : r1)
+    ActionInstance: stackHL(obj1 : b1, obj2 : b2, client : r1, vg : vg1, pr : fp1, lay : stack1, mod : cassette1)
+    ActionInstance: gluing(obj : b1, pos : fp1, client : r1, gg : glueGun1)
+    grab -> stackHL {
+        priority: Order = false,
+        temporal: OVERLAPS
+    }
+    stackHL -> gluing {
+        priority: Order = true,
+        temporal: AFTER
+    }
+}

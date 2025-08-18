@@ -20,14 +20,15 @@ public class BTInstance : IBehaviorTree
             DebugDisplayName = InRootNodeName;
         LinkedBlackboard = InBlackboard;
        
-        RootNode = new BTFlowNode_Dynamic(this);
+        // Use composite flow node as root to support hierarchical structure
+        RootNode = new BTFlowNode_Composite(this);
         RootNode.SetOwiningTree(this);
     }
 
      public IBTNode AddChildToRootNode<NodeType>(IBTNode InNode) 
     {
         InNode.SetOwiningTree(this);
-        return (RootNode as BTFlowNodeBase).AddChild(InNode);
+        return (RootNode as BTFlowNode_Composite).AddChild(InNode);
         
     }
 

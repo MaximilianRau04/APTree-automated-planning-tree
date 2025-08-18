@@ -47,8 +47,7 @@ namespace BehaviorTreeMainProject
 
         protected override bool OnTick_NodeLogic(float InDeltaTime)
         {
-            // TODO: Implement action logic for Gluing
-            // Access parameters via properties: obj, rob, loc, tool, etc.
+            Console.WriteLine($"Gluing: {obj.ToString()} at {pos.ToString()} by {client.ToString()} using {gg.ToString()}");
             return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);
         }
     }

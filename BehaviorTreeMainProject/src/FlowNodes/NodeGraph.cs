@@ -156,8 +156,15 @@ public class NodeGraph
             return true;
         }
 
-        // For nodes with predecessors, check temporal constraints from other nodes
-        // We need to check if any other node has a temporal constraint on this node
+        // For nodes with predecessors, only check temporal constraints if all predecessors are completed
+        // This prevents checking MEETS constraints before the previous action has finished
+        if (!AllPredecessorsCompleted(node))
+        {
+            Console.WriteLine($"   ❌ NodeGraph: Node {node.ActionNode.InstanceName.ToString()} cannot execute - predecessors not completed yet");
+            return false;
+        }
+
+        // Now check temporal constraints from other nodes
         foreach (var otherNode in nodes)
         {
             if (otherNode == node) continue;
@@ -202,9 +209,18 @@ public class NodeGraph
             
             case TemporalConstraint.MEETS:
                 // MEETS: the next action starts immediately after the previous one ends
-                // We check that the previous action is completed and the next action hasn't started yet
-                // (or has just started at the same time)
-                result = from.IsCompleted && (to.StartTime == 0f || Math.Abs(from.EndTime - to.StartTime) < 0.001f);
+                // For initial execution, we just need the previous action to be completed
+                // For timing precision, we check that the next action hasn't started yet or starts at the right time
+                if (from.IsCompleted)
+                {
+                    // Previous action is completed, next action can start
+                    result = to.StartTime == 0f || Math.Abs(from.EndTime - to.StartTime) < 0.001f;
+                }
+                else
+                {
+                    // Previous action is not completed yet, so MEETS constraint is not satisfied
+                    result = false;
+                }
                 Console.WriteLine($"   🔍 NodeGraph: MEETS constraint - from completed: {from.IsCompleted}, from end time: {from.EndTime}, to start time: {to.StartTime}, result: {result}");
                 break;
             

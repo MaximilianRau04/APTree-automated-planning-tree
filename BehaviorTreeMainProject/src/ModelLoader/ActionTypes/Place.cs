@@ -7,11 +7,11 @@ namespace BehaviorTreeMainProject
 {
     public class Place : GenericBTAction
     {
-        // Parameter: obj of type beam
-        public Beam obj { get; private set; }
+        // Parameter: obj of type element
+        public Element obj { get; private set; }
 
-        // Parameter: placePos of type firstposition
-        public Firstposition placePos { get; private set; }
+        // Parameter: placePos of type location
+        public Location placePos { get; private set; }
 
         // Parameter: client of type robot
         public Robot client { get; private set; }
@@ -20,7 +20,7 @@ namespace BehaviorTreeMainProject
         private State preconditions;
         private State effects;
 
-        public Place(string actionType, string instanceName, Blackboard<FastName> blackboard, Beam obj, Firstposition placePos, Robot client)
+        public Place(string actionType, string instanceName, Blackboard<FastName> blackboard, Element obj, Location placePos, Robot client)
             : base(actionType, instanceName, blackboard)
         {
             this.obj = obj;

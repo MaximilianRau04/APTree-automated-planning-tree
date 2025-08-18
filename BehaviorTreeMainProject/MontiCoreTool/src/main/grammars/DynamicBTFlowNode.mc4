@@ -1,46 +1,31 @@
 grammar DynamicBTFlowNode extends CRF {
 
     // Dynamic BTflow node definition - separate production to avoid conflicts
-    DynamicBTFlowNode = "BTFlownode" Name "{"
-                    ParametersBlock
-                    PreconditionState
-                    EffectState
-                    CostDefinition
-                    SuccessDefinition
-                    NodeGraphDefinition
-                "}";
+ BTFlowNodeDefinition = "BTFlowNode" Name "{" SuccessDefinition "}";
 
-    CostDefinition = "cost:" INTEGER_VALUE ";"; 
+    //success criteria definition
     SuccessDefinition = "success:" SuccessType ";";
-    SuccessType = "ALL" | "ANY" | "COUNT" | "PERCENTAGE" | "SIGNAL";  
+    SuccessType = all:"ALL" | any:"ANY" | count:"COUNT" | percentage:"PERCENTAGE" | signal:"SIGNAL";  
 
-    // NodeGraph definition
-    NodeGraphDefinition = "Nodegraph" "{"
+    // NodeGraph definition - separate top-level production
+    NodeGraph = "Nodegraph" Name "{"
                     NodesDefinition
                     RelationsDefinition
-                    PlannerDefinition
                 "}";                     
 
     NodesDefinition = (NodeDefinition)*;
     RelationsDefinition = (RelationDefinition)*;
 
-    NodeDefinition = "BTNodeBase" Name "{" (Parameter ("," Parameter)*)? "}";
+    NodeDefinition = ActionInstance | BTFlowNodeDefinition;
+   
     
-    RelationDefinition = SourceNode "->" TargetNode "{"
-                    PriorityDefinition
-                    TemporalDefinition 
-                "}";
+        RelationDefinition = SourceNode "--[" TemporalType "]-->" TargetNode;
     
     SourceNode = Name;
     TargetNode = Name;
     
-    PriorityDefinition = "priority:" "Order" "=" BOOLEAN_VALUE ",";
-    TemporalDefinition = "temporal:" TemporalType;
     TemporalType = "MEETS" | "BEFORE" | "AFTER" | "OVERLAPS" | "DURING";
     
-    PlannerDefinition = "planner" "{" PlannerTypeDefinition "}";
-    PlannerTypeDefinition = "type" "=" PlannerType;
-    PlannerType = "GOAPPlanner" | "FSMPlanner" | "PDDLPlanner" | "ManualPlanner";
 
 
 }
