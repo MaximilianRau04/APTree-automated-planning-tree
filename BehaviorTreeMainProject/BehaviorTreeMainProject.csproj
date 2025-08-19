@@ -11,4 +11,11 @@
     <PackageReference Include="Neo4j.Driver" Version="5.15.0" />
   </ItemGroup>
 
+  <!-- Exclude python_service folder from build -->
+  <ItemGroup>
+    <Compile Remove="python_service/**" />
+    <EmbeddedResource Remove="python_service/**" />
+    <Content Remove="python_service/**" />
+  </ItemGroup>
+
 </Project>

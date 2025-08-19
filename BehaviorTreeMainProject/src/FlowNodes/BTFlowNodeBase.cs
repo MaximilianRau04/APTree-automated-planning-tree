@@ -14,6 +14,9 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
      protected NodeGraph actionGraph = new();
      
      protected BTServicePlanner planner;
+     
+     // Planning service for high-level actions
+     public BTServiceBase PlanningService { get; protected set; }
     private readonly IBehaviorTree owningTree;
         
     public abstract IEnumerator<IBTNode> GetEnumerator();
@@ -156,5 +159,24 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
     public void SetActionGraph(NodeGraph graph)
     {
         actionGraph = graph;
+    }
+    
+    /// <summary>
+    /// Gets the action graph for this flow node
+    /// </summary>
+    /// <returns>The NodeGraph</returns>
+    public NodeGraph GetActionGraph()
+    {
+        return actionGraph;
+    }
+    
+    /// <summary>
+    /// Set the planning service for this flow node
+    /// </summary>
+    /// <param name="service">The planning service to use</param>
+    public void SetPlanningService(BTServiceBase service)
+    {
+        PlanningService = service;
+        Console.WriteLine($"🔧 BTFlowNodeBase: Set planning service {service.GetType().Name}");
     }
 }

@@ -41,7 +41,7 @@ namespace BehaviorTreeMainProject
         protected override State Preconditions => preconditions;
         protected override State Effects => effects;
 
-        protected override bool OnTick_NodeLogic(float InDeltaTime)
+        protected override bool ExecuteActionLogic(float InDeltaTime)
         {
             Console.WriteLine($"Equipe: {client.ToString()} equips {too.ToString()} at {ep.ToString()}");
             return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);

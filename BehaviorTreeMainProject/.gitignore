@@ -1,0 +1,27 @@
+# Python virtual environment
+python_service/pddl_env/
+python_service/__pycache__/
+python_service/*.pyc
+
+# C# build outputs
+bin/
+obj/
+*.user
+*.suo
+*.cache
+
+# IDE files
+.vscode/
+.vs/
+*.sln.docstates
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp

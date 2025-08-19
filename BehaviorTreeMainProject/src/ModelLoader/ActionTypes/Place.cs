@@ -41,10 +41,9 @@ namespace BehaviorTreeMainProject
         protected override State Preconditions => preconditions;
         protected override State Effects => effects;
 
-        protected override bool OnTick_NodeLogic(float InDeltaTime)
+        protected override bool ExecuteActionLogic(float InDeltaTime)
         {
-            // TODO: Implement action logic for Place
-            // Access parameters via properties: obj, rob, loc, tool, etc.
+            Console.WriteLine($"Place: {obj.ToString()} on {placePos.ToString()} by {client.ToString()}");
             return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);
         }
     }

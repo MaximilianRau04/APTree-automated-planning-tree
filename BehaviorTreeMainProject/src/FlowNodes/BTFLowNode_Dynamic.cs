@@ -1,6 +1,11 @@
+using BehaviorTreeMainProject;
+using System.Collections.Generic;
+using System.Linq;
+
 public class BTFlowNode_Dynamic : BTFlowNodeBase
 {
     public override string DebugDisplayName { get; protected set; } = "DynamicFlow";
+    private bool planningCompleted = false;
 
     public BTFlowNode_Dynamic(
         IBehaviorTree owningTree,
@@ -12,69 +17,95 @@ public class BTFlowNode_Dynamic : BTFlowNodeBase
         this.planner = new CallPDDLPlanner(OwningTree);
     }
 
-    
-/// <summary>
-/// this function creates a plan with the planner and adds the action nodes to the graph
-/// </summary>
-/// <returns></returns>
+    /// <summary>
+    /// this function creates a plan with the planner and adds the action nodes to the graph
+    /// </summary>
+    /// <returns></returns>
     public override IEnumerator<IBTNode> GetEnumerator()
     {
-        var (actions, orderTypes) = planner.CreatePlanWithOrders();
-        
-        // Add all action nodes to the graph
-        foreach (var action in actions)
+        // Check if planning has been completed and NodeGraph is available
+        if (planner.HasGeneratedNodeGraph())
         {
-            if (action is GenericBTAction actionNode)
+            var generatedNodeGraph = planner.GetGeneratedNodeGraph();
+            
+            // Add all action nodes from the generated NodeGraph to our actionGraph
+            var actions = generatedNodeGraph.GetAllActionNodes();
+            foreach (var action in actions)
             {
-                actionGraph.AddNode(actionNode);
-                AddChild(action);
-            }
-        }
-        
-        // Add order relations (like Hasse diagram - left to right)
-        for (int i = 0; i < actions.Count - 1; i++)
-        {
-            if (actions[i] is BTActionNodeBase fromAction && actions[i + 1] is BTActionNodeBase toAction)
-            {
-                // Add order relation based on order type
-                var orderType = orderTypes[i];
-                switch (orderType)
+                if (action is GenericBTAction actionNode)
                 {
-                    case OrderType.Total:
-                        // Sequential execution
-                        actionGraph.AddOrderRelation(fromAction, toAction);
-                        break;
-                    case OrderType.Strictparallel:
-                        // Parallel execution - no order relation
-                        break;
-                    case OrderType.Parallel:
-                        // Overlapping execution - add temporal constraint
-                        actionGraph.AddTemporalConstraint(fromAction, toAction, TemporalConstraint.OVERLAPS);
-                        break;
+                    actionGraph.AddNode(actionNode);
+                    AddChild(action);
                 }
             }
+
+            // Copy order relations and temporal constraints from generated NodeGraph
+            // Note: The NodeGraph already contains the proper structure, so we just use it
+            // The actionGraph will be populated with the same nodes and relations
+            
+            Console.WriteLine($"   ✅ FlowNode: Loaded {actions.Count} actions from generated NodeGraph");
+        }
+        else
+        {
+            Console.WriteLine($"   ⚠️ FlowNode: No generated NodeGraph available yet");
         }
 
         return actionGraph.GetAllActionNodes().Cast<IBTNode>().GetEnumerator();
     }
 
-  
-  
     protected override bool OnTick_NodeLogic(float inDeltaTime)
     {
+        // First, ensure planning is completed
+        if (!planningCompleted)
+        {
+            Console.WriteLine($"   🔧 FlowNode: Starting planning process...");
+            
+            // Call the planner's Tick method to generate the plan
+            bool planningSuccess = planner.Tick(inDeltaTime);
+            
+            if (planningSuccess && planner.HasGeneratedNodeGraph())
+            {
+                planningCompleted = true;
+                Console.WriteLine($"   ✅ FlowNode: Planning completed successfully");
+                
+                // Now populate the actionGraph with the generated plan
+                var generatedNodeGraph = planner.GetGeneratedNodeGraph();
+                var actions = generatedNodeGraph.GetAllActionNodes();
+                
+                foreach (var action in actions)
+                {
+                    if (action is GenericBTAction actionNode)
+                    {
+                        actionGraph.AddNode(actionNode);
+                        AddChild(action);
+                    }
+                }
+                
+                Console.WriteLine($"   ✅ FlowNode: Loaded {actions.Count} actions from generated plan");
+            }
+            else
+            {
+                Console.WriteLine($"   ❌ FlowNode: Planning failed or no NodeGraph generated");
+                LastStatus = EBTNodeResult.failed;
+                return false;
+            }
+        }
+
         // Get nodes that can be executed this tick
         var executableNodes = actionGraph.GetExecutableNodes(inDeltaTime);
-        
+
         Console.WriteLine($"   🔍 FlowNode: Found {executableNodes.Count} executable nodes");
-        
+
         // Execute each node that's ready
         foreach (var node in executableNodes)
         {
             Console.WriteLine($"   ⚡ Executing node: {node.InstanceName.ToString()}");
+            Console.WriteLine($"   🔍 Node type: {node.GetType().Name}");
+            Console.WriteLine($"   🔍 Node status before tick: {node.LastStatus}");
             var previousStatus = node.LastStatus;
             node.Tick(inDeltaTime);
             Console.WriteLine($"   📊 Node {node.InstanceName.ToString()}: {previousStatus} → {node.LastStatus}");
-            
+
             // Mark completed nodes
             if (node.LastStatus == EBTNodeResult.Succeeded || node.LastStatus == EBTNodeResult.failed)
             {
@@ -85,28 +116,28 @@ public class BTFlowNode_Dynamic : BTFlowNodeBase
 
         // Check if all nodes have been processed (completed or failed)
         var allNodes = actionGraph.GetAllActionNodes();
-        
+
         // Debug: Show status of each node
         Console.WriteLine($"   🔍 FlowNode: Node statuses:");
         foreach (var node in allNodes)
         {
             Console.WriteLine($"      {node.InstanceName.ToString()}: {node.LastStatus}");
         }
-        
+
         // A node is processed if it has been executed and completed (succeeded or failed)
         // Unexecuted nodes should have status Uninitialized or readyToTick
-        bool allNodesProcessed = allNodes.All(node => 
-            node.LastStatus == EBTNodeResult.Succeeded || 
+        bool allNodesProcessed = allNodes.All(node =>
+            node.LastStatus == EBTNodeResult.Succeeded ||
             node.LastStatus == EBTNodeResult.failed);
-        
+
         Console.WriteLine($"   🔍 FlowNode: All nodes processed: {allNodesProcessed}");
-        
+
         if (allNodesProcessed)
         {
             // All nodes have been processed, evaluate final success criteria
             bool success = EvaluateSuccessCriteria();
             Console.WriteLine($"   🎯 Success criteria evaluation: {success}");
-            
+
             if (success)
             {
                 LastStatus = EBTNodeResult.Succeeded;
@@ -122,7 +153,7 @@ public class BTFlowNode_Dynamic : BTFlowNodeBase
         {
             // Still processing nodes, check if any are in progress
             bool anyInProgress = allNodes.Any(node => node.LastStatus == EBTNodeResult.InProgress);
-            
+
             if (anyInProgress)
             {
                 LastStatus = EBTNodeResult.InProgress;
@@ -140,8 +171,6 @@ public class BTFlowNode_Dynamic : BTFlowNodeBase
         return !allNodesProcessed;
     }
 
-   
-
     public override IBTNode AddChild(IBTNode Innode)
     {
         if (Innode is GenericBTAction actionNode)
@@ -151,8 +180,6 @@ public class BTFlowNode_Dynamic : BTFlowNodeBase
         }
         throw new ArgumentException("Dynamic flow node can only accept action nodes as children");
     }
-    
-
 
     protected override bool OnTick_Children(float inDeltaTime)
     {

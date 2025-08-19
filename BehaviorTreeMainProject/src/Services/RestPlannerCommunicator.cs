@@ -1,0 +1,118 @@
+using System;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
+using PlanningDataStructures;
+
+namespace AIPlanning
+{
+    public class RestPlannerCommunicator : IPlannerCommunicator
+    {
+        private readonly HttpClient _httpClient;
+        private readonly string _baseUrl;
+        
+        /// <summary>
+        /// sends http requests to planning services
+        /// </summary>
+        /// <param name="baseUrl"></param>
+        /// <exception cref="ArgumentNullException"></exception>
+        public RestPlannerCommunicator(string baseUrl)
+        {
+            _httpClient = new HttpClient();
+            _httpClient.Timeout = TimeSpan.FromSeconds(120); // Longer timeout for planning
+            _baseUrl = baseUrl ?? throw new ArgumentNullException(nameof(baseUrl));
+        }
+        
+        public async Task<PlanningResult> SendPlanningRequestAsync(IPlanningRequest request)
+        {
+            try
+            {
+                Console.WriteLine($"🔧 RestPlannerCommunicator: Sending request to {_baseUrl}/plan");
+                
+                // Serialize request to JSON with polymorphic support
+                var json = JsonSerializer.Serialize(request, request.GetType(), new JsonSerializerOptions 
+                { 
+                    WriteIndented = true,
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                });
+                
+                Console.WriteLine($"🔧 RestPlannerCommunicator: Request JSON:\n{json}");
+                
+                // Create HTTP content
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                
+                // Send POST request
+                var response = await _httpClient.PostAsync($"{_baseUrl}/plan", content);
+                
+                // Read response
+                var responseJson = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"🔧 RestPlannerCommunicator: Response JSON:\n{responseJson}");
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    // Deserialize successful response
+                    var result = JsonSerializer.Deserialize<PlanningResult>(responseJson, new JsonSerializerOptions
+                    {
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                    });
+                    
+                    Console.WriteLine($"✅ RestPlannerCommunicator: Planning completed successfully");
+                    return result;
+                }
+                else
+                {
+                    // Handle HTTP error
+                    Console.WriteLine($"❌ RestPlannerCommunicator: HTTP {response.StatusCode}: {response.ReasonPhrase}");
+                    return new PlanningResult 
+                    { 
+                        Success = false, 
+                        Error = $"HTTP {response.StatusCode}: {response.ReasonPhrase} - {responseJson}"
+                    };
+                }
+            }
+            catch (TaskCanceledException ex)
+            {
+                Console.WriteLine($"❌ RestPlannerCommunicator: Request timeout: {ex.Message}");
+                return new PlanningResult 
+                { 
+                    Success = false, 
+                    Error = $"Planning request timed out: {ex.Message}"
+                };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ RestPlannerCommunicator: Error: {ex.Message}");
+                return new PlanningResult 
+                { 
+                    Success = false, 
+                    Error = $"Failed to communicate with planning service: {ex.Message}"
+                };
+            }
+        }
+        
+        public bool IsAvailable()
+        {
+            try
+            {
+                // Simple health check
+                var response = _httpClient.GetAsync($"{_baseUrl}/health").Result;
+                return response.IsSuccessStatusCode;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        
+        public string GetPlannerName()
+        {
+            return "REST_PDDL_Planner";
+        }
+        
+        public void Dispose()
+        {
+            _httpClient?.Dispose();
+        }
+    }
+}

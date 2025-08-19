@@ -45,9 +45,9 @@ namespace BehaviorTreeMainProject
         protected override State Preconditions => preconditions;
         protected override State Effects => effects;
 
-        protected override bool OnTick_NodeLogic(float InDeltaTime)
+        protected override bool ExecuteActionLogic(float InDeltaTime)
         {
-            Console.WriteLine($"PickUp: the objjjject is being picked up");
+            Console.WriteLine($"PickUp: {pickedObject.ToString()} is being picked up by {rob.ToString()} at {loc.ToString()} using {robTool.ToString()}");
             return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);
         }
     }

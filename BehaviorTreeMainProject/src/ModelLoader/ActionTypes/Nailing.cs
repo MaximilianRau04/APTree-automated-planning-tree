@@ -45,7 +45,7 @@ namespace BehaviorTreeMainProject
         protected override State Preconditions => preconditions;
         protected override State Effects => effects;
 
-        protected override bool OnTick_NodeLogic(float InDeltaTime)
+        protected override bool ExecuteActionLogic(float InDeltaTime)
         {
             Console.WriteLine($"Nailing: {obj.ToString()} at {pos.ToString()} by {client.ToString()} using {ng.ToString()}");
             return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);
