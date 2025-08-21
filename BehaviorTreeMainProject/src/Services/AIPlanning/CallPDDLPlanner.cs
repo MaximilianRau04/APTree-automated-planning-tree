@@ -9,46 +9,24 @@ public class CallPDDLPlanner : BTServicePlanner
     private readonly Blackboard<FastName> blackboard;
     private readonly FactoryAction actionFactory;
     public FastName PlannerName = new FastName("PDDLPlanner");
+    public PDDLPlanningRequest PlanningRequest;
 
-    public CallPDDLPlanner(IBehaviorTree InOwningTree) 
-        : base(InOwningTree, new RestPlannerCommunicator("http://localhost:5000"))
+    public CallPDDLPlanner(BTInstance InOwningTree, PDDLPlanningRequest InPlanningRequest)
+        : base(InOwningTree, new RestPlannerCommunicator("http://localhost:5000"), InPlanningRequest)
     {
         this.blackboard = InOwningTree.LinkedBlackboard;
         this.actionFactory = FactoryAction.Instance;
+        this.PlanningRequest = InPlanningRequest;
     }
     
-    public CallPDDLPlanner(IBehaviorTree InOwningTree, IPlannerCommunicator customCommunicator) 
-        : base(InOwningTree, customCommunicator)
+    public CallPDDLPlanner(BTInstance InOwningTree, IPlannerCommunicator customCommunicator, PDDLPlanningRequest InPlanningRequest) 
+        : base(InOwningTree, customCommunicator, InPlanningRequest)
     {
         this.blackboard = InOwningTree.LinkedBlackboard;
         this.actionFactory = FactoryAction.Instance;
     }
 
-    protected override IPlanningRequest CreatePlanningRequest()
-    {
-        Console.WriteLine($"🔧 CallPDDLPlanner: Creating PDDL planning request...");
-        
-        try
-        {
-            // Create PDDL-specific request
-            var request = new PDDLPlanningRequest
-            {
-                DomainFile = "./Plannerinputs/domain.pddl",
-                ProblemFile = "./Plannerinputs/problemC1.pddl",
-                PlannerPath = "/home/shermin/ENHSP-Public/enhsp.jar", // Path to ENHSP JAR file
-                TimeoutSeconds = 30,
-                MaxPlanLength = 20
-            };
-            
-            Console.WriteLine($"✅ CallPDDLPlanner: Created PDDL planning request");
-            return request;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"❌ CallPDDLPlanner: Error creating planning request: {ex.Message}");
-            throw;
-        }
-    }
+   
     
     protected override NodeGraph GenerateNodeGraphFromResult(PlanningResult result)
     {

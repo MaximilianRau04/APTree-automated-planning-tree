@@ -24,6 +24,13 @@ ParameterInstance: firstPosition {fp22}
 ParameterInstance: firstPosition {fp23}
 ParameterInstance: firstPosition {fp24}
 ParameterInstance: firstPosition {fp25}
+ParameterInstance: firstPosition {fp26}
+ParameterInstance: firstPosition {fp27}
+ParameterInstance: firstPosition {fp28}
+ParameterInstance: firstPosition {fp29}
+ParameterInstance: firstPosition {fp30}
+ParameterInstance: firstPosition {fp31}
+ParameterInstance: firstPosition {fp32}
 
 # Location - positionOnRail instances
 ParameterInstance: positionOnRail {pr1}

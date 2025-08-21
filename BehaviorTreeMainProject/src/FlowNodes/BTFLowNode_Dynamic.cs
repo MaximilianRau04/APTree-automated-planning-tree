@@ -8,13 +8,14 @@ public class BTFlowNode_Dynamic : BTFlowNodeBase
     private bool planningCompleted = false;
 
     public BTFlowNode_Dynamic(
+        FastName nodeName,
         IBehaviorTree owningTree,
         SuccessCriteria successCriteria = SuccessCriteria.ALL,
         float threshold = 1.0f)
-        : base(successCriteria, threshold)
+        : base(nodeName, successCriteria, threshold)
     {
         this.OwningTree = owningTree;
-        this.planner = new CallPDDLPlanner(OwningTree);
+        DebugDisplayName = $"DynamicFlow({nodeName.ToString()})";
     }
 
     /// <summary>
@@ -23,19 +24,25 @@ public class BTFlowNode_Dynamic : BTFlowNodeBase
     /// <returns></returns>
     public override IEnumerator<IBTNode> GetEnumerator()
     {
+        Console.WriteLine($"   🔍 FlowNode: GetEnumerator called - Current actionGraph has {actionGraph.GetAllActionNodes().Count} nodes");
+        
         // Check if planning has been completed and NodeGraph is available
-        if (planner.HasGeneratedNodeGraph())
+        if (PlanningService is BTServicePlanner plannerService && plannerService.HasGeneratedNodeGraph())
         {
-            var generatedNodeGraph = planner.GetGeneratedNodeGraph();
+            var generatedNodeGraph = plannerService.GetGeneratedNodeGraph();
             
             // Add all action nodes from the generated NodeGraph to our actionGraph
             var actions = generatedNodeGraph.GetAllActionNodes();
+            Console.WriteLine($"   📊 FlowNode: Found {actions.Count} actions in generated NodeGraph");
+            
+            int addedCount = 0;
             foreach (var action in actions)
             {
                 if (action is GenericBTAction actionNode)
                 {
                     actionGraph.AddNode(actionNode);
                     AddChild(action);
+                    addedCount++;
                 }
             }
 
@@ -43,7 +50,8 @@ public class BTFlowNode_Dynamic : BTFlowNodeBase
             // Note: The NodeGraph already contains the proper structure, so we just use it
             // The actionGraph will be populated with the same nodes and relations
             
-            Console.WriteLine($"   ✅ FlowNode: Loaded {actions.Count} actions from generated NodeGraph");
+            Console.WriteLine($"   ✅ FlowNode: Loaded {addedCount} actions from generated NodeGraph");
+            Console.WriteLine($"   📋 FlowNode: Final actionGraph now contains {actionGraph.GetAllActionNodes().Count} nodes");
         }
         else
         {
@@ -60,32 +68,48 @@ public class BTFlowNode_Dynamic : BTFlowNodeBase
         {
             Console.WriteLine($"   🔧 FlowNode: Starting planning process...");
             
-            // Call the planner's Tick method to generate the plan
-            bool planningSuccess = planner.Tick(inDeltaTime);
-            
-            if (planningSuccess && planner.HasGeneratedNodeGraph())
+            // Check if we have a planning service
+            if (PlanningService is BTServicePlanner plannerService)
             {
-                planningCompleted = true;
-                Console.WriteLine($"   ✅ FlowNode: Planning completed successfully");
+                // Call the planner's Tick method to generate the plan
+                bool planningSuccess = plannerService.Tick(inDeltaTime);
                 
-                // Now populate the actionGraph with the generated plan
-                var generatedNodeGraph = planner.GetGeneratedNodeGraph();
-                var actions = generatedNodeGraph.GetAllActionNodes();
-                
-                foreach (var action in actions)
+                                 if (planningSuccess && plannerService.HasGeneratedNodeGraph())
+                 {
+                     planningCompleted = true;
+                     Console.WriteLine($"   ✅ FlowNode: Planning completed successfully");
+                     
+                     // Now populate the actionGraph with the generated plan
+                     var generatedNodeGraph = plannerService.GetGeneratedNodeGraph();
+                     var actions = generatedNodeGraph.GetAllActionNodes();
+                     
+                     Console.WriteLine($"   📊 FlowNode: Generated NodeGraph contains {actions.Count} actions");
+                     
+                     int addedCount = 0;
+                     foreach (var action in actions)
+                     {
+                         if (action is GenericBTAction actionNode)
+                         {
+                             actionGraph.AddNode(actionNode);
+                             AddChild(action);
+                             addedCount++;
+                             Console.WriteLine($"   ➕ Added action: {actionNode.InstanceName.ToString()}");
+                         }
+                     }
+                     
+                     Console.WriteLine($"   ✅ FlowNode: Successfully loaded {addedCount}/{actions.Count} actions into actionGraph");
+                     Console.WriteLine($"   📋 FlowNode: Final actionGraph now contains {actionGraph.GetAllActionNodes().Count} nodes");
+                 }
+                else
                 {
-                    if (action is GenericBTAction actionNode)
-                    {
-                        actionGraph.AddNode(actionNode);
-                        AddChild(action);
-                    }
+                    Console.WriteLine($"   ❌ FlowNode: Planning failed or no NodeGraph generated");
+                    LastStatus = EBTNodeResult.failed;
+                    return false;
                 }
-                
-                Console.WriteLine($"   ✅ FlowNode: Loaded {actions.Count} actions from generated plan");
             }
             else
             {
-                Console.WriteLine($"   ❌ FlowNode: Planning failed or no NodeGraph generated");
+                Console.WriteLine($"   ❌ FlowNode: No planning service available");
                 LastStatus = EBTNodeResult.failed;
                 return false;
             }

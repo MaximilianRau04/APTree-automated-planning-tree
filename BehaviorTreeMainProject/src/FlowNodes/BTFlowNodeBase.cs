@@ -18,6 +18,9 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
      // Planning service for high-level actions
      public BTServiceBase PlanningService { get; protected set; }
     private readonly IBehaviorTree owningTree;
+    
+    // Node name property
+    public FastName NodeName { get; protected set; }
         
     public abstract IEnumerator<IBTNode> GetEnumerator();
     
@@ -29,8 +32,9 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
 
     public abstract IBTNode AddChild(IBTNode Innode);
 
-    public BTFlowNodeBase(SuccessCriteria criteria = SuccessCriteria.ALL, float threshold = 1.0f)
+    public BTFlowNodeBase(FastName nodeName, SuccessCriteria criteria = SuccessCriteria.ALL, float threshold = 1.0f)
     {
+        this.NodeName = nodeName;
         this.successCriteria = criteria;
         this.successThreshold = threshold;
     }
@@ -178,5 +182,14 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
     {
         PlanningService = service;
         Console.WriteLine($"🔧 BTFlowNodeBase: Set planning service {service.GetType().Name}");
+    }
+    
+    /// <summary>
+    /// Get the node name as a string
+    /// </summary>
+    /// <returns>The node name as a string</returns>
+    public string GetNodeName()
+    {
+        return NodeName?.ToString() ?? "Unnamed";
     }
 }

@@ -21,7 +21,7 @@ public class BTInstance : IBehaviorTree
         LinkedBlackboard = InBlackboard;
        
         // Use composite flow node as root to support hierarchical structure
-        RootNode = new BTFlowNode_Composite(this);
+        RootNode = new BTFlowNode_Composite(new FastName(InRootNodeName), this);
         RootNode.SetOwiningTree(this);
     }
 

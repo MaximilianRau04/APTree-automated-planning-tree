@@ -11,52 +11,21 @@ public class CallGOAPPlanner : BTServicePlanner
   
     public FastName PlannerName = new FastName("GOAPPlanner");
 
-    public CallGOAPPlanner(IBehaviorTree InOwningTree) 
-        : base(InOwningTree, new RestPlannerCommunicator("http://localhost:5002")) // Different port for GOAP planner
+    public CallGOAPPlanner(BTInstance InOwningTree, GOAPPlanningRequest InPlanningRequest) 
+        : base(InOwningTree, new RestPlannerCommunicator("http://localhost:5002"), InPlanningRequest) // Different port for GOAP planner
     {
         this.blackboard = InOwningTree.LinkedBlackboard;
         this.actionFactory = FactoryAction.Instance;
     }
     
-    public CallGOAPPlanner(IBehaviorTree InOwningTree, IPlannerCommunicator customCommunicator) 
-        : base(InOwningTree, customCommunicator)
+    public CallGOAPPlanner(BTInstance InOwningTree, IPlannerCommunicator customCommunicator, GOAPPlanningRequest InPlanningRequest) 
+        : base(InOwningTree, customCommunicator, InPlanningRequest)
     {
         this.blackboard = InOwningTree.LinkedBlackboard;
         this.actionFactory = FactoryAction.Instance;
     }
 
-    protected override IPlanningRequest CreatePlanningRequest()
-    {
-        Console.WriteLine($"🔧 CallGOAPPlanner: Creating GOAP planning request...");
-        
-        try
-        {
-            // Extract current state and goals for GOAP (key-value pairs)
-            var initialState = ExtractCurrentStateForGOAP();
-            var goals = ExtractGoalsForGOAP();
-            var availableActions = ExtractAvailableActions();
-            
-            // Create GOAP-specific request
-            var request = new GOAPPlanningRequest
-            {
-                TimeoutSeconds = 30,
-                MaxPlanLength = 20,
-                InitialState = initialState,
-                Goals = goals,
-                AvailableActions = availableActions
-            };
-            
-            Console.WriteLine($"✅ CallGOAPPlanner: Created GOAP planning request");
-            return request;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"❌ CallGOAPPlanner: Error creating planning request: {ex.Message}");
-            throw;
-        }
-    }
-    
-    protected override NodeGraph GenerateNodeGraphFromResult(PlanningResult result)
+       protected override NodeGraph GenerateNodeGraphFromResult(PlanningResult result)
     {
         Console.WriteLine($"🔧 CallGOAPPlanner: Converting GOAP result to NodeGraph...");
         

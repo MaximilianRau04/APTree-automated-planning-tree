@@ -11,50 +11,21 @@ public class CallSCPlanner : BTServicePlanner
   
     public FastName PlannerName = new FastName("StateChartPlanner");
 
-    public CallSCPlanner(IBehaviorTree InOwningTree) 
-        : base(InOwningTree, new RestPlannerCommunicator("http://localhost:5001")) // Different port for SC planner
+    public CallSCPlanner(BTInstance InOwningTree, StateChartPlanningRequest InPlanningRequest) 
+        : base(InOwningTree, new RestPlannerCommunicator("http://localhost:5001"), InPlanningRequest) // Different port for SC planner
     {
         this.blackboard = InOwningTree.LinkedBlackboard;
         this.actionFactory = FactoryAction.Instance;
     }
     
-    public CallSCPlanner(IBehaviorTree InOwningTree, IPlannerCommunicator customCommunicator) 
-        : base(InOwningTree, customCommunicator)
+    public CallSCPlanner(BTInstance InOwningTree, IPlannerCommunicator customCommunicator, StateChartPlanningRequest InPlanningRequest) 
+        : base(InOwningTree, customCommunicator, InPlanningRequest)
     {
         this.blackboard = InOwningTree.LinkedBlackboard;
         this.actionFactory = FactoryAction.Instance;
     }
 
-    protected override IPlanningRequest CreatePlanningRequest()
-    {
-        Console.WriteLine($"🔧 CallSCPlanner: Creating StateChart planning request...");
-        
-        try
-        {
-            // Extract current state and goals for StateChart
-            var currentState = ExtractCurrentStateForStateChart();
-            var targetState = ExtractTargetStateForStateChart();
-            var availableTransitions = ExtractAvailableTransitions();
-            
-            // Create StateChart-specific request
-            var request = new StateChartPlanningRequest
-            {
-                TimeoutSeconds = 30,
-                MaxPlanLength = 20,
-                CurrentState = currentState,
-                TargetState = targetState,
-                AvailableTransitions = availableTransitions
-            };
-            
-            Console.WriteLine($"✅ CallSCPlanner: Created StateChart planning request");
-            return request;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"❌ CallSCPlanner: Error creating planning request: {ex.Message}");
-            throw;
-        }
-    }
+   
     
     protected override NodeGraph GenerateNodeGraphFromResult(PlanningResult result)
     {

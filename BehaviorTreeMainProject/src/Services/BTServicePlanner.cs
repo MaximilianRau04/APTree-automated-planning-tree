@@ -14,12 +14,14 @@ public abstract class BTServicePlanner : BTServiceBase
 
     // The communicator for external planners
     protected IPlannerCommunicator plannerCommunicator;
+    protected IPlanningRequest planningRequest;
 
-    protected BTServicePlanner(IBehaviorTree InOwningTree, IPlannerCommunicator communicator) 
+    protected BTServicePlanner(IBehaviorTree InOwningTree, IPlannerCommunicator communicator, IPlanningRequest InPlanningRequest)
         : base(InOwningTree)
     {
         generatedNodeGraph = null;
         plannerCommunicator = communicator ?? throw new ArgumentNullException(nameof(communicator));
+        planningRequest = InPlanningRequest ?? throw new ArgumentNullException(nameof(InPlanningRequest));
     }
 
     public override bool Tick(float InDeltaTime)
@@ -28,11 +30,10 @@ public abstract class BTServicePlanner : BTServiceBase
         
         try
         {
-            // Step 1: Create planning request (implemented by each planner type)
-            var request = CreatePlanningRequest();
+           
             
             // Step 2: Send to external planner via communicator
-            var result = Task.Run(async () => await plannerCommunicator.SendPlanningRequestAsync(request)).Result;
+            var result = Task.Run(async () => await plannerCommunicator.SendPlanningRequestAsync(planningRequest)).Result;
             
             if (!result.Success)
             {
@@ -62,11 +63,7 @@ public abstract class BTServicePlanner : BTServiceBase
         }
     }
 
-    /// <summary>
-    /// Create planning request (to be implemented by each planner type)
-    /// </summary>
-    /// <returns>Planning request for external planner</returns>
-    protected abstract IPlanningRequest CreatePlanningRequest();
+
     
     /// <summary>
     /// Generate NodeGraph from planner result (to be implemented by each planner type)

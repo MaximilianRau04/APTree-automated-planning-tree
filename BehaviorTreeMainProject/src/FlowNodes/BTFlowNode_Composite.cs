@@ -4,17 +4,18 @@ public class BTFlowNode_Composite : BTFlowNodeBase
 {
     public override string DebugDisplayName { get; protected set; } = "CompositeFlow";
     
-    // List to store child flow nodes (not action nodes)
-    private List<IBTNode> childNodes = new List<IBTNode>();
+    // List to store flow nodes (since NodeGraph is designed for action nodes)
+    private List<IBTNode> flowNodes = new List<IBTNode>();
     
     public BTFlowNode_Composite(
+        FastName nodeName,
         IBehaviorTree owningTree,
         SuccessCriteria successCriteria = SuccessCriteria.ALL,
         float threshold = 1.0f)
-        : base(successCriteria, threshold)
+        : base(nodeName, successCriteria, threshold)
     {
         this.OwningTree = owningTree;
-        DebugDisplayName = $"CompositeFlow({successCriteria})";
+        DebugDisplayName = $"CompositeFlow({nodeName.ToString()})";
     }
     
     /// <summary>
@@ -23,30 +24,62 @@ public class BTFlowNode_Composite : BTFlowNodeBase
     public override IBTNode AddChild(IBTNode childNode)
     {
         childNode.SetOwiningTree(OwningTree);
-        childNodes.Add(childNode);
-        Console.WriteLine($"✅ Added child node: {childNode.DebugDisplayName} to composite flow node");
+        
+        // Store flow nodes in a separate list since NodeGraph is designed for action nodes
+        // We'll use the actionGraph from the base class for action nodes and a separate list for flow nodes
+        if (childNode is GenericBTAction actionNode)
+        {
+            actionGraph.AddNode(actionNode);
+            Console.WriteLine($"✅ Added action node: {childNode.DebugDisplayName} to composite flow node actionGraph");
+        }
+        else
+        {
+            // For flow nodes, we'll store them in a separate list for now
+            // In the future, we could extend NodeGraph to handle flow nodes
+            flowNodes.Add(childNode);
+            Console.WriteLine($"✅ Added flow node: {childNode.DebugDisplayName} to composite flow node flowNodes list");
+        }
+        
         return childNode;
     }
     
     /// <summary>
-    /// Get all child nodes
+    /// Get all child nodes (both action nodes and flow nodes)
     /// </summary>
     public List<IBTNode> GetChildren()
     {
-        return new List<IBTNode>(childNodes);
+        var allChildren = new List<IBTNode>();
+        
+        // Add action nodes from actionGraph
+        var actionNodes = actionGraph.GetAllActionNodes();
+        allChildren.AddRange(actionNodes.Cast<IBTNode>());
+        
+        // Add flow nodes from flowNodes list
+        allChildren.AddRange(flowNodes);
+        
+        return allChildren;
     }
     
     /// <summary>
     /// Get the number of child nodes
     /// </summary>
-    public int ChildCount => childNodes.Count;
+    public int ChildCount => actionGraph.GetAllActionNodes().Count + flowNodes.Count;
     
     /// <summary>
     /// Enumerate through child nodes
     /// </summary>
     public override IEnumerator<IBTNode> GetEnumerator()
     {
-        return childNodes.GetEnumerator();
+        var allChildren = new List<IBTNode>();
+        
+        // Add action nodes from actionGraph
+        var actionNodes = actionGraph.GetAllActionNodes();
+        allChildren.AddRange(actionNodes.Cast<IBTNode>());
+        
+        // Add flow nodes from flowNodes list
+        allChildren.AddRange(flowNodes);
+        
+        return allChildren.GetEnumerator();
     }
     
     /// <summary>
@@ -55,10 +88,11 @@ public class BTFlowNode_Composite : BTFlowNodeBase
     /// </summary>
     protected override bool OnTick_NodeLogic(float inDeltaTime)
     {
-        Console.WriteLine($"   🔍 CompositeFlow: Executing {childNodes.Count} child nodes");
+        var allChildren = GetChildren();
+        Console.WriteLine($"   🔍 CompositeFlow: Executing {allChildren.Count} child nodes");
         
         // Tick all child nodes
-        foreach (var childNode in childNodes)
+        foreach (var childNode in allChildren)
         {
             Console.WriteLine($"   ⚡ Ticking child: {childNode.DebugDisplayName}");
             var previousStatus = childNode.LastStatus;
@@ -67,7 +101,7 @@ public class BTFlowNode_Composite : BTFlowNodeBase
         }
         
         // Check if all child nodes have finished
-        bool allChildrenFinished = childNodes.All(child => child.HasFinished);
+        bool allChildrenFinished = allChildren.All(child => child.HasFinished);
         
         if (allChildrenFinished)
         {
@@ -102,10 +136,11 @@ public class BTFlowNode_Composite : BTFlowNodeBase
     /// </summary>
     private bool EvaluateCompositeSuccessCriteria()
     {
-        if (childNodes.Count == 0) return false;
+        var allChildren = GetChildren();
+        if (allChildren.Count == 0) return false;
         
-        int successCount = childNodes.Count(node => node.LastStatus == EBTNodeResult.Succeeded);
-        int totalCount = childNodes.Count;
+        int successCount = allChildren.Count(node => node.LastStatus == EBTNodeResult.Succeeded);
+        int totalCount = allChildren.Count;
         
         Console.WriteLine($"   📊 Composite evaluation: {successCount}/{totalCount} children succeeded");
         
@@ -134,10 +169,11 @@ public class BTFlowNode_Composite : BTFlowNodeBase
     public override void Reset()
     {
         base.Reset();
-        foreach (var childNode in childNodes)
+        var allChildren = GetChildren();
+        foreach (var childNode in allChildren)
         {
             childNode.Reset();
         }
-        Console.WriteLine($"🔄 Reset composite flow node and all {childNodes.Count} children");
+        Console.WriteLine($"🔄 Reset composite flow node and all {allChildren.Count} children");
     }
 }

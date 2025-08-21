@@ -17,7 +17,7 @@
     fp22 - firstposition 
     fp23 - firstposition 
     fp24 - firstposition                     
-    pr1  - positiononrail                                                      
+    pr3  - positiononrail                                                      
     r1  - robot
     m3 -  cassette
     lay1 - stack   
@@ -32,7 +32,7 @@
     (atplace b16 fp22)
      (atplace b17 fp23)
      (atplace b18 fp24)
-    (positionfree pr1)
+    (positionfree pr3)
     (clear lp3)
     (clear tp3)
     (clear b13)
@@ -60,7 +60,7 @@
   (:goal 
     (and
 (= (freecapacity lp3 ) 0)
-(atplace lp3 pr1)
+(atplace lp3 pr3)
 (glued lp3)  
 (ontop b13 lp3)
 (ontop b14 lp3)
@@ -68,12 +68,12 @@
 (ontop b16 lp3)
 (ontop b17 lp3)
 (ontop b18 lp3)
-(atplace b13 pr1)
-(atplace b14 pr1)
-(atplace b15 pr1)
-(atplace b16 pr1)
-(atplace b17 pr1)
-(atplace b18 pr1)
+(atplace b13 pr3)
+(atplace b14 pr3)
+(atplace b15 pr3)
+(atplace b16 pr3)
+(atplace b17 pr3)
+(atplace b18 pr3)
 (allset lay1 m3)
 (glued b13)
 (glued b14)
@@ -88,7 +88,7 @@
 (nailed b17)
 (nailed b18)
 (ontop tp3 b13)
-(atplace tp3 pr1)
+(atplace tp3 pr3)
 (nailed tp3)
 
         ) 
