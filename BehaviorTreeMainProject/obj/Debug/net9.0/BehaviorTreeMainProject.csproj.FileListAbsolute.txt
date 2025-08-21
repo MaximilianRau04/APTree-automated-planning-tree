@@ -16,3 +16,4 @@ C:\Users\sherk\Documents\BehaviorTreeMainProject\BehaviorTreeMainProject\obj\Deb
 C:\Users\sherk\Documents\BehaviorTreeMainProject\BehaviorTreeMainProject\obj\Debug\net9.0\BehaviorTreeMainProject.pdb
 C:\Users\sherk\Documents\BehaviorTreeMainProject\BehaviorTreeMainProject\obj\Debug\net9.0\BehaviorTreeMainProject.genruntimeconfig.cache
 C:\Users\sherk\Documents\BehaviorTreeMainProject\BehaviorTreeMainProject\obj\Debug\net9.0\ref\BehaviorTreeMainProject.dll
+C:\Users\sherk\Documents\BehaviorTreeMainProject\BehaviorTreeMainProject\bin\Debug\net9.0\MountainGoap.dll

@@ -29,9 +29,37 @@ namespace PlanningDataStructures
         public int MaxPlanLength { get; set; } = 20;
         
         // GOAP-specific state and goals (key-value pairs)
-        public Dictionary<string, object> InitialState { get; set; }  // World state as key-value pairs
-        public Dictionary<string, object> Goals { get; set; }         // Goal state as key-value pairs
-        public List<string> AvailableActions { get; set; }            // GOAP needs available actions
+        public Dictionary<string, object> InitialState { get; set; } = new Dictionary<string, object>();  // World state as key-value pairs
+        public Dictionary<string, object> Goals { get; set; } = new Dictionary<string, object>();         // Goal state as key-value pairs
+        public List<string> AvailableActions { get; set; } = new List<string>();            // GOAP needs available actions
+        
+        // Construction domain specific properties
+        public string Domain { get; set; } = "Construction";  // Domain type (Construction, Manufacturing, etc.)
+        public bool EnableDebugLogging { get; set; } = false;  // Enable detailed logging
+        public float HeuristicWeight { get; set; } = 1.0f;    // A* heuristic weight for GOAP
+        
+        // Action definitions for GOAP (optional - can be defined in the planner)
+        public List<GOAPActionDefinition> ActionDefinitions { get; set; } = new List<GOAPActionDefinition>();
+        
+        // Validation and constraints
+        public bool ValidatePreconditions { get; set; } = true;  // Validate action preconditions
+        public bool ValidatePostconditions { get; set; } = true; // Validate action postconditions
+        public int MaxSearchDepth { get; set; } = 50;            // Maximum search depth for GOAP
+    }
+    
+    // GOAP Action Definition for construction domain
+    public class GOAPActionDefinition
+    {
+        public string Name { get; set; } = "";
+        public float Cost { get; set; } = 1.0f;
+        public Dictionary<string, object> Preconditions { get; set; } = new Dictionary<string, object>();
+        public Dictionary<string, object> Postconditions { get; set; } = new Dictionary<string, object>();
+        public string Description { get; set; } = "";
+        
+        // Construction domain specific
+        public string ToolRequired { get; set; } = "";  // Required tool for this action
+        public string ObjectType { get; set; } = "";    // Type of object this action works with
+        public bool IsSequential { get; set; } = true;  // Whether this action must be sequential
     }
 
     // StateChart-specific request

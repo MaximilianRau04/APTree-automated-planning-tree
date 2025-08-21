@@ -107,7 +107,15 @@ namespace AIPlanning
         
         public string GetPlannerName()
         {
-            return "REST_PDDL_Planner";
+            // Extract planner name from the base URL for better identification
+            var uri = new Uri(_baseUrl);
+            var path = uri.AbsolutePath.Trim('/');
+            if (path.Contains("/"))
+            {
+                var segments = path.Split('/');
+                return $"REST_{segments[segments.Length - 1].ToUpper()}_Planner";
+            }
+            return "REST_Generic_Planner";
         }
         
         public void Dispose()

@@ -5,37 +5,36 @@ using ModelLoader.PredicateTypes;
 
 namespace BehaviorTreeMainProject
 {
-    public class Grab : GenericBTAction
+    public class CloseToolML : GenericBTAction
     {
-        // Parameter: obj of type element
-        public Element obj { get; private set; }
-
-        // Parameter: grabPos of type location
-        public Location grabPos { get; private set; }
-
         // Parameter: client of type robot
         public Robot client { get; private set; }
+
+        // Parameter: too of type vacuumGripper
+        public VacuumGripper too { get; private set; }
 
         // Preconditions and Effects as State objects
         private State preconditions;
         private State effects;
 
-        public Grab(string actionType, string instanceName, Blackboard<FastName> blackboard, Element obj, Location grabPos, Robot client)
+        public CloseToolML(string actionType, string instanceName, Blackboard<FastName> blackboard, Robot client, VacuumGripper too)
             : base(actionType, instanceName, blackboard)
         {
-            this.obj = obj;
-            this.grabPos = grabPos;
             this.client = client;
+            this.too = too;
             InitializePredicates();
         }
 
         private void InitializePredicates()
         {
             // Initialize preconditions
-            preconditions = new State(StateType.Precondition, new FastName("grab_preconditions"));
+            preconditions = new State(StateType.Precondition, new FastName("closeToolML_preconditions"));
+            preconditions.AddPredicate(new FastName("closeToolML_pre_0"), new ActiveTool(too, false));
+            preconditions.AddPredicate(new FastName("closeToolML_pre_1"), new Vgempty(client, false));
 
             // Initialize effects
-            effects = new State(StateType.Effect, new FastName("grab_effects"));
+            effects = new State(StateType.Effect, new FastName("closeToolML_effects"));
+            effects.AddPredicate(new FastName("closeToolML_eff_0"), new ActiveTool(too, true));
         }
 
         protected override State Preconditions => preconditions;
@@ -43,7 +42,8 @@ namespace BehaviorTreeMainProject
 
         protected override bool ExecuteActionLogic(float InDeltaTime)
         {
-            Console.WriteLine($"Grab: {obj.ToString()} at {grabPos.ToString()} by {client.ToString()}");
+            // TODO: Implement action logic for CloseToolML
+            // Access parameters via properties: obj, rob, loc, tool, etc.
             return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);
         }
     }

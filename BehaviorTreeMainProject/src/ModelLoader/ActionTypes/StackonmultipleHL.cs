@@ -5,7 +5,7 @@ using ModelLoader.PredicateTypes;
 
 namespace BehaviorTreeMainProject
 {
-    public class Stackonmultiple : GenericBTAction
+    public class StackonmultipleHL : GenericBTAction
     {
         // Parameter: plate of type element
         public Element plate { get; private set; }
@@ -15,9 +15,6 @@ namespace BehaviorTreeMainProject
 
         // Parameter: pos of type location
         public Location pos { get; private set; }
-
-        // Parameter: vg of type vacuumGripper
-        public VacuumGripper vg { get; private set; }
 
         // Parameter: mod of type cassette
         public Cassette mod { get; private set; }
@@ -29,13 +26,12 @@ namespace BehaviorTreeMainProject
         private State preconditions;
         private State effects;
 
-        public Stackonmultiple(string actionType, string instanceName, Blackboard<FastName> blackboard, Element plate, Robot client, Location pos, VacuumGripper vg, Cassette mod, Stack lay)
+        public StackonmultipleHL(string actionType, string instanceName, Blackboard<FastName> blackboard, Element plate, Robot client, Location pos, Cassette mod, Stack lay)
             : base(actionType, instanceName, blackboard)
         {
             this.plate = plate;
             this.client = client;
             this.pos = pos;
-            this.vg = vg;
             this.mod = mod;
             this.lay = lay;
             InitializePredicates();
@@ -44,10 +40,16 @@ namespace BehaviorTreeMainProject
         private void InitializePredicates()
         {
             // Initialize preconditions
-            preconditions = new State(StateType.Precondition, new FastName("stackonmultiple_preconditions"));
+            preconditions = new State(StateType.Precondition, new FastName("stackonmultipleHL_preconditions"));
+            preconditions.AddPredicate(new FastName("stackonmultipleHL_pre_0"), new Holding(client, plate, false));
+            preconditions.AddPredicate(new FastName("stackonmultipleHL_pre_1"), new Atplace(plate, pos, true));
+            preconditions.AddPredicate(new FastName("stackonmultipleHL_pre_2"), new Empty(client, true));
 
             // Initialize effects
-            effects = new State(StateType.Effect, new FastName("stackonmultiple_effects"));
+            effects = new State(StateType.Effect, new FastName("stackonmultipleHL_effects"));
+            effects.AddPredicate(new FastName("stackonmultipleHL_eff_0"), new Atplace(plate, pos, false));
+            effects.AddPredicate(new FastName("stackonmultipleHL_eff_1"), new Empty(client, false));
+            effects.AddPredicate(new FastName("stackonmultipleHL_eff_2"), new Clear(plate, true));
         }
 
         protected override State Preconditions => preconditions;
@@ -55,7 +57,8 @@ namespace BehaviorTreeMainProject
 
         protected override bool ExecuteActionLogic(float InDeltaTime)
         {
-            Console.WriteLine($"Stackonmultiple: {plate.ToString()} at {pos.ToString()} by {client.ToString()} using {vg.ToString()} in {lay.ToString()} of {mod.ToString()}");
+            // TODO: Implement action logic for StackonmultipleHL
+            // Access parameters via properties: obj, rob, loc, tool, etc.
             return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);
         }
     }

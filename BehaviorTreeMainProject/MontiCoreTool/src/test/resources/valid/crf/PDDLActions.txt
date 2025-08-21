@@ -136,33 +136,10 @@ PredicateInstance: hasTool(agent = r1, tool = vg1, isNegated = false)
 
 // Action definition 
 
-Action pickUp {
-    parameters {
-        pickedObject: element
-        rob: robot
-        loc: location
-        robTool: vacuumGripper
-    }
-    precondition {
-        PredicateInstance: isAt(myObject = pickedObject, location = loc, isNegated = false)
-        PredicateInstance: atAgent(agent = rob, location = loc, isNegated = false)
-        PredicateInstance: hasTool(agent = rob, tool = robTool, isNegated = false)
-    }    
-    effect {
-        PredicateInstance: holding(agent = rob, myObject = pickedObject, isNegated = false)
-        PredicateInstance: atAgent(agent = rob, location = loc, isNegated = false)
-    }   
-    function {
-        {pickedObject,rob},
-        {Boolean}
-    }
-    implementation {
-        pickupImplementation
-    }
-}
+
 
 // Robot equips the endeffector
-Action equipe {
+Action equipeML {
     parameters {
         client: robot
         too: vacuumGripper
@@ -187,7 +164,7 @@ Action equipe {
 }
 
 // Robot puts the endeffector down
-Action deequip {
+Action deequipML {
     parameters {
         client: robot
         too: vacuumGripper
@@ -212,25 +189,27 @@ Action deequip {
     }
 }
 
-// Robot grabs an object from the table
-Action grab {
+// Robot picks up an object from the table
+Action pickUpHL {
     parameters {
         obj: element
         grabPos: location
         client: robot
     }
     precondition {
+        PredicateInstance: empty(rob = client, isNegated = false)
         PredicateInstance: atplace(myObject = obj, place = grabPos, isNegated = false)
         PredicateInstance: holding(agent = client, myObject = obj, isNegated = true)
         PredicateInstance: positionfree(pos = grabPos, isNegated = true)
         PredicateInstance: clear(myObject = obj, isNegated = false)
-        PredicateInstance: stacked(myObject = obj, isNegated = true)
+        PredicateInstance: stacked(myObject = obj, isNegated = true)      
     }    
     effect {
         PredicateInstance: holding(agent = client, myObject = obj, isNegated = false)
         PredicateInstance: atplace(myObject = obj, place = grabPos, isNegated = true)
         PredicateInstance: clear(myObject = obj, isNegated = true)
         PredicateInstance: positionfree(pos = grabPos, isNegated = false)
+        PredicateInstance: empty(rob = client, isNegated = true)
     }   
     function {
         {obj,grabPos,client},
@@ -242,13 +221,14 @@ Action grab {
 }
 
 // Robot places an object
-Action place {
+Action placeHL {
     parameters {
         obj: element
         placePos: location
         client: robot
     }
     precondition {
+        PredicateInstance: empty(rob = client, isNegated = true)
         PredicateInstance: holding(agent = client, myObject = obj, isNegated = false)
         PredicateInstance: clear(myObject = obj, isNegated = true)
         PredicateInstance: positionfree(pos = placePos, isNegated = false)
@@ -258,6 +238,7 @@ Action place {
         PredicateInstance: holding(agent = client, myObject = obj, isNegated = true)
         PredicateInstance: clear(myObject = obj, isNegated = false)
         PredicateInstance: positionfree(pos = placePos, isNegated = true)
+        PredicateInstance: empty(rob = client, isNegated = false)
     }   
     function {
         {obj,placePos,client},
@@ -274,16 +255,14 @@ Action stackHL {
         obj1: element
         obj2: element
         client: robot
-        vg: vacuumGripper
         pr: location
         lay: stack
         mod: cassette
     }
     precondition {
+        PredicateInstance: empty(rob = client, isNegated = true)
         PredicateInstance: holding(agent = client, myObject = obj1, isNegated = false)
-        PredicateInstance: hasTool(agent = client, tool = vg, isNegated = false)
         PredicateInstance: atplace(myObject = obj2, place = pr, isNegated = false)
-        PredicateInstance: atplace(myObject = obj1, place = pr, isNegated = true)
     }    
     effect {
         PredicateInstance: ontop(myObject1 = obj1, myObject2 = obj2, isNegated = false)
@@ -291,11 +270,10 @@ Action stackHL {
         PredicateInstance: holding(agent = client, myObject = obj1, isNegated = true)
         PredicateInstance: atplace(myObject = obj1, place = pr, isNegated = false)
         PredicateInstance: clear(myObject = obj2, isNegated = true)
-        PredicateInstance: clear(myObject = obj1, isNegated = false)
-        PredicateInstance: allset(lay = lay, mod = mod, isNegated = false)
+        PredicateInstance: empty(rob = client, isNegated = fasle)
     }   
     function {
-        {obj1,obj2,client,vg,pr,lay,mod},
+        {obj1,obj2,client,pr,lay,mod},
         {Boolean}
     }
     implementation {
@@ -304,26 +282,26 @@ Action stackHL {
 }
 
 // Robot stacks one bigger object on top of multiple objects
-Action stackonmultiple {
+Action stackonmultipleHL {
     parameters {
         plate: element
         client: robot
         pos: location
-        vg: vacuumGripper
         mod: cassette
         lay: stack
     }
     precondition {
-        PredicateInstance: allset(lay = lay, mod = mod, isNegated = false)
-        PredicateInstance: hasTool(agent = client, tool = vg, isNegated = false)
         PredicateInstance: holding(agent = client, myObject = plate, isNegated = false)
         PredicateInstance: atplace(myObject = plate, place = pos, isNegated = true)
+        PredicateInstance: empty(rob = client, isNegated = true)
     }    
     effect {
         PredicateInstance: atplace(myObject = plate, place = pos, isNegated = false)
+        PredicateInstance: empty(rob = client, isNegated = false)
+        PredicateInstance: clear(myObject = plate, isNegated = true)
     }   
     function {
-        {plate,client,pos,vg,mod,lay},
+        {plate,client,pos,mod,lay},
         {Boolean}
     }
     implementation {
@@ -332,24 +310,47 @@ Action stackonmultiple {
 }
 
 // Robot pours glue on top of an object
-Action gluing {
+Action gluingPLateHL {
     parameters {
-        obj: beam
+        obj: plate
         pos: positionOnRail
         client: robot
-        gg: glueGun
     }
     precondition {
-        PredicateInstance: hasTool(agent = client, tool = gg, isNegated = false)
-        PredicateInstance: empty(client = client, isNegated = true)
+        PredicateInstance: empty(rob = client, isNegated = false)
         PredicateInstance: atplace(myObject = obj, place = pos, isNegated = false)
         PredicateInstance: clear(myObject = obj, isNegated = false)
+        PredicateInstance: glued(myObject = obj, isNegated = true)
     }    
     effect {
         PredicateInstance: glued(myObject = obj, isNegated = false)
     }   
     function {
-        {obj,pos,client,gg},
+        {obj,pos,client},
+        {Boolean}
+    }
+    implementation {
+        gluingImplementation
+    }
+}
+
+Action gluingBeamHL {
+    parameters {
+        obj: beam
+        pos: positionOnRail
+        client: robot
+    }
+    precondition {
+        PredicateInstance: empty(rob = client, isNegated = false)
+        PredicateInstance: atplace(myObject = obj, place = pos, isNegated = false)
+        PredicateInstance: clear(myObject = obj, isNegated = false)
+        PredicateInstance: glued(myObject = obj, isNegated = true)
+    }    
+    effect {
+        PredicateInstance: glued(myObject = obj, isNegated = false)
+    }   
+    function {
+        {obj,pos,client},
         {Boolean}
     }
     implementation {
@@ -358,24 +359,23 @@ Action gluing {
 }
 
 // Robot nails an object
-Action nailing {
+Action nailingHL {
     parameters {
-        obj: beam
+        obj: element
         pos: positionOnRail
         client: robot
-        ng: nailGripper
     }
     precondition {
         PredicateInstance: empty(client = client, isNegated = true)
-        PredicateInstance: hasTool(agent = client, tool = ng, isNegated = false)
         PredicateInstance: atplace(myObject = obj, place = pos, isNegated = false)
         PredicateInstance: clear(myObject = obj, isNegated = false)
+        PredicateInstance: nailed(myObject = obj, isNegated = true)
     }    
     effect {
         PredicateInstance: nailed(myObject = obj, isNegated = false)
     }   
     function {
-        {obj,pos,client,ng},
+        {obj,pos,client},
         {Boolean}
     }
     implementation {
@@ -386,7 +386,7 @@ Action nailing {
 
 // Action instances
 
-ActionInstance: pickUp(pickedObject : b1, rob : r1, loc : fp1, robTool : vg1)
+ActionInstance: pickUp(pickedObject : b1, rob : r1, loc : fp1)
 ActionInstance: grab(obj : b2, grabPos : fp2, client : r1)
 ActionInstance: place(obj : b3, placePos : fp3, client : r1)
 

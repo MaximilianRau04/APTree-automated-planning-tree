@@ -15,6 +15,19 @@
           }
         }
       },
+      "MountainGoap/0.4.1": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.1/MountainGoap.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.1/MountainGoap.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "Neo4j.Driver/5.15.0": {
         "type": "package",
         "dependencies": {
@@ -64,6 +77,21 @@
         "microsoft.bcl.asyncinterfaces.nuspec",
         "useSharedDesignerContext.txt",
         "version.txt"
+      ]
+    },
+    "MountainGoap/0.4.1": {
+      "sha512": "e5LzfM/rsmjtCThUrm5bWQE4PcNDh9lFFQi8KJDwZwwNU/QaGiH2HPA6+9OL88OCLxikkaow1NN+k/zUzzDZPw==",
+      "type": "package",
+      "path": "mountaingoap/0.4.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "README.md",
+        "lib/netstandard2.1/MountainGoap.dll",
+        "lib/netstandard2.1/MountainGoap.xml",
+        "logo.png",
+        "mountaingoap.0.4.1.nupkg.sha512",
+        "mountaingoap.nuspec"
       ]
     },
     "Neo4j.Driver/5.15.0": {
@@ -129,6 +157,7 @@
   },
   "projectFileDependencyGroups": {
     "net9.0": [
+      "MountainGoap >= 0.4.1",
       "Neo4j.Driver >= 5.15.0"
     ]
   },
@@ -175,6 +204,10 @@
       "net9.0": {
         "targetAlias": "net9.0",
         "dependencies": {
+          "MountainGoap": {
+            "target": "Package",
+            "version": "[0.4.1, )"
+          },
           "Neo4j.Driver": {
             "target": "Package",
             "version": "[5.15.0, )"

@@ -21,56 +21,46 @@ public class CSharpActionTypeGenerator {
             System.out.println("Current working directory: " + System.getProperty("user.dir"));
             System.out.println("Generating C# Action Type Classes...");
             
-            // Test if the file exists
-            String testFilePath = "src/test/resources/valid/crf/test_crf.txt";
-            File testFile = new File(testFilePath);
-            System.out.println("Testing file path: " + testFile.getAbsolutePath());
-            System.out.println("File exists: " + testFile.exists());
+            // Define the files to process
+            String[] filesToProcess = {
+                "src/test/resources/valid/crf/PDDLActions.txt",
+                "src/test/resources/valid/crf/GOAPActions.txt"
+            };
             
             CRFParser parser = new CRFParser();
             System.out.println("CRFParser created successfully");
             
-            System.out.println("Attempting to parse: " + testFilePath);
-            Optional<ASTAllowedType> result = parser.parse(testFilePath);
+            java.util.Set<String> processedActions = new java.util.HashSet<>();
             
-            System.out.println("Parse result is present: " + result.isPresent());
+            // Clean the output directory first
+            cleanOutputDirectory();
             
-            if (result.isPresent()) {
-                ASTAllowedType ast = result.get();
-                System.out.println("AST obtained successfully");
-                generateCSharpClasses(ast);
-                System.out.println("C# action type classes generated successfully!");
-            } else {
-                System.out.println("Failed to parse CRF model");
-                System.out.println("Trying alternative paths...");
+            // Ensure output directory exists
+            Files.createDirectories(Paths.get(OUTPUT_DIR));
+            
+            // Process each file
+            for (String filePath : filesToProcess) {
+                System.out.println("Processing file: " + filePath);
+                File testFile = new File(filePath);
+                System.out.println("File exists: " + testFile.exists());
                 
-                // Try alternative paths
-                String[] alternativePaths = {
-                    "MontiCoreTool/src/test/resources/valid/crf/test_crf.txt",
-                    "../MontiCoreTool/src/test/resources/valid/crf/test_crf.txt",
-                    "test_crf.txt"
-                };
-                
-                for (String altPath : alternativePaths) {
-                    System.out.println("Trying: " + altPath);
-                    File altFile = new File(altPath);
-                    System.out.println("  File exists: " + altFile.exists());
-                    if (altFile.exists()) {
-                        try {
-                            result = parser.parse(altPath);
-                            if (result.isPresent()) {
-                                System.out.println("Successfully parsed: " + altPath);
-                                ASTAllowedType ast = result.get();
-                                generateCSharpClasses(ast);
-                                System.out.println("C# action type classes generated successfully!");
-                                return;
-                            }
-                        } catch (Exception e) {
-                            System.out.println("  Failed to parse " + altPath + ": " + e.getMessage());
-                        }
+                if (testFile.exists()) {
+                    Optional<ASTAllowedType> result = parser.parse(filePath);
+                    
+                    if (result.isPresent()) {
+                        ASTAllowedType ast = result.get();
+                        System.out.println("AST obtained successfully from " + filePath);
+                        generateCSharpClassesFromAST(ast, processedActions);
+                        System.out.println("SUCCESS: Processed " + filePath);
+                    } else {
+                        System.out.println("WARNING: Failed to parse " + filePath);
                     }
+                } else {
+                    System.out.println("WARNING: File not found: " + filePath);
                 }
             }
+            
+            System.out.println("SUCCESS: C# action type classes generated successfully!");
             
         } catch (Exception e) {
             System.err.println("ERROR: " + e.getMessage());
@@ -78,21 +68,22 @@ public class CSharpActionTypeGenerator {
         }
     }
     
-    public static void generateCSharpClasses(ASTAllowedType ast) throws IOException {
-        // Clean the output directory first
-        cleanOutputDirectory();
-        
-        // Ensure output directory exists
-        Files.createDirectories(Paths.get(OUTPUT_DIR));
-        
+    public static void generateCSharpClassesFromAST(ASTAllowedType ast, java.util.Set<String> processedActions) throws IOException {
         System.out.println("Debug: Checking AST for Action nodes...");
         System.out.println("Debug: Action list is null? " + (ast.getActionList() == null));
         
         if (ast.getActionList() != null) {
             System.out.println("Debug: Found " + ast.getActionList().size() + " Action nodes");
             for (ASTAction action : ast.getActionList()) {
-                System.out.println("Debug: Processing Action: " + action.getName());
-                generateActionTypeClass(action, ast);
+                String actionName = action.getName();
+                if (!processedActions.contains(actionName)) {
+                    System.out.println("Debug: Processing Action: " + actionName);
+                    generateActionTypeClass(action, ast);
+                    processedActions.add(actionName);
+                    System.out.println("Generated action class: " + actionName);
+                } else {
+                    System.out.println("Skipped duplicate action: " + actionName);
+                }
             }
         } else {
             System.out.println("Debug: No Action nodes found in AST");
@@ -185,8 +176,8 @@ public class CSharpActionTypeGenerator {
             writer.println("        protected override State Effects => effects;");
             writer.println();
             
-            // Generate OnTick_NodeLogic method
-            writer.println("        protected override bool OnTick_NodeLogic(float InDeltaTime)");
+            // Generate ExecuteActionLogic method
+            writer.println("        protected override bool ExecuteActionLogic(float InDeltaTime)");
             writer.println("        {");
             writer.println("            // TODO: Implement action logic for " + className);
             writer.println("            // Access parameters via properties: obj, rob, loc, tool, etc.");
@@ -234,11 +225,17 @@ public class CSharpActionTypeGenerator {
         String[] predicateStrings = getPredicateStringsFromAST(actionName, isPrecondition, ast);
         String stateVarName = isPrecondition ? "preconditions" : "effects";
         
+        System.out.println("DEBUG: Found " + predicateStrings.length + " predicates for " + actionName + " (" + (isPrecondition ? "precondition" : "effect") + ")");
+        
         for (int i = 0; i < predicateStrings.length; i++) {
             String predicateString = predicateStrings[i];
+            System.out.println("DEBUG: Processing predicate: " + predicateString);
             String predicateCode = generatePredicateInstanceCode(predicateString, actionName);
             if (predicateCode != null) {
+                System.out.println("DEBUG: Generated code: " + predicateCode);
                 writer.println("            " + stateVarName + ".AddPredicate(new FastName(\"" + actionName + "_" + (isPrecondition ? "pre" : "eff") + "_" + i + "\"), " + predicateCode + ");");
+            } else {
+                System.out.println("DEBUG: Failed to generate code for predicate: " + predicateString);
             }
         }
     }
@@ -265,6 +262,7 @@ public class CSharpActionTypeGenerator {
             if (!first) {
                 constructorParams.append(", ");
             }
+            // Use the parameter value (which should be the action parameter name)
             constructorParams.append(entry.getValue());
             first = false;
         }
@@ -320,52 +318,195 @@ public class CSharpActionTypeGenerator {
     }
     
     private static String[] getPredicateStringsFromAST(String actionName, boolean isPrecondition, ASTAllowedType ast) {
-        // Read predicate instances directly from the model file
+        // For now, skip AST extraction since it has incomplete data and go directly to file parsing
+        // This is more reliable until we can fix the AST parsing issues
+        System.out.println("DEBUG: Skipping AST extraction due to incomplete data, using file parsing for " + actionName);
         return getPredicateStringsFromModelFile(actionName, isPrecondition);
     }
     
-    private static String[] getPredicateStringsFromModelFile(String actionName, boolean isPrecondition) {
+    private static String[] extractPredicatesFromASTAction(ASTAction action, boolean isPrecondition) {
+        List<String> predicates = new ArrayList<>();
+        
         try {
-            String modelFilePath = "src/test/resources/valid/crf/test_crf.txt";
-            File modelFile = new File(modelFilePath);
-            if (!modelFile.exists()) {
-                System.err.println("Model file not found: " + modelFilePath);
-                return new String[0];
+            System.out.println("DEBUG: Extracting predicates for action: " + action.getName() + " (isPrecondition: " + isPrecondition + ")");
+            
+            if (isPrecondition) {
+                System.out.println("DEBUG: Precondition state is null? " + (action.getPreconditionState() == null));
+                if (action.getPreconditionState() != null) {
+                    System.out.println("DEBUG: Precondition state predicate list size: " + action.getPreconditionState().getPredicateInstanceDefList().size());
+                    // Extract predicates from precondition state
+                    for (crf._ast.ASTPredicateInstanceDef predicateDef : action.getPreconditionState().getPredicateInstanceDefList()) {
+                        System.out.println("DEBUG: Processing precondition predicate: " + predicateDef.getName());
+                        String predicateString = convertPredicateDefToString(predicateDef);
+                        if (predicateString != null) {
+                            predicates.add(predicateString);
+                        }
+                    }
+                }
+            } else {
+                System.out.println("DEBUG: Effect state is null? " + (action.getEffectState() == null));
+                if (action.getEffectState() != null) {
+                    System.out.println("DEBUG: Effect state predicate list size: " + action.getEffectState().getPredicateInstanceDefList().size());
+                    // Extract predicates from effect state
+                    for (crf._ast.ASTPredicateInstanceDef predicateDef : action.getEffectState().getPredicateInstanceDefList()) {
+                        System.out.println("DEBUG: Processing effect predicate: " + predicateDef.getName());
+                        String predicateString = convertPredicateDefToString(predicateDef);
+                        if (predicateString != null) {
+                            predicates.add(predicateString);
+                        }
+                    }
+                }
             }
+        } catch (Exception e) {
+            System.err.println("Error extracting predicates from AST: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        System.out.println("DEBUG: Extracted " + predicates.size() + " predicates from AST");
+        return predicates.toArray(new String[0]);
+    }
+    
+    private static String convertPredicateDefToString(crf._ast.ASTPredicateInstanceDef predicateDef) {
+        try {
+            StringBuilder sb = new StringBuilder();
+            String predicateName = predicateDef.getName();
+            System.out.println("DEBUG: Converting predicate: " + predicateName);
+            
+            sb.append("PredicateInstance: ").append(predicateName).append("(");
+            
+            // Add predicate arguments
+            boolean first = true;
+            for (crf._ast.ASTPredicateArgument arg : predicateDef.getPredicateArgumentList()) {
+                if (!first) {
+                    sb.append(", ");
+                }
+                
+                // Safely get argument name and value
+                String argName = "unknown";
+                String argValue = "unknown";
+                
+                try {
+                    argName = arg.getName();
+                    System.out.println("DEBUG: Argument name: " + argName);
+                } catch (Exception e) {
+                    System.err.println("DEBUG: Failed to get argument name: " + e.getMessage());
+                    return null; // Return null to trigger fallback
+                }
+                
+                try {
+                    if (arg.getValue() != null) {
+                        argValue = arg.getValue().getName();
+                        System.out.println("DEBUG: Argument value: " + argValue);
+                    } else {
+                        System.err.println("DEBUG: Argument value is null");
+                        return null; // Return null to trigger fallback
+                    }
+                } catch (Exception e) {
+                    System.err.println("DEBUG: Failed to get argument value: " + e.getMessage());
+                    return null; // Return null to trigger fallback
+                }
+                
+                sb.append(argName).append(" = ").append(argValue);
+                first = false;
+            }
+            
+            // Add isNegated value
+            try {
+                if (predicateDef.getPredicateValue() != null) {
+                    if (!first) {
+                        sb.append(", ");
+                    }
+                    String negatedValue = predicateDef.getPredicateValue().getName();
+                    System.out.println("DEBUG: isNegated value: " + negatedValue);
+                    sb.append("isNegated = ").append(negatedValue);
+                } else {
+                    System.err.println("DEBUG: Predicate value is null - falling back to file parsing");
+                    return null; // Return null to trigger fallback
+                }
+            } catch (Exception e) {
+                System.err.println("DEBUG: Failed to get predicate value: " + e.getMessage() + " - falling back to file parsing");
+                return null; // Return null to trigger fallback
+            }
+            
+            sb.append(")");
+            String result = sb.toString();
+            System.out.println("DEBUG: Generated predicate string: " + result);
+            return result;
+        } catch (Exception e) {
+            System.err.println("Error converting predicate def to string: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
+    }
+    
+    private static String[] getPredicateStringsFromModelFile(String actionName, boolean isPrecondition) {
+        // Define the files to search in
+        String[] filesToSearch = {
+            "src/test/resources/valid/crf/PDDLActions.txt",
+            "src/test/resources/valid/crf/GOAPActions.txt"
+        };
+        
+        for (String modelFilePath : filesToSearch) {
+            try {
+                File modelFile = new File(modelFilePath);
+                if (!modelFile.exists()) {
+                    System.err.println("Model file not found: " + modelFilePath);
+                    continue;
+                }
             
             List<String> predicates = new ArrayList<>();
             boolean inAction = false;
             boolean inPrecondition = false;
             boolean inEffect = false;
+            int actionBraceLevel = 0;
             
             try (BufferedReader reader = new BufferedReader(new FileReader(modelFile))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     line = line.trim();
                     
-                    // Check if we're entering the target action
-                    if (line.startsWith("Action " + actionName + " {")) {
-                        inAction = true;
-                        continue;
-                    }
+                                         // Check if we're entering the target action
+                     if (line.startsWith("Action " + actionName + " {")) {
+                         System.out.println("DEBUG: Found action " + actionName + " in " + modelFilePath);
+                         inAction = true;
+                         actionBraceLevel = 1;
+                         continue;
+                     }
+                     
+                     // Debug output for action state
+                     if (inAction) {
+                         System.out.println("DEBUG: In action " + actionName + " - Line: '" + line + "' - BraceLevel: " + actionBraceLevel + " - InPrecondition: " + inPrecondition + " - InEffect: " + inEffect);
+                     }
                     
                     // If we're in the target action, look for precondition and effect blocks
                     if (inAction) {
+                        // Check for precondition and effect blocks first
                         if (line.equals("precondition {")) {
+                            System.out.println("DEBUG: Entering precondition block for " + actionName);
                             inPrecondition = true;
                             inEffect = false;
                             continue;
                         } else if (line.equals("effect {")) {
+                            System.out.println("DEBUG: Entering effect block for " + actionName);
                             inPrecondition = false;
                             inEffect = true;
                             continue;
                         } else if (line.equals("}") && (inPrecondition || inEffect)) {
                             // End of precondition or effect block
+                            System.out.println("DEBUG: Exiting " + (inPrecondition ? "precondition" : "effect") + " block for " + actionName);
                             inPrecondition = false;
                             inEffect = false;
                             continue;
-                        } else if (line.equals("}") && inAction) {
+                        }
+                        
+                        // Count braces within the action (after checking for blocks)
+                        if (line.contains("{")) actionBraceLevel++;
+                        if (line.contains("}")) actionBraceLevel--;
+                        
+                        // Check for end of action block
+                        if (actionBraceLevel <= 0 && inAction) {
                             // End of action block
+                            System.out.println("DEBUG: Exiting action block for " + actionName + " (brace level: " + actionBraceLevel + ")");
                             inAction = false;
                             break;
                         }
@@ -373,6 +514,7 @@ public class CSharpActionTypeGenerator {
                         // Collect predicate instances
                         if ((isPrecondition && inPrecondition) || (!isPrecondition && inEffect)) {
                             if (line.startsWith("PredicateInstance:")) {
+                                System.out.println("DEBUG: Found predicate in " + modelFilePath + ": " + line);
                                 predicates.add(line);
                             }
                         }
@@ -380,13 +522,17 @@ public class CSharpActionTypeGenerator {
                 }
             }
             
-            System.out.println("Found " + predicates.size() + " predicates for " + actionName + " (" + (isPrecondition ? "precondition" : "effect") + ")");
-            return predicates.toArray(new String[0]);
-            
-        } catch (IOException e) {
-            System.err.println("Error reading model file: " + e.getMessage());
-            return new String[0];
+                System.out.println("Found " + predicates.size() + " predicates for " + actionName + " (" + (isPrecondition ? "precondition" : "effect") + ") in " + modelFilePath);
+                if (!predicates.isEmpty()) {
+                    return predicates.toArray(new String[0]);
+                }
+            } catch (IOException e) {
+                System.err.println("Error reading model file " + modelFilePath + ": " + e.getMessage());
+            }
         }
+        
+        System.out.println("No predicates found for " + actionName + " in any file");
+        return new String[0];
     }
     
     private static String[] getPredicateStringsForAction(String actionName, boolean isPrecondition) {

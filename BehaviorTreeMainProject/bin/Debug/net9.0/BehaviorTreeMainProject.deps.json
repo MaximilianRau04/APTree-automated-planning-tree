@@ -8,6 +8,7 @@
     ".NETCoreApp,Version=v9.0": {
       "BehaviorTreeMainProject/1.0.0": {
         "dependencies": {
+          "MountainGoap": "0.4.1",
           "Neo4j.Driver": "5.15.0"
         },
         "runtime": {
@@ -19,6 +20,14 @@
           "lib/netstandard2.1/Microsoft.Bcl.AsyncInterfaces.dll": {
             "assemblyVersion": "5.0.0.0",
             "fileVersion": "5.0.20.51904"
+          }
+        }
+      },
+      "MountainGoap/0.4.1": {
+        "runtime": {
+          "lib/netstandard2.1/MountainGoap.dll": {
+            "assemblyVersion": "5.1.0.0",
+            "fileVersion": "5.1.0.0"
           }
         }
       },
@@ -49,6 +58,13 @@
       "sha512": "sha512-W8DPQjkMScOMTtJbPwmPyj9c3zYSFGawDW3jwlBOOsnY+EzZFLgNQ/UMkK35JmkNOVPdCyPr2Tw7Vv9N+KA3ZQ==",
       "path": "microsoft.bcl.asyncinterfaces/5.0.0",
       "hashPath": "microsoft.bcl.asyncinterfaces.5.0.0.nupkg.sha512"
+    },
+    "MountainGoap/0.4.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-e5LzfM/rsmjtCThUrm5bWQE4PcNDh9lFFQi8KJDwZwwNU/QaGiH2HPA6+9OL88OCLxikkaow1NN+k/zUzzDZPw==",
+      "path": "mountaingoap/0.4.1",
+      "hashPath": "mountaingoap.0.4.1.nupkg.sha512"
     },
     "Neo4j.Driver/5.15.0": {
       "type": "package",

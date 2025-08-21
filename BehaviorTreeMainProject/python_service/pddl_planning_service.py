@@ -18,7 +18,7 @@ app = Flask(__name__)
 # Configuration - these will be overridden by request parameters
 DEFAULT_ENHSP_PATH = "/home/shermin/ENHSP-Public/enhsp.jar"  # Default path to ENHSP JAR file
 DEFAULT_DOMAIN_FILE_PATH = "Plannerinputs/domain.pddl"  # Default path to domain file
-DEFAULT_PROBLEM_FILE_PATH = "Plannerinputs/problem.pddl"  # Default path to problem file
+DEFAULT_PROBLEM_FILE_PATH = "Plannerinputs/problemC1.pddl"  # Default path to problem file
 DEFAULT_TIMEOUT_SECONDS = 120
 
 @app.route('/health', methods=['GET'])

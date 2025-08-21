@@ -15,16 +15,36 @@ public class CSharpParameterTypeGenerator {
         try {
             System.out.println("Generating C# Parameter Type Classes...");
             
-            CRFParser parser = new CRFParser();
-            Optional<ASTAllowedType> result = parser.parse("src/test/resources/valid/crf/test_crf.txt");
+            // Define the files to process
+            String[] filesToProcess = {
+                "src/test/resources/valid/crf/PDDLActions.txt",
+                "src/test/resources/valid/crf/GOAPActions.txt"
+            };
             
-            if (result.isPresent()) {
-                ASTAllowedType ast = result.get();
-                generateCSharpClasses(ast);
-                System.out.println("C# parameter type classes generated successfully!");
-            } else {
-                System.out.println("Failed to parse CRF model");
+            CRFParser parser = new CRFParser();
+            java.util.Set<String> processedParameterTypes = new java.util.HashSet<>();
+            
+            // Clean the output directory first
+            cleanOutputDirectory();
+            
+            // Ensure output directory exists
+            Files.createDirectories(Paths.get(OUTPUT_DIR));
+            
+            // Process each file
+            for (String filePath : filesToProcess) {
+                System.out.println("Processing file: " + filePath);
+                Optional<ASTAllowedType> result = parser.parse(filePath);
+                
+                if (result.isPresent()) {
+                    ASTAllowedType ast = result.get();
+                    generateCSharpClassesFromAST(ast, processedParameterTypes);
+                    System.out.println("SUCCESS: Processed " + filePath);
+                } else {
+                    System.out.println("WARNING: Failed to parse " + filePath);
+                }
             }
+            
+            System.out.println("SUCCESS: C# parameter type classes generated successfully!");
             
         } catch (Exception e) {
             System.err.println("ERROR: " + e.getMessage());
@@ -32,16 +52,17 @@ public class CSharpParameterTypeGenerator {
         }
     }
     
-    public static void generateCSharpClasses(ASTAllowedType ast) throws IOException {
-        // Clean the output directory first
-        cleanOutputDirectory();
-        
-        // Ensure output directory exists
-        Files.createDirectories(Paths.get(OUTPUT_DIR));
-        
+    public static void generateCSharpClassesFromAST(ASTAllowedType ast, java.util.Set<String> processedParameterTypes) throws IOException {
         if (ast.getParameterTypeDefList() != null) {
             for (ASTParameterTypeDef parameterType : ast.getParameterTypeDefList()) {
-                generateParameterTypeClass(parameterType);
+                String parameterTypeName = parameterType.getName();
+                if (!processedParameterTypes.contains(parameterTypeName)) {
+                    generateParameterTypeClass(parameterType);
+                    processedParameterTypes.add(parameterTypeName);
+                    System.out.println("Generated parameter type class: " + parameterTypeName);
+                } else {
+                    System.out.println("Skipped duplicate parameter type: " + parameterTypeName);
+                }
             }
         }
     }

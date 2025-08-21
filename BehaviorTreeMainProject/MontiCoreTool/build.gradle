@@ -77,7 +77,7 @@ javadoc.failOnError(false)
 
 shadowJar { // all in one jar
   manifest {
-    attributes "Main-Class": "behaviortree.BehaviorTreeTool"
+    attributes "Main-Class": "CSharpActionTypeGenerator"
   }
   archiveClassifier = "tool"
 }
@@ -125,12 +125,7 @@ spotless {
   enforceCheck = false
 }
 
-// Custom task to run CRF parser test
-task runTestCRFParser(type: JavaExec) {
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'TestCRFParser'
-    workingDir = projectDir
-}
+
 
 // Custom task to run C# parameter type generator
 task generateCSharpParameterTypes(type: JavaExec) {
@@ -153,20 +148,7 @@ task generateCSharpActionTypes(type: JavaExec) {
     workingDir = projectDir
 }
 
-// Custom task to test parameter instances
-task testParameterInstances(type: JavaExec) {
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'TestParameterInstances'
-    workingDir = projectDir
-}
 
-
-// Custom task to test AST value structure
-task testASTValue(type: JavaExec) {
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'ASTValueTest'
-    workingDir = projectDir
-}
 
 
 

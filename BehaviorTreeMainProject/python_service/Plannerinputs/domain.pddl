@@ -4,7 +4,7 @@
       
     firstposition positiononrail stackposition - location                                                                
                                                        
-    plate beams - element
+    plate beam - element
    
     stack -layer
 
@@ -35,7 +35,7 @@
   )
     
     ;robot grabs an object from the table
-    (:action grab
+    (:action pickUpHL
     :parameters (?obj - element ?p - location  ?client - robot )
     
     :precondition (and    
@@ -57,7 +57,7 @@
     )
 
 
-     (:action place 
+     (:action placeHl 
     :parameters (?obj - element ?p -  location   ?client - robot )
     
     :precondition (and
@@ -79,9 +79,9 @@
 
 
       
- ;maybe I can create one without numbers and just with forall (beams) when beams belong to certain layer and certain module, check if all have certain predicate 
+ ;maybe I can create one without numbers and just with forall (beam) when beam belong to certain layer and certain module, check if all have certain predicate 
      ;robot stacks one object on top of the other object
-     (:action stack ; for placing object 1 on object 2 based on their capacity
+     (:action stackHL ; for placing object 1 on object 2 based on their capacity
     :parameters (?obj1 - element ?obj2 - element  ?client - robot ?pr - positiononrail ?lay - layer ?mod - module)
     
     :precondition (and 
@@ -106,7 +106,7 @@
     
     )
      ;robot stacks one biggers object on top of multiple element
-    (:action stackonmultiple
+    (:action stackonmultipleHL
     :parameters (?plate - plate ?client - robot ?p -positiononrail  ?mod - module ?lay -layer)
     :precondition (and
         (allset ?lay ?mod)
@@ -118,7 +118,7 @@
     
     :effect (and
      
-        (forall (?beam - beams) 
+        (forall (?beam - beam) 
         (when (and (belongstolayer ?beam ?lay) (belongstomodule ?beam ?mod))
           (and (ontop ?plate ?beam)(not(clear ?beam)))        
           )                          
@@ -134,7 +134,7 @@
 
 ;robot pours glue on top of an object
 ; need to fix it for multiple guing on the low plate! we can introduce glue locations
-     (:action gluingPLate
+     (:action gluingPLateHL
         :parameters (?obj - plate ?p - positiononrail ?client - robot)
         :precondition (and 
         (empty ?client)
@@ -147,8 +147,8 @@
         (glued ?obj)
                
     )
-       (:action gluingBeam
-        :parameters (?obj - beams ?p - positiononrail ?client - robot ?mod - module ?lay -layer )
+       (:action gluingBeamHL
+        :parameters (?obj - beam ?p - positiononrail ?client - robot ?mod - module ?lay -layer )
         :precondition (and 
         (empty ?client)
         (atplace ?obj ?p) 
@@ -164,7 +164,7 @@
     
 ;robot nail an object
     ;works fine for now
-      (:action nailing
+      (:action nailingHL
         :parameters (?obj - element ?p - positiononrail ?client - robot )
         :precondition (and 
         (empty ?client)
@@ -182,7 +182,7 @@
    
      
   
-  ;
+  
   
 
   

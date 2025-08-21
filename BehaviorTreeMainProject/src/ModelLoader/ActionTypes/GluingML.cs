@@ -5,7 +5,7 @@ using ModelLoader.PredicateTypes;
 
 namespace BehaviorTreeMainProject
 {
-    public class Gluing : GenericBTAction
+    public class GluingML : GenericBTAction
     {
         // Parameter: obj of type beam
         public Beam obj { get; private set; }
@@ -23,7 +23,7 @@ namespace BehaviorTreeMainProject
         private State preconditions;
         private State effects;
 
-        public Gluing(string actionType, string instanceName, Blackboard<FastName> blackboard, Beam obj, PositionOnRail pos, Robot client, GlueGun gg)
+        public GluingML(string actionType, string instanceName, Blackboard<FastName> blackboard, Beam obj, PositionOnRail pos, Robot client, GlueGun gg)
             : base(actionType, instanceName, blackboard)
         {
             this.obj = obj;
@@ -36,10 +36,16 @@ namespace BehaviorTreeMainProject
         private void InitializePredicates()
         {
             // Initialize preconditions
-            preconditions = new State(StateType.Precondition, new FastName("gluing_preconditions"));
+            preconditions = new State(StateType.Precondition, new FastName("gluingML_preconditions"));
+            preconditions.AddPredicate(new FastName("gluingML_pre_0"), new AtAgent(client, pos, false));
+            preconditions.AddPredicate(new FastName("gluingML_pre_1"), new Atplace(obj, pos, false));
+            preconditions.AddPredicate(new FastName("gluingML_pre_2"), new Clear(obj, false));
+            preconditions.AddPredicate(new FastName("gluingML_pre_3"), new ActiveTool(gg, false));
+            preconditions.AddPredicate(new FastName("gluingML_pre_4"), new Glued(obj, true));
 
             // Initialize effects
-            effects = new State(StateType.Effect, new FastName("gluing_effects"));
+            effects = new State(StateType.Effect, new FastName("gluingML_effects"));
+            effects.AddPredicate(new FastName("gluingML_eff_0"), new Glued(obj, false));
         }
 
         protected override State Preconditions => preconditions;
@@ -47,7 +53,8 @@ namespace BehaviorTreeMainProject
 
         protected override bool ExecuteActionLogic(float InDeltaTime)
         {
-            Console.WriteLine($"Gluing: {obj.ToString()} at {pos.ToString()} by {client.ToString()} using {gg.ToString()}");
+            // TODO: Implement action logic for GluingML
+            // Access parameters via properties: obj, rob, loc, tool, etc.
             return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);
         }
     }

@@ -44,6 +44,10 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "dependencies": {
+            "MountainGoap": {
+              "target": "Package",
+              "version": "[0.4.1, )"
+            },
             "Neo4j.Driver": {
               "target": "Package",
               "version": "[5.15.0, )"

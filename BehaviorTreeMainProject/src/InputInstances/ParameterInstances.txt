@@ -86,12 +86,12 @@ ParameterInstance: nailGripper {ng1}
 ParameterInstance: glueGun {gg1}
 
 # Module - cassette instances
-ParameterInstance: cassette {c1}
-ParameterInstance: cassette {c2}
-ParameterInstance: cassette {c3}
-ParameterInstance: cassette {c4}
+ParameterInstance: cassette {m1}
+ParameterInstance: cassette {m2}
+ParameterInstance: cassette {m3}
+ParameterInstance: cassette {m4}
 
 # Layer - stack instances
-ParameterInstance: stack {l1}
-ParameterInstance: stack {l2}
-ParameterInstance: stack {l3}
+ParameterInstance: stack {lay1}
+ParameterInstance: stack {lay2}
+ParameterInstance: stack {lay3}

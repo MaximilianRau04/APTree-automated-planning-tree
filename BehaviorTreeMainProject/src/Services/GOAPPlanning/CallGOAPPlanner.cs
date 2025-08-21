@@ -239,11 +239,35 @@ public class CallGOAPPlanner : BTServicePlanner
         
         try
         {
-            // Extract GOAP-specific state from blackboard
+            // Extract GOAP-specific state from blackboard for construction domain
             // GOAP uses key-value pairs for world state
-            state["agent_position"] = "start_location";
-            state["has_tool"] = false;
-            state["task_completed"] = false;
+            
+            // Tool states
+            state["hasVacuumGripper"] = false;
+            state["hasNailGripper"] = false;
+            state["hasGlueGun"] = false;
+            state["vacuumGripperAvailable"] = true;
+            state["nailGripperAvailable"] = true;
+            state["glueGunAvailable"] = true;
+            
+            // Object states
+            state["holdingBeam"] = false;
+            state["holdingPlate"] = false;
+            state["beamAtLocation"] = true;
+            state["plateAtLocation"] = true;
+            state["beamPlaced"] = false;
+            state["plateAtPosition"] = false;
+            state["beamNailed"] = false;
+            state["beamGlued"] = false;
+            state["beamStacked"] = false;
+            
+            // Position states
+            state["targetPositionFree"] = true;
+            state["multipleSupportsReady"] = false;
+            
+            // Agent states
+            state["agentAtWorkArea"] = true;
+            state["taskCompleted"] = false;
             
             Console.WriteLine($"🔧 CallGOAPPlanner: Extracted GOAP state with {state.Count} properties");
         }
@@ -261,9 +285,14 @@ public class CallGOAPPlanner : BTServicePlanner
         
         try
         {
-            // Extract GOAP-specific goals from blackboard
-            goals["task_completed"] = true;
-            goals["agent_position"] = "target_location";
+            // Extract GOAP-specific goals from blackboard for construction domain
+            // These are the desired end states
+            
+            // Example goals - you can customize these based on your specific tasks
+            goals["beamPlaced"] = true;
+            goals["beamNailed"] = true;
+            // goals["beamGlued"] = true; // Uncomment for gluing tasks
+            // goals["beamStacked"] = true; // Uncomment for stacking tasks
             
             Console.WriteLine($"🔧 CallGOAPPlanner: Extracted {goals.Count} GOAP goals");
         }
@@ -281,12 +310,34 @@ public class CallGOAPPlanner : BTServicePlanner
         
         try
         {
-            // Get available actions from blackboard
-            var availableActions = blackboard.GetAllActionInstances();
+            // Define construction domain actions for GOAP
+            // These should match the actions available in your blackboard
             
+            // Tool equipping actions
+            actions.Add("EquipVacuumGripper");
+            actions.Add("EquipNailGripper");
+            actions.Add("EquipGlueGun");
+            
+            // Pick and place actions
+            actions.Add("PickUpBeam");
+            actions.Add("PlaceBeam");
+            actions.Add("PickUpPlate");
+            actions.Add("PlacePlate");
+            
+            // Construction actions
+            actions.Add("NailBeam");
+            actions.Add("GlueBeam");
+            actions.Add("StackBeam");
+            
+            // Get additional actions from blackboard if available
+            var availableActions = blackboard.GetAllActionInstances();
             foreach (var action in availableActions)
             {
-                actions.Add(action.InstanceName.ToString());
+                var actionName = action.InstanceName.ToString();
+                if (!actions.Contains(actionName))
+                {
+                    actions.Add(actionName);
+                }
             }
             
             Console.WriteLine($"🔧 CallGOAPPlanner: Extracted {actions.Count} available actions");

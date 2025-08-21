@@ -5,6 +5,7 @@ using ModelLoader.PredicateTypes;
 using BehaviorTreeMainProject;
 using AIPlanning;
 using PlanningDataStructures;
+using BehaviorTreeMainProject.Services.GOAPPlanning;
 
 
 public class Program
@@ -13,36 +14,44 @@ public class Program
     {
         try
         {
-            Console.WriteLine("Setting up Blackboard...");
+            // Console.WriteLine("Setting up Blackboard...");
             
-            // Create blackboard instance (skipping Neo4j for now)
-            using var blackboard = new Blackboard<FastName>("bolt://localhost:7687", "neo4j", "12345678");
+            // // Create blackboard instance (skipping Neo4j for now)
+            // using var blackboard = new Blackboard<FastName>("bolt://localhost:7687", "neo4j", "12345678");
             
-            // Skip Neo4j connection test for now
-            Console.WriteLine("⚠️  Skipping Neo4j connection test for now...");
-            bool connectionSuccess = true; // Assume success to continue with PDDL testing
-            
+            // // Skip Neo4j connection test for now
+            // Console.WriteLine("⚠️  Skipping Neo4j connection test for now...");
+            // bool connectionSuccess = true; // Assume success to continue with PDDL testing
+
             if (connectionSuccess)
             {
                 Console.WriteLine("✅ Continuing without Neo4j...");
-                
+
                 // Create BlackboardWriter for type registration
                 var blackboardWriter = new BlackboardWriter(blackboard);
-                
+
                 // Register all types
                 Console.WriteLine("\n=== REGISTERING ALL TYPES ===");
                 blackboardWriter.RegisterAllTypes();
-                
+
                 // Register all instances from files
                 Console.WriteLine("\n=== REGISTERING ALL INSTANCES FROM FILES ===");
                 string actionInstancesFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "src", "InputInstances", "ActionInstances.txt");
                 blackboardWriter.RegisterAllInstances(actionInstancesFile);
-                
+
                 Console.WriteLine("✅ All operations completed successfully!");
-                
+
                 // Test PDDL Planning Pipeline Step by Step
                 Console.WriteLine("\n=== TESTING PDDL PLANNING PIPELINE STEP BY STEP ===");
                 TestPDDLPlanningPipeline(blackboard);
+
+                // test the full tree
+                Console.WriteLine("\n=== TESTING FULL BEHAVIOR TREE ===");
+                await FullTreeTest.RunTest();
+                
+                // Test GOAP Example (commented out for now)
+                // Console.WriteLine("\n=== TESTING GOAP EXAMPLE ===");
+                // RobotGOAPExample.Test();
             }
             else
             {
@@ -774,7 +783,7 @@ public class Program
             Console.WriteLine("\n📋 Step 3: Creating regular PickUp action");
             Console.WriteLine("=========================================");
             
-            var regularPickUpAction = blackboard.GetAction(new FastName("pickUp_lp1_r1_fp1_vg1")) as PickUp;
+            var regularPickUpAction = blackboard.GetAction(new FastName("pickUpHL_lp1_r1_fp1")) as PickUpHL;
             if (regularPickUpAction == null)
             {
                 Console.WriteLine("❌ Could not find PickUp action instance");
@@ -789,7 +798,7 @@ public class Program
             Console.WriteLine("\n📋 Step 4: Creating high-level PickUp action");
             Console.WriteLine("============================================");
             
-            var highLevelPickUpAction = blackboard.GetAction(new FastName("pickUp_b1_r1_fp2_vg1")) as PickUp;
+            var highLevelPickUpAction = blackboard.GetAction(new FastName("pickUpHL_b1_r1_fp2")) as PickUpHL;
             if (highLevelPickUpAction == null)
             {
                 Console.WriteLine("❌ Could not find PickUp action instance for high-level");
@@ -945,6 +954,8 @@ public class Program
         }
     }
 
+
+
     static void TestPDDLPlanningPipeline(Blackboard<FastName> blackboard)
     {
         Console.WriteLine("\n" + "=".PadRight(80, '='));
@@ -1063,9 +1074,33 @@ public class Program
                 }
             }
             
+            // Final Summary with Action Count
+            Console.WriteLine("\n" + "=".PadRight(80, '='));
+            Console.WriteLine("📊 FINAL SUMMARY");
+            Console.WriteLine("=".PadRight(80, '='));
+            
+            if (pddlPlanner.HasGeneratedNodeGraph())
+            {
+                var finalGraph = pddlPlanner.GetGeneratedNodeGraph();
+                var totalActions = finalGraph.GetAllActionNodes().Count;
+                var executionOrder = finalGraph.GetExecutionOrder();
+                
+                Console.WriteLine($"🎯 TOTAL ACTIONS IN NODEGRAPH: {totalActions}");
+                Console.WriteLine($"📋 EXECUTION ORDER: {string.Join(" → ", executionOrder.Select(a => a.InstanceName.ToString()))}");
+                Console.WriteLine($"✅ PLANNING SUCCESS: {tickSuccess}");
+                Console.WriteLine($"🔧 PLANNER USED: PDDL (ENHSP)");
+            }
+            else
+            {
+                Console.WriteLine("❌ NO NODEGRAPH GENERATED");
+                Console.WriteLine($"✅ PLANNING SUCCESS: {tickSuccess}");
+            }
+            
             Console.WriteLine("\n" + "=".PadRight(80, '='));
             Console.WriteLine("🎉 PDDL PLANNING PIPELINE TEST COMPLETED SUCCESSFULLY!");
             Console.WriteLine("=".PadRight(80, '='));
+            
+
             
         }
         catch (Exception ex)

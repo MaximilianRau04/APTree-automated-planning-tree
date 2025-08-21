@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="MountainGoap" Version="0.4.1" />
     <PackageReference Include="Neo4j.Driver" Version="5.15.0" />
   </ItemGroup>
 

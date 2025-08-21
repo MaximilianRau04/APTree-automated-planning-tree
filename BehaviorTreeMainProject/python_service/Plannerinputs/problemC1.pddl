@@ -3,12 +3,12 @@
   (:objects 
     lp1 - plate
     tp1 - plate
-    b1 - beams
-    b2 - beams
-    b3 - beams
-    b4 - beams
-    b5 -beams
-    b6 -beams
+    b1 - beam
+    b2 - beam
+    b3 - beam
+    b4 - beam
+    b5 -beam
+    b6 -beam
     fp1  - firstposition 
     fp2  - firstposition 
     fp3  - firstposition 

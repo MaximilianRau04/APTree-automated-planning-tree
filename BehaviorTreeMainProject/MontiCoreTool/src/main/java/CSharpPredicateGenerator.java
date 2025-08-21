@@ -14,16 +14,36 @@ public class CSharpPredicateGenerator {
         try {
             System.out.println("GENERATING: Generating C# Predicate Classes...");
             
-            CRFParser parser = new CRFParser();
-            Optional<ASTAllowedType> result = parser.parse("src/test/resources/valid/crf/test_crf.txt");
+            // Define the files to process
+            String[] filesToProcess = {
+                "src/test/resources/valid/crf/PDDLActions.txt",
+                "src/test/resources/valid/crf/GOAPActions.txt"
+            };
             
-            if (result.isPresent()) {
-                ASTAllowedType ast = result.get();
-                generateCSharpClasses(ast);
-                System.out.println("SUCCESS: C# classes generated successfully!");
-            } else {
-                System.out.println("FAILED: Failed to parse CRF model");
+            CRFParser parser = new CRFParser();
+            java.util.Set<String> processedPredicates = new java.util.HashSet<>();
+            
+            // Clean the output directory first
+            cleanOutputDirectory();
+            
+            // Ensure output directory exists
+            Files.createDirectories(Paths.get(OUTPUT_DIR));
+            
+            // Process each file
+            for (String filePath : filesToProcess) {
+                System.out.println("Processing file: " + filePath);
+                Optional<ASTAllowedType> result = parser.parse(filePath);
+                
+                if (result.isPresent()) {
+                    ASTAllowedType ast = result.get();
+                    generateCSharpClassesFromAST(ast, processedPredicates);
+                    System.out.println("SUCCESS: Processed " + filePath);
+                } else {
+                    System.out.println("WARNING: Failed to parse " + filePath);
+                }
             }
+            
+            System.out.println("SUCCESS: C# predicate classes generated successfully!");
             
         } catch (Exception e) {
             System.err.println("ERROR: " + e.getMessage());
@@ -31,16 +51,17 @@ public class CSharpPredicateGenerator {
         }
     }
     
-    public static void generateCSharpClasses(ASTAllowedType ast) throws IOException {
-        // Clean the output directory first
-        cleanOutputDirectory();
-        
-        // Ensure output directory exists
-        Files.createDirectories(Paths.get(OUTPUT_DIR));
-        
+    public static void generateCSharpClassesFromAST(ASTAllowedType ast, java.util.Set<String> processedPredicates) throws IOException {
         if (ast.getPredicateTypeDefList() != null) {
             for (ASTPredicateTypeDef predicate : ast.getPredicateTypeDefList()) {
-                generatePredicateClass(predicate);
+                String predicateName = predicate.getName();
+                if (!processedPredicates.contains(predicateName)) {
+                    generatePredicateClass(predicate);
+                    processedPredicates.add(predicateName);
+                    System.out.println("Generated predicate class: " + predicateName);
+                } else {
+                    System.out.println("Skipped duplicate predicate: " + predicateName);
+                }
             }
         }
     }

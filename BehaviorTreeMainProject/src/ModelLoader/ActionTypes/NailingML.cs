@@ -5,7 +5,7 @@ using ModelLoader.PredicateTypes;
 
 namespace BehaviorTreeMainProject
 {
-    public class Nailing : GenericBTAction
+    public class NailingML : GenericBTAction
     {
         // Parameter: obj of type beam
         public Beam obj { get; private set; }
@@ -23,7 +23,7 @@ namespace BehaviorTreeMainProject
         private State preconditions;
         private State effects;
 
-        public Nailing(string actionType, string instanceName, Blackboard<FastName> blackboard, Beam obj, PositionOnRail pos, Robot client, NailGripper ng)
+        public NailingML(string actionType, string instanceName, Blackboard<FastName> blackboard, Beam obj, PositionOnRail pos, Robot client, NailGripper ng)
             : base(actionType, instanceName, blackboard)
         {
             this.obj = obj;
@@ -36,10 +36,15 @@ namespace BehaviorTreeMainProject
         private void InitializePredicates()
         {
             // Initialize preconditions
-            preconditions = new State(StateType.Precondition, new FastName("nailing_preconditions"));
+            preconditions = new State(StateType.Precondition, new FastName("nailingML_preconditions"));
+            preconditions.AddPredicate(new FastName("nailingML_pre_0"), new AtAgent(client, pos, false));
+            preconditions.AddPredicate(new FastName("nailingML_pre_1"), new Atplace(obj, pos, false));
+            preconditions.AddPredicate(new FastName("nailingML_pre_2"), new ActiveTool(ng, false));
+            preconditions.AddPredicate(new FastName("nailingML_pre_3"), new Nailed(obj, true));
 
             // Initialize effects
-            effects = new State(StateType.Effect, new FastName("nailing_effects"));
+            effects = new State(StateType.Effect, new FastName("nailingML_effects"));
+            effects.AddPredicate(new FastName("nailingML_eff_0"), new Nailed(obj, false));
         }
 
         protected override State Preconditions => preconditions;
@@ -47,7 +52,8 @@ namespace BehaviorTreeMainProject
 
         protected override bool ExecuteActionLogic(float InDeltaTime)
         {
-            Console.WriteLine($"Nailing: {obj.ToString()} at {pos.ToString()} by {client.ToString()} using {ng.ToString()}");
+            // TODO: Implement action logic for NailingML
+            // Access parameters via properties: obj, rob, loc, tool, etc.
             return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);
         }
     }

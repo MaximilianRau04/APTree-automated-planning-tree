@@ -34,7 +34,7 @@ public class CallPDDLPlanner : BTServicePlanner
             var request = new PDDLPlanningRequest
             {
                 DomainFile = "./Plannerinputs/domain.pddl",
-                ProblemFile = "./Plannerinputs/problem.pddl",
+                ProblemFile = "./Plannerinputs/problemC1.pddl",
                 PlannerPath = "/home/shermin/ENHSP-Public/enhsp.jar", // Path to ENHSP JAR file
                 TimeoutSeconds = 30,
                 MaxPlanLength = 20
@@ -79,18 +79,34 @@ public class CallPDDLPlanner : BTServicePlanner
     
     private NodeGraph ParsePlanStringToNodeGraph(string planString)
     {
-        Console.WriteLine($"🔧 CallPDDLPlanner: Converting ENHSP plan to Monticore format...");
+        Console.WriteLine($"🔧 CallPDDLPlanner: Converting PDDL plan to action instances...");
         
         try
         {
-            // Convert ENHSP plan to Monticore format
-            string monticoreFormat = ConvertEnhspPlanToMonticoreFormat(planString);
-            Console.WriteLine($"✅ CallPDDLPlanner: Converted to Monticore format:\n{monticoreFormat}");
+            // Convert PDDL plan to ActionInstance strings
+            var actionInstanceStrings = ConvertPddlPlanToActionInstances(planString);
+            Console.WriteLine($"✅ CallPDDLPlanner: Converted to {actionInstanceStrings.Count} action instances");
             
-            // Use the existing Parser to create NodeGraph from Monticore format
-            var nodeGraph = Parser.ParseNodeGraph(monticoreFormat, blackboard);
+            // Create BlackboardWriter to handle action creation and registration
+            var blackboardWriter = new BlackboardWriter(blackboard);
             
+            // Create and register all action instances
+            Console.WriteLine($"🔧 CallPDDLPlanner: Attempting to create {actionInstanceStrings.Count} action instances...");
+            var createdActions = blackboardWriter.CreateAndRegisterActionInstances(actionInstanceStrings.ToArray());
+            Console.WriteLine($"✅ CallPDDLPlanner: Created and registered {createdActions.Count} action instances");
+            
+            if (createdActions.Count != actionInstanceStrings.Count)
+            {
+                Console.WriteLine($"\n⚠️⚠️⚠️ ACTION CREATION WARNING ⚠️⚠️⚠️");
+                Console.WriteLine($"⚠️ {actionInstanceStrings.Count - createdActions.Count} actions were lost during creation!");
+                Console.WriteLine($"⚠️ Expected: {actionInstanceStrings.Count}, Actual: {createdActions.Count}");
+                Console.WriteLine($"⚠️⚠️⚠️ END ACTION CREATION WARNING ⚠️⚠️⚠️\n");
+            }
+            
+            // Create NodeGraph with sequential relations
+            var nodeGraph = CreateNodeGraphWithSequentialRelations(createdActions);
             Console.WriteLine($"✅ CallPDDLPlanner: Created NodeGraph with {nodeGraph.GetAllActionNodes().Count} actions");
+            
             return nodeGraph;
         }
         catch (Exception ex)
@@ -100,57 +116,69 @@ public class CallPDDLPlanner : BTServicePlanner
         }
     }
     
-    private string ConvertEnhspPlanToMonticoreFormat(string enhspPlanString)
+    private List<string> ConvertPddlPlanToActionInstances(string pddlPlanString)
     {
-        var monticoreLines = new List<string>();
+        var actionInstanceStrings = new List<string>();
+        var totalLines = 0;
+        var skippedLines = 0;
+        var convertedLines = 0;
+        var failedConversions = 0;
         
-        // Add NodeGraph header
-        monticoreLines.Add("Nodegraph PDDLPlan {");
-        monticoreLines.Add("");
+        // Parse PDDL plan lines
+        var lines = pddlPlanString.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         
-        // Parse ENHSP plan lines
-        var lines = enhspPlanString.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        var actionInstances = new List<string>();
+        Console.WriteLine($"🔍 CallPDDLPlanner: Processing {lines.Length} lines from PDDL plan");
         
         foreach (var line in lines)
         {
+            totalLines++;
             var trimmedLine = line.Trim();
             
             // Skip comments and empty lines
             if (string.IsNullOrEmpty(trimmedLine) || trimmedLine.StartsWith("//"))
+            {
+                skippedLines++;
                 continue;
+            }
             
             // Parse ActionInstance lines (from Python service output)
             if (trimmedLine.StartsWith("ActionInstance:"))
             {
                 var actionString = trimmedLine.Substring("ActionInstance:".Length).Trim();
-                var monticoreAction = ConvertActionToMonticoreFormat(actionString);
-                if (!string.IsNullOrEmpty(monticoreAction))
+                var actionInstanceString = ConvertActionToActionInstanceFormat(actionString);
+                if (!string.IsNullOrEmpty(actionInstanceString))
                 {
-                    actionInstances.Add(monticoreAction);
-                    monticoreLines.Add($"    {monticoreAction}");
+                    actionInstanceStrings.Add(actionInstanceString);
+                    convertedLines++;
+                    Console.WriteLine($"✅ CallPDDLPlanner: Converted {convertedLines}: {actionString} -> {actionInstanceString}");
                 }
+                else
+                {
+                    failedConversions++;
+                    Console.WriteLine($"❌❌❌ FAILED TO CONVERT: {actionString} ❌❌❌");
+                }
+            }
+            else
+            {
+                skippedLines++;
+                Console.WriteLine($"⚠️ CallPDDLPlanner: Skipped non-ActionInstance line: {trimmedLine}");
             }
         }
         
-        // Add sequential relations
-        monticoreLines.Add("");
-        for (int i = 0; i < actionInstances.Count - 1; i++)
-        {
-            var action1Name = GetActionInstanceName(actionInstances[i]);
-            var action2Name = GetActionInstanceName(actionInstances[i + 1]);
-            monticoreLines.Add($"    {action1Name} --[MEETS]--> {action2Name}");
-        }
+        Console.WriteLine($"\n🔍🔍🔍 PDDL CONVERSION DEBUG SUMMARY 🔍🔍🔍");
+        Console.WriteLine($"🔍 Total lines processed: {totalLines}");
+        Console.WriteLine($"🔍 Lines skipped: {skippedLines}");
+        Console.WriteLine($"🔍 Actions successfully converted: {convertedLines}");
+        Console.WriteLine($"🔍 Actions failed to convert: {failedConversions}");
+        Console.WriteLine($"🔍 Final action instances: {actionInstanceStrings.Count}");
+        Console.WriteLine($"🔍🔍🔍 END CONVERSION SUMMARY 🔍🔍🔍\n");
         
-        monticoreLines.Add("");
-        monticoreLines.Add("}");
-        
-        return string.Join("\n", monticoreLines);
+        return actionInstanceStrings;
     }
     
-    private string ConvertActionToMonticoreFormat(string actionString)
+    private string ConvertActionToActionInstanceFormat(string actionString)
     {
-        // Convert from "Grab_b1_fp2_r1" format to Monticore "ActionInstance: grab(obj : b1, grabPos : fp2, client : r1)" format
+        // Convert from "Grab_b1_fp2_r1" format to "ActionInstance: grab(obj : b1, grabPos : fp2, client : r1)" format
         
         // Parse the action string (e.g., "Grab_b1_fp2_r1")
         var parts = actionString.Split('_');
@@ -160,118 +188,123 @@ public class CallPDDLPlanner : BTServicePlanner
             return null;
         }
         
-        var actionName = parts[0].ToLower(); // Convert to lowercase for Monticore
+        var actionName = parts[0].ToLower(); // Convert to lowercase
         var parameters = parts.Skip(1).ToArray();
         
-        // Map action names and parameters to Monticore format based on test_crf.txt
-        switch (actionName)
+        // Map PDDL action names to C# action types
+        var mappedActionName = MapPddlActionToCSharpAction(actionName);
+        if (string.IsNullOrEmpty(mappedActionName))
         {
-            case "grab":
-                if (parameters.Length >= 3)
-                {
-                    return $"ActionInstance: grab(obj : {parameters[0]}, grabPos : {parameters[1]}, client : {parameters[2]})";
-                }
-                break;
-                
-            case "place":
-                if (parameters.Length >= 3)
-                {
-                    return $"ActionInstance: place(obj : {parameters[0]}, placePos : {parameters[1]}, client : {parameters[2]})";
-                }
-                break;
-                
-            case "pickup":
-                if (parameters.Length >= 4)
-                {
-                    return $"ActionInstance: pickUp(pickedObject : {parameters[0]}, rob : {parameters[1]}, loc : {parameters[2]}, robTool : {parameters[3]})";
-                }
-                break;
-                
-            case "stack":
-                if (parameters.Length >= 7)
-                {
-                    return $"ActionInstance: stackHL(obj1 : {parameters[0]}, obj2 : {parameters[1]}, client : {parameters[2]}, vg : {parameters[3]}, pr : {parameters[4]}, lay : {parameters[5]}, mod : {parameters[6]})";
-                }
-                break;
-                
-            case "stackonmultiple":
-                if (parameters.Length >= 6)
-                {
-                    return $"ActionInstance: stackonmultiple(plate : {parameters[0]}, client : {parameters[1]}, pos : {parameters[2]}, vg : {parameters[3]}, mod : {parameters[4]}, lay : {parameters[5]})";
-                }
-                break;
-                
-            case "gluing":
-                if (parameters.Length >= 4)
-                {
-                    return $"ActionInstance: gluing(obj : {parameters[0]}, pos : {parameters[1]}, client : {parameters[2]}, gg : {parameters[3]})";
-                }
-                break;
-                
-            case "gluingplate":
-                if (parameters.Length >= 3)
-                {
-                    return $"ActionInstance: gluingPLate(obj : {parameters[0]}, pos : {parameters[1]}, client : {parameters[2]})";
-                }
-                break;
-                
-            case "gluingbeam":
-                if (parameters.Length >= 5)
-                {
-                    return $"ActionInstance: gluingBeam(obj : {parameters[0]}, pos : {parameters[1]}, client : {parameters[2]}, gg : {parameters[3]}, lay : {parameters[4]})";
-                }
-                break;
-                
-            case "nailing":
-                if (parameters.Length >= 3)
-                {
-                    return $"ActionInstance: nailing(obj : {parameters[0]}, pos : {parameters[1]}, client : {parameters[2]})";
-                }
-                break;
-                
-            default:
-                Console.WriteLine($"⚠️ CallPDDLPlanner: Unknown action type: {actionName}");
-                return null;
+            Console.WriteLine($"⚠️ CallPDDLPlanner: Unknown action type: {actionName}");
+            return null;
         }
         
-        Console.WriteLine($"⚠️ CallPDDLPlanner: Invalid parameter count for {actionName}: {parameters.Length}");
+        // Create parameter string based on action type
+        var parameterString = CreateParameterStringForAction(mappedActionName, parameters);
+        if (string.IsNullOrEmpty(parameterString))
+        {
+            Console.WriteLine($"⚠️ CallPDDLPlanner: Invalid parameter count for {actionName}: {parameters.Length}");
+            return null;
+        }
+        
+        return $"ActionInstance: {mappedActionName}({parameterString})";
+    }
+    
+    private string MapPddlActionToCSharpAction(string pddlActionName)
+    {
+        // Simple mapping from PDDL action names to C# action class names
+        switch (pddlActionName)
+        {
+            case "pickuphl":
+                return "PickUpHL";
+            case "placehl":
+                return "PlaceHL";
+            case "stackhl":
+                return "StackHL";
+            case "stackonmultiplehl":
+                return "StackOnMultipleHL";
+            case "gluingplatehl":
+                return "GluingPlateHL";
+            case "gluingbeamhl":
+                return "GluingBeamHL";
+            case "nailinghl":
+                return "NailingHL";
+            case "grab":
+                return "Grab";
+            case "place":
+                return "Place";
+            case "pickup":
+                return "PickUp";
+            case "stack":
+                return "Stack";
+            case "gluing":
+                return "Gluing";
+            case "nailing":
+                return "Nailing";
+            default:
+                Console.WriteLine($"⚠️ CallPDDLPlanner: Unknown PDDL action: {pddlActionName}");
+                return null;
+        }
+    }
+    
+    private string CreateParameterStringForAction(string actionTypeName, string[] parameters)
+    {
+        // Create parameter string based on action type and parameter count
+        switch (actionTypeName)
+        {
+            case "PickUpHL":
+                if (parameters.Length >= 3)
+                    return $"obj : {parameters[0]}, grabPos : {parameters[1]}, client : {parameters[2]}";
+                break;
+            case "PlaceHL":
+                if (parameters.Length >= 3)
+                    return $"obj : {parameters[0]}, placePos : {parameters[1]}, client : {parameters[2]}";
+                break;
+            case "StackHL":
+                if (parameters.Length >= 6)
+                    return $"obj1 : {parameters[0]}, obj2 : {parameters[1]}, client : {parameters[2]}, pr : {parameters[3]}, lay : {parameters[4]}, mod : {parameters[5]}";
+                break;
+            case "StackOnMultipleHL":
+                if (parameters.Length >= 5)
+                    return $"plate : {parameters[0]}, client : {parameters[1]}, pos : {parameters[2]}, mod : {parameters[3]}, lay : {parameters[4]}";
+                break;
+            case "GluingPlateHL":
+                if (parameters.Length >= 3)
+                    return $"obj : {parameters[0]}, pos : {parameters[1]}, client : {parameters[2]}";
+                break;
+            case "GluingBeamHL":
+                if (parameters.Length >= 5)
+                    return $"obj : {parameters[0]}, pos : {parameters[1]}, client : {parameters[2]}, mod : {parameters[3]}, lay : {parameters[4]}";
+                break;
+            case "NailingHL":
+                if (parameters.Length >= 3)
+                    return $"obj : {parameters[0]}, pos : {parameters[1]}, client : {parameters[2]}";
+                break;
+        }
+        
+        Console.WriteLine($"⚠️ CallPDDLPlanner: Unsupported action type or parameter count: {actionTypeName} with {parameters.Length} parameters");
         return null;
     }
     
-    private string GetActionInstanceName(string actionInstanceLine)
+    private NodeGraph CreateNodeGraphWithSequentialRelations(List<GenericBTAction> actions)
     {
-        // Extract the action name from Monticore format
-        // e.g., "ActionInstance: grab(obj : b1, grabPos : fp2, client : r1)" -> "grab_b1_fp2_r1"
+        var nodeGraph = new NodeGraph();
         
-        if (!actionInstanceLine.StartsWith("ActionInstance:"))
-            return actionInstanceLine;
-            
-        var actionPart = actionInstanceLine.Substring("ActionInstance:".Length).Trim();
-        var openParenIndex = actionPart.IndexOf('(');
-        var closeParenIndex = actionPart.LastIndexOf(')');
-        
-        if (openParenIndex == -1 || closeParenIndex == -1)
-            return actionPart;
-            
-        var actionName = actionPart.Substring(0, openParenIndex).Trim();
-        var parametersPart = actionPart.Substring(openParenIndex + 1, closeParenIndex - openParenIndex - 1);
-        
-        // Extract parameter values
-        var parameters = new List<string>();
-        var paramPairs = parametersPart.Split(',');
-        
-        foreach (var pair in paramPairs)
+        // Add all actions to the NodeGraph
+        foreach (var action in actions)
         {
-            var colonIndex = pair.IndexOf(':');
-            if (colonIndex != -1)
-            {
-                var value = pair.Substring(colonIndex + 1).Trim();
-                parameters.Add(value);
-            }
+            nodeGraph.AddNode(action);
         }
         
-        // Create the action instance name
-        return $"{actionName}_{string.Join("_", parameters)}";
+        // Add sequential relations (MEETS constraints) between consecutive actions
+        for (int i = 0; i < actions.Count - 1; i++)
+        {
+            nodeGraph.AddOrderRelation(actions[i], actions[i + 1]);
+            nodeGraph.AddTemporalConstraint(actions[i], actions[i + 1], TemporalConstraint.MEETS);
+            Console.WriteLine($"🔧 CallPDDLPlanner: Added sequential relation: {actions[i].InstanceName} → {actions[i + 1].InstanceName}");
+        }
+        
+        return nodeGraph;
     }
     
 
