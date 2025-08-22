@@ -10,6 +10,16 @@ public class CallPDDLPlanner : BTServicePlanner
     private readonly FactoryAction actionFactory;
     public FastName PlannerName = new FastName("PDDLPlanner");
     public PDDLPlanningRequest PlanningRequest;
+    
+    // Parallel execution configuration
+    public enum ParallelExecutionMode
+    {
+        Sequential,      // All actions run sequentially (MEETS)
+        Parallel,        // Actions run in parallel (OVERLAPS)
+        Hybrid           // Mix of sequential and parallel
+    }
+    
+    public ParallelExecutionMode ExecutionMode { get; set; } = ParallelExecutionMode.Parallel;
 
     public CallPDDLPlanner(BTInstance InOwningTree, PDDLPlanningRequest InPlanningRequest)
         : base(InOwningTree, new RestPlannerCommunicator("http://localhost:5000"), InPlanningRequest)
@@ -31,6 +41,8 @@ public class CallPDDLPlanner : BTServicePlanner
     protected override NodeGraph GenerateNodeGraphFromResult(PlanningResult result)
     {
         Console.WriteLine($"🔧 CallPDDLPlanner: Converting PDDL result to NodeGraph...");
+        Console.WriteLine($"📋 CallPDDLPlanner: Execution Mode: {ExecutionMode}");
+        Console.WriteLine($"📋 CallPDDLPlanner: Problem File: {PlanningRequest.ProblemFile}");
         
         try
         {
@@ -44,6 +56,7 @@ public class CallPDDLPlanner : BTServicePlanner
             var nodeGraph = ParsePlanStringToNodeGraph(result.Plan);
             
             Console.WriteLine($"✅ CallPDDLPlanner: Generated NodeGraph with {nodeGraph.GetAllActionNodes().Count} actions");
+            Console.WriteLine($"✅ CallPDDLPlanner: Execution Mode applied: {ExecutionMode}");
             return nodeGraph;
         }
         catch (Exception ex)
@@ -57,32 +70,27 @@ public class CallPDDLPlanner : BTServicePlanner
     
     private NodeGraph ParsePlanStringToNodeGraph(string planString)
     {
-        Console.WriteLine($"🔧 CallPDDLPlanner: Converting PDDL plan to action instances...");
+        Console.WriteLine($"🔧 CallPDDLPlanner: Converting PDDL plan to NodeGraph...");
         
         try
         {
-            // Convert PDDL plan to ActionInstance strings
-            var actionInstanceStrings = ConvertPddlPlanToActionInstances(planString);
-            Console.WriteLine($"✅ CallPDDLPlanner: Converted to {actionInstanceStrings.Count} action instances");
+            // Step 1: Parse planner output to get action instance strings
+            var actionInstanceStrings = ParsePlannerOutputToActionInstances(planString);
+            Console.WriteLine($"✅ CallPDDLPlanner: Parsed {actionInstanceStrings.Count} action instances");
             
-            // Create BlackboardWriter to handle action creation and registration
-            var blackboardWriter = new BlackboardWriter(blackboard);
-            
-            // Create and register all action instances
-            Console.WriteLine($"🔧 CallPDDLPlanner: Attempting to create {actionInstanceStrings.Count} action instances...");
-            var createdActions = blackboardWriter.CreateAndRegisterActionInstances(actionInstanceStrings.ToArray());
-            Console.WriteLine($"✅ CallPDDLPlanner: Created and registered {createdActions.Count} action instances");
-            
-            if (createdActions.Count != actionInstanceStrings.Count)
+            if (actionInstanceStrings.Count == 0)
             {
-                Console.WriteLine($"\n⚠️⚠️⚠️ ACTION CREATION WARNING ⚠️⚠️⚠️");
-                Console.WriteLine($"⚠️ {actionInstanceStrings.Count - createdActions.Count} actions were lost during creation!");
-                Console.WriteLine($"⚠️ Expected: {actionInstanceStrings.Count}, Actual: {createdActions.Count}");
-                Console.WriteLine($"⚠️⚠️⚠️ END ACTION CREATION WARNING ⚠️⚠️⚠️\n");
+                Console.WriteLine("⚠️ CallPDDLPlanner: No action instances found in planner output");
+                return null;
             }
             
-            // Create NodeGraph with sequential relations
-            var nodeGraph = CreateNodeGraphWithSequentialRelations(createdActions);
+            // Step 2: Generate relations based on execution mode
+            var relationConfiguration = GetRelationConfigurationFromExecutionMode();
+            var relationStrings = Parser.GenerateRelationsFromActionInstances(actionInstanceStrings, relationConfiguration);
+            Console.WriteLine($"✅ CallPDDLPlanner: Generated {relationStrings.Count} relations with {relationConfiguration} configuration");
+            
+            // Step 3: Create NodeGraph using Parser
+            var nodeGraph = Parser.ParseNodeGraph(actionInstanceStrings, relationStrings, blackboard);
             Console.WriteLine($"✅ CallPDDLPlanner: Created NodeGraph with {nodeGraph.GetAllActionNodes().Count} actions");
             
             return nodeGraph;
@@ -94,177 +102,52 @@ public class CallPDDLPlanner : BTServicePlanner
         }
     }
     
-    private List<string> ConvertPddlPlanToActionInstances(string pddlPlanString)
+    /// <summary>
+    /// Parses planner output and converts it to action instance strings using the appropriate parser
+    /// </summary>
+    /// <param name="planString">Raw planner output string</param>
+    /// <returns>List of action instance strings in MontiCore format</returns>
+    private List<string> ParsePlannerOutputToActionInstances(string planString)
     {
-        var actionInstanceStrings = new List<string>();
-        var totalLines = 0;
-        var skippedLines = 0;
-        var convertedLines = 0;
-        var failedConversions = 0;
+        var plannerName = PlanningRequest.PlannerName?.ToUpper() ?? "ENHSP";
+        Console.WriteLine($"🔍 CallPDDLPlanner: Using {plannerName} parser for plan conversion");
         
-        // Parse PDDL plan lines
-        var lines = pddlPlanString.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        List<string> actionInstanceStrings;
         
-        Console.WriteLine($"🔍 CallPDDLPlanner: Processing {lines.Length} lines from PDDL plan");
-        
-        foreach (var line in lines)
+        if (plannerName == "FF")
         {
-            totalLines++;
-            var trimmedLine = line.Trim();
-            
-            // Skip comments and empty lines
-            if (string.IsNullOrEmpty(trimmedLine) || trimmedLine.StartsWith("//"))
-            {
-                skippedLines++;
-                continue;
-            }
-            
-            // Parse ActionInstance lines (from Python service output)
-            if (trimmedLine.StartsWith("ActionInstance:"))
-            {
-                var actionString = trimmedLine.Substring("ActionInstance:".Length).Trim();
-                var actionInstanceString = ConvertActionToActionInstanceFormat(actionString);
-                if (!string.IsNullOrEmpty(actionInstanceString))
-                {
-                    actionInstanceStrings.Add(actionInstanceString);
-                    convertedLines++;
-                    Console.WriteLine($"✅ CallPDDLPlanner: Converted {convertedLines}: {actionString} -> {actionInstanceString}");
-                }
-                else
-                {
-                    failedConversions++;
-                    Console.WriteLine($"❌❌❌ FAILED TO CONVERT: {actionString} ❌❌❌");
-                }
-            }
-            else
-            {
-                skippedLines++;
-                Console.WriteLine($"⚠️ CallPDDLPlanner: Skipped non-ActionInstance line: {trimmedLine}");
-            }
+            // Use FF parser for FF planner output
+            actionInstanceStrings = Parser.ParseFFOutput(planString);
         }
-        
-        Console.WriteLine($"\n🔍🔍🔍 PDDL CONVERSION DEBUG SUMMARY 🔍🔍🔍");
-        Console.WriteLine($"🔍 Total lines processed: {totalLines}");
-        Console.WriteLine($"🔍 Lines skipped: {skippedLines}");
-        Console.WriteLine($"🔍 Actions successfully converted: {convertedLines}");
-        Console.WriteLine($"🔍 Actions failed to convert: {failedConversions}");
-        Console.WriteLine($"🔍 Final action instances: {actionInstanceStrings.Count}");
-        Console.WriteLine($"🔍🔍🔍 END CONVERSION SUMMARY 🔍🔍🔍\n");
+        else
+        {
+            // Use MontiCore parser for ENHSP planner output (Python service returns pre-formatted)
+            actionInstanceStrings = Parser.ParseMontiCoreOutput(planString);
+        }
         
         return actionInstanceStrings;
     }
     
-    private string ConvertActionToActionInstanceFormat(string actionString)
+    /// <summary>
+    /// Maps execution mode to relation configuration
+    /// </summary>
+    /// <returns>Relation configuration for the current execution mode</returns>
+    private Parser.RelationConfiguration GetRelationConfigurationFromExecutionMode()
     {
-        // Convert from "Grab_b1_fp2_r1" format to "ActionInstance: grab(obj : b1, grabPos : fp2, client : r1)" format
-        
-        // Parse the action string (e.g., "Grab_b1_fp2_r1")
-        var parts = actionString.Split('_');
-        if (parts.Length < 2)
+        switch (ExecutionMode)
         {
-            Console.WriteLine($"⚠️ CallPDDLPlanner: Invalid action format: {actionString}");
-            return null;
-        }
-        
-        var actionName = parts[0].ToLower(); // Convert to lowercase
-        var parameters = parts.Skip(1).ToArray();
-        
-        // Map PDDL action names to C# action types
-        var mappedActionName = MapPddlActionToCSharpAction(actionName);
-        if (string.IsNullOrEmpty(mappedActionName))
-        {
-            Console.WriteLine($"⚠️ CallPDDLPlanner: Unknown action type: {actionName}");
-            return null;
-        }
-        
-        // Create parameter string based on action type
-        var parameterString = CreateParameterStringForAction(mappedActionName, parameters);
-        if (string.IsNullOrEmpty(parameterString))
-        {
-            Console.WriteLine($"⚠️ CallPDDLPlanner: Invalid parameter count for {actionName}: {parameters.Length}");
-            return null;
-        }
-        
-        return $"ActionInstance: {mappedActionName}({parameterString})";
-    }
-    
-    private string MapPddlActionToCSharpAction(string pddlActionName)
-    {
-        // Simple mapping from PDDL action names to C# action class names
-        switch (pddlActionName)
-        {
-            case "pickuphl":
-                return "PickUpHL";
-            case "placehl":
-                return "PlaceHL";
-            case "stackhl":
-                return "StackHL";
-            case "stackonmultiplehl":
-                return "StackOnMultipleHL";
-            case "gluingplatehl":
-                return "GluingPlateHL";
-            case "gluingbeamhl":
-                return "GluingBeamHL";
-            case "nailinghl":
-                return "NailingHL";
-            case "grab":
-                return "Grab";
-            case "place":
-                return "Place";
-            case "pickup":
-                return "PickUp";
-            case "stack":
-                return "Stack";
-            case "gluing":
-                return "Gluing";
-            case "nailing":
-                return "Nailing";
+            case ParallelExecutionMode.Sequential:
+                return Parser.RelationConfiguration.Sequential;
+            case ParallelExecutionMode.Parallel:
+                return Parser.RelationConfiguration.Parallel;
+            case ParallelExecutionMode.Hybrid:
+                return Parser.RelationConfiguration.Hybrid;
             default:
-                Console.WriteLine($"⚠️ CallPDDLPlanner: Unknown PDDL action: {pddlActionName}");
-                return null;
+                return Parser.RelationConfiguration.Sequential;
         }
     }
     
-    private string CreateParameterStringForAction(string actionTypeName, string[] parameters)
-    {
-        // Create parameter string based on action type and parameter count
-        switch (actionTypeName)
-        {
-            case "PickUpHL":
-                if (parameters.Length >= 3)
-                    return $"obj : {parameters[0]}, grabPos : {parameters[1]}, client : {parameters[2]}";
-                break;
-            case "PlaceHL":
-                if (parameters.Length >= 3)
-                    return $"obj : {parameters[0]}, placePos : {parameters[1]}, client : {parameters[2]}";
-                break;
-            case "StackHL":
-                if (parameters.Length >= 6)
-                    return $"obj1 : {parameters[0]}, obj2 : {parameters[1]}, client : {parameters[2]}, pr : {parameters[3]}, lay : {parameters[4]}, mod : {parameters[5]}";
-                break;
-            case "StackOnMultipleHL":
-                if (parameters.Length >= 5)
-                    return $"plate : {parameters[0]}, client : {parameters[1]}, pos : {parameters[2]}, mod : {parameters[3]}, lay : {parameters[4]}";
-                break;
-            case "GluingPlateHL":
-                if (parameters.Length >= 3)
-                    return $"obj : {parameters[0]}, pos : {parameters[1]}, client : {parameters[2]}";
-                break;
-            case "GluingBeamHL":
-                if (parameters.Length >= 5)
-                    return $"obj : {parameters[0]}, pos : {parameters[1]}, client : {parameters[2]}, mod : {parameters[3]}, lay : {parameters[4]}";
-                break;
-            case "NailingHL":
-                if (parameters.Length >= 3)
-                    return $"obj : {parameters[0]}, pos : {parameters[1]}, client : {parameters[2]}";
-                break;
-        }
-        
-        Console.WriteLine($"⚠️ CallPDDLPlanner: Unsupported action type or parameter count: {actionTypeName} with {parameters.Length} parameters");
-        return null;
-    }
-    
-    private NodeGraph CreateNodeGraphWithSequentialRelations(List<GenericBTAction> actions)
+    private NodeGraph CreateNodeGraphWithExecutionMode(List<GenericBTAction> actions)
     {
         var nodeGraph = new NodeGraph();
         
@@ -273,6 +156,30 @@ public class CallPDDLPlanner : BTServicePlanner
         {
             nodeGraph.AddNode(action);
         }
+        
+        if (actions.Count == 0) return nodeGraph;
+        
+        Console.WriteLine($"🔧 CallPDDLPlanner: Creating NodeGraph with {ExecutionMode} execution mode for {actions.Count} actions");
+        
+        switch (ExecutionMode)
+        {
+            case ParallelExecutionMode.Sequential:
+                return CreateSequentialNodeGraph(actions, nodeGraph);
+                
+            case ParallelExecutionMode.Parallel:
+                return CreateParallelNodeGraph(actions, nodeGraph);
+                
+            case ParallelExecutionMode.Hybrid:
+                return CreateHybridNodeGraph(actions, nodeGraph);
+                
+            default:
+                return CreateParallelNodeGraph(actions, nodeGraph);
+        }
+    }
+    
+    private NodeGraph CreateSequentialNodeGraph(List<GenericBTAction> actions, NodeGraph nodeGraph)
+    {
+        Console.WriteLine($"🔧 CallPDDLPlanner: Creating sequential execution pattern");
         
         // Add sequential relations (MEETS constraints) between consecutive actions
         for (int i = 0; i < actions.Count - 1; i++)
@@ -285,34 +192,65 @@ public class CallPDDLPlanner : BTServicePlanner
         return nodeGraph;
     }
     
-
-    
-    // Legacy methods for backward compatibility
-    public List<BTActionNodeBase> GetPlan()
+    private NodeGraph CreateParallelNodeGraph(List<GenericBTAction> actions, NodeGraph nodeGraph)
     {
-        if (generatedNodeGraph != null)
+        Console.WriteLine($"🔧 CallPDDLPlanner: Creating parallel execution pattern");
+        
+        if (actions.Count == 1)
         {
-            return generatedNodeGraph.GetAllActionNodes().Cast<BTActionNodeBase>().ToList();
-        }
-        return new List<BTActionNodeBase>();
-    }
-    
-    public (List<IBTNode> Actions, List<OrderType> Orders) CreatePlanWithOrders()
-    {
-        if (generatedNodeGraph != null)
-        {
-            var actions = generatedNodeGraph.GetAllActionNodes().Cast<IBTNode>().ToList();
-            var orders = new List<OrderType>();
-            
-            // Generate orders based on NodeGraph structure
-            for (int i = 0; i < actions.Count - 1; i++)
-            {
-                orders.Add(OrderType.Total);
-            }
-            
-            return (actions, orders);
+            Console.WriteLine($"🔧 CallPDDLPlanner: Single action execution");
+            return nodeGraph;
         }
         
-        return (new List<IBTNode>(), new List<OrderType>());
+        // First action starts, then all others run in parallel
+        for (int i = 1; i < actions.Count; i++)
+        {
+            nodeGraph.AddOrderRelation(actions[0], actions[i]);
+            nodeGraph.AddTemporalConstraint(actions[0], actions[i], TemporalConstraint.OVERLAPS);
+            Console.WriteLine($"🔧 CallPDDLPlanner: Added parallel relation: {actions[0].InstanceName} || {actions[i].InstanceName}");
+        }
+        
+        return nodeGraph;
     }
+    
+    private NodeGraph CreateHybridNodeGraph(List<GenericBTAction> actions, NodeGraph nodeGraph)
+    {
+        Console.WriteLine($"🔧 CallPDDLPlanner: Creating hybrid execution pattern");
+        
+        if (actions.Count <= 2)
+        {
+            return CreateParallelNodeGraph(actions, nodeGraph);
+        }
+        
+        // Hybrid pattern: First action sequential, then parallel groups
+        // Group 1: First action
+        // Group 2: Actions 2-3 run in parallel
+        // Group 3: Actions 4+ run in parallel after group 2
+        
+        // First action to second action (sequential)
+        nodeGraph.AddOrderRelation(actions[0], actions[1]);
+        nodeGraph.AddTemporalConstraint(actions[0], actions[1], TemporalConstraint.MEETS);
+        Console.WriteLine($"🔧 CallPDDLPlanner: Added sequential relation: {actions[0].InstanceName} → {actions[1].InstanceName}");
+        
+        // Second action to third action (parallel)
+        if (actions.Count > 2)
+        {
+            nodeGraph.AddOrderRelation(actions[1], actions[2]);
+            nodeGraph.AddTemporalConstraint(actions[1], actions[2], TemporalConstraint.OVERLAPS);
+            Console.WriteLine($"🔧 CallPDDLPlanner: Added parallel relation: {actions[1].InstanceName} || {actions[2].InstanceName}");
+        }
+        
+        // Remaining actions in parallel
+        for (int i = 3; i < actions.Count; i++)
+        {
+            nodeGraph.AddOrderRelation(actions[1], actions[i]);
+            nodeGraph.AddTemporalConstraint(actions[1], actions[i], TemporalConstraint.OVERLAPS);
+            Console.WriteLine($"🔧 CallPDDLPlanner: Added parallel relation: {actions[1].InstanceName} || {actions[i].InstanceName}");
+        }
+        
+        return nodeGraph;
+    }
+    
+
+
 }

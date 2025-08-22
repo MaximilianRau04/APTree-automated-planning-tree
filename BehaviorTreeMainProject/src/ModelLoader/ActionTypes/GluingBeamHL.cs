@@ -16,16 +16,24 @@ namespace BehaviorTreeMainProject
         // Parameter: client of type robot
         public Robot client { get; private set; }
 
+        // Parameter: mod of type cassette
+        public Cassette mod { get; private set; }
+
+        // Parameter: lay of type stack
+        public Stack lay { get; private set; }
+
         // Preconditions and Effects as State objects
         private State preconditions;
         private State effects;
 
-        public GluingBeamHL(string actionType, string instanceName, Blackboard<FastName> blackboard, Beam obj, PositionOnRail pos, Robot client)
+        public GluingBeamHL(string actionType, string instanceName, Blackboard<FastName> blackboard, Beam obj, PositionOnRail pos, Robot client, Cassette mod, Stack lay)
             : base(actionType, instanceName, blackboard)
         {
             this.obj = obj;
             this.pos = pos;
             this.client = client;
+            this.mod = mod;
+            this.lay = lay;
             InitializePredicates();
         }
 

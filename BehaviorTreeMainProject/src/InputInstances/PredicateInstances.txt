@@ -42,8 +42,8 @@ PredicateInstance: belongstomodule(myObject = b1, mod = c1, isNegated = false)
 PredicateInstance: belongstomodule(myObject = b2, mod = c1, isNegated = false)
 PredicateInstance: belongstomodule(myObject = b3, mod = c1, isNegated = false)
 PredicateInstance: belongstomodule(myObject = b4, mod = c1, isNegated = false)
-PredicateInstance: belongstomodule(myObject = b5, mod = c1, isNegated = true)
-PredicateInstance: belongstomodule(myObject = b6, mod = c1, isNegated = true) 
+PredicateInstance: belongstomodule(myObject = b5, mod = c1, isNegated = false)
+PredicateInstance: belongstomodule(myObject = b6, mod = c1, isNegated = false) 
 
 # empty predicates
 PredicateInstance: empty(client = r1, isNegated = false)

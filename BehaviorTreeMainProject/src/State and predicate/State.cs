@@ -45,13 +45,9 @@ public class State
     }
 
     // Get all predicates for an object
-    public IEnumerable<Predicate> GetPredicates(FastName objectKey)
+    public IEnumerable<Predicate> GetAllPredicates()
     {
-        if (predicates.ContainsKey(objectKey))
-        {
-            return new[] { predicates[objectKey] };
-        }
-        return Enumerable.Empty<Predicate>();
+        return predicates.Values;
     }
 
     // Create a deep copy of the current state

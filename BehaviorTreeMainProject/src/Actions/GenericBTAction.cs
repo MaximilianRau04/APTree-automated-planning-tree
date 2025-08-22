@@ -6,7 +6,7 @@ using System.Collections.Generic;
 // Generic action class that will be created by the factory
 public abstract class GenericBTAction : BTActionNodeBase
 {
-    public readonly FastName actionType;  
+    public readonly FastName actionType;
     private readonly Blackboard<FastName> blackboard;
 
     // High-level action support
@@ -18,8 +18,8 @@ public abstract class GenericBTAction : BTActionNodeBase
     protected abstract State Preconditions { get; }
     protected abstract State Effects { get; }
 
-    public override string DebugDisplayName 
-    { 
+    public override string DebugDisplayName
+    {
         get => debugDisplayName;
         protected set => debugDisplayName = value;
     }
@@ -34,7 +34,7 @@ public abstract class GenericBTAction : BTActionNodeBase
         this.actionType = new FastName(actionType);
         this.blackboard = blackboard;
     }
-    
+
     /// <summary>
     /// Set this action as a high-level action with a subtree and planning service
     /// </summary>
@@ -46,6 +46,25 @@ public abstract class GenericBTAction : BTActionNodeBase
         Console.WriteLine($"🔧 GenericBTAction: Set {InstanceName.ToString()} as high-level action with subtree");
     }
 
+    /// <summary>
+    /// Remove the subtree and fall back to normal execution
+    /// </summary>
+    public void RemoveSubtree()
+    {
+        IsHighLevelAction = false;
+        HighLevelSubtree = null;
+        PlanningService = null;
+        Console.WriteLine($"🔧 GenericBTAction: Removed subtree from {InstanceName.ToString()}");
+    }
+
+    /// <summary>
+    /// Get the effects of this action (for PDDL problem generation)
+    /// </summary>
+    public State GetEffects()
+    {
+        return Effects;
+    }
+
     public void applyEffects()
     {
         // Apply effects to the blackboard
@@ -53,7 +72,7 @@ public abstract class GenericBTAction : BTActionNodeBase
         {
             foreach (var objectKey in Effects.GetAllObjects())
             {
-                var predicates = Effects.GetPredicates(objectKey);
+                var predicates = Effects.GetAllPredicates();
                 foreach (var predicate in predicates)
                 {
                     blackboard.SetPredicate(predicate.PredicateName, predicate);
@@ -70,19 +89,19 @@ public abstract class GenericBTAction : BTActionNodeBase
     {
         Console.WriteLine($"🚨 DEBUG: OnTick_NodeLogic called for {InstanceName.ToString()}");
         Console.WriteLine($"🔍 GenericBTAction: {InstanceName.ToString()} OnTick_NodeLogic - IsHighLevelAction: {IsHighLevelAction}, HighLevelSubtree: {(HighLevelSubtree != null ? "exists" : "null")}");
-        
+
         if (IsHighLevelAction && HighLevelSubtree != null)
         {
             Console.WriteLine($"🔧 GenericBTAction: {InstanceName.ToString()} is high-level action, delegating to subtree");
-            
+
             // Delegate execution to the subtree
             var subtreeResult = HighLevelSubtree.Tick(InDeltaTime);
-            
+
             // Propagate subtree status to this action
             LastStatus = HighLevelSubtree.LastStatus;
-            
+
             Console.WriteLine($"📊 GenericBTAction: Subtree result: {subtreeResult}, Status: {LastStatus}");
-            
+
             return subtreeResult == EBTNodeResult.InProgress;
         }
         else
@@ -92,9 +111,35 @@ public abstract class GenericBTAction : BTActionNodeBase
             return ExecuteActionLogic(InDeltaTime);
         }
     }
-    
+
     /// <summary>
     /// Execute the actual action logic (to be implemented by derived classes)
     /// </summary>
     protected abstract bool ExecuteActionLogic(float InDeltaTime);
+
+
+    /// <summary>
+    /// Get action effects for goals
+    /// </summary>
+    public List<Predicate> GetActionEffects()
+    {
+        var effects = new List<Predicate>();
+
+        try
+        {
+            // Access the Effects property from the action using the public method
+            foreach (var predicate in Effects.GetAllPredicates())
+            {
+                effects.Add(predicate); // This line was missing!
+            }
+
+            Console.WriteLine($"🎯 SubtreeInjectionService: Retrieved {effects.Count} effects from action");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ SubtreeInjectionService: Error getting action effects: {ex.Message}");
+        }
+
+        return effects;
+    }
 }

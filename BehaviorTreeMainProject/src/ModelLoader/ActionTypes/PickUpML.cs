@@ -7,8 +7,8 @@ namespace BehaviorTreeMainProject
 {
     public class PickUpML : GenericBTAction
     {
-        // Parameter: obj of type beam
-        public Beam obj { get; private set; }
+        // Parameter: obj of type element
+        public Element obj { get; private set; }
 
         // Parameter: pos of type firstposition
         public Firstposition pos { get; private set; }
@@ -23,7 +23,7 @@ namespace BehaviorTreeMainProject
         private State preconditions;
         private State effects;
 
-        public PickUpML(string actionType, string instanceName, Blackboard<FastName> blackboard, Beam obj, Firstposition pos, Robot client, VacuumGripper vg)
+        public PickUpML(string actionType, string instanceName, Blackboard<FastName> blackboard, Element obj, Firstposition pos, Robot client, VacuumGripper vg)
             : base(actionType, instanceName, blackboard)
         {
             this.obj = obj;

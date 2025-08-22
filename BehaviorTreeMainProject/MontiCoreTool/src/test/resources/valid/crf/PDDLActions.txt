@@ -338,7 +338,9 @@ Action gluingBeamHL {
     parameters {
         obj: beam
         pos: positionOnRail
-        client: robot
+        client: robot       
+        mod: cassette
+        lay: stack
     }
     precondition {
         PredicateInstance: empty(rob = client, isNegated = false)

@@ -225,9 +225,19 @@ public class NodeGraph
                 break;
             
             case TemporalConstraint.OVERLAPS:
-                result = from.IsExecuting && to.IsExecuting && 
-                       from.StartTime < to.EndTime && to.StartTime < from.EndTime;
-                Console.WriteLine($"   🔍 NodeGraph: OVERLAPS constraint - from executing: {from.IsExecuting}, to executing: {to.IsExecuting}, result: {result}");
+                // OVERLAPS: actions can run in parallel
+                // For parallel execution, we allow the second action to start while the first is still executing
+                if (from.IsExecuting || from.IsCompleted)
+                {
+                    // First action is either executing or completed, so second action can start
+                    result = !to.IsCompleted; // Second action should not be completed yet
+                }
+                else
+                {
+                    // First action hasn't started yet, so OVERLAPS constraint is not satisfied
+                    result = false;
+                }
+                Console.WriteLine($"   🔍 NodeGraph: OVERLAPS constraint - from executing: {from.IsExecuting}, from completed: {from.IsCompleted}, to completed: {to.IsCompleted}, result: {result}");
                 break;
             
             case TemporalConstraint.STARTS:

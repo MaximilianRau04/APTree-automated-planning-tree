@@ -15,6 +15,14 @@ public abstract class BTServicePlanner : BTServiceBase
     // The communicator for external planners
     protected IPlannerCommunicator plannerCommunicator;
     protected IPlanningRequest planningRequest;
+    
+    // Execution tracking
+    public DateTime StartTime { get; private set; }
+    public DateTime EndTime { get; private set; }
+    public bool IsExecuting { get; private set; } = false;
+    public bool HasCompleted { get; private set; } = false;
+    public TimeSpan ExecutionDuration => HasCompleted ? EndTime - StartTime : TimeSpan.Zero;
+    public string PlannerName => GetType().Name;
 
     protected BTServicePlanner(IBehaviorTree InOwningTree, IPlannerCommunicator communicator, IPlanningRequest InPlanningRequest)
         : base(InOwningTree)
@@ -26,18 +34,24 @@ public abstract class BTServicePlanner : BTServiceBase
 
     public override bool Tick(float InDeltaTime)
     {
-        Console.WriteLine($"🔧 {GetType().Name}: Starting planning process...");
+        // Start execution tracking
+        StartTime = DateTime.Now;
+        IsExecuting = true;
+        HasCompleted = false;
+        
+        Console.WriteLine($"🚀 {GetType().Name}: Starting planning process at {StartTime:HH:mm:ss.fff}");
         
         try
         {
-           
-            
             // Step 2: Send to external planner via communicator
             var result = Task.Run(async () => await plannerCommunicator.SendPlanningRequestAsync(planningRequest)).Result;
             
             if (!result.Success)
             {
-                Console.WriteLine($"⚠️ {GetType().Name}: Planning failed: {result.Error}");
+                EndTime = DateTime.Now;
+                IsExecuting = false;
+                Console.WriteLine($"⚠️ {GetType().Name}: Planning failed at {EndTime:HH:mm:ss.fff} - {result.Error}");
+                Console.WriteLine($"⏱️ {GetType().Name}: Execution time: {EndTime - StartTime:hh\\:mm\\:ss\\.fff}");
                 return false;
             }
             
@@ -46,19 +60,33 @@ public abstract class BTServicePlanner : BTServiceBase
             
             if (generatedNodeGraph == null)
             {
-                Console.WriteLine($"⚠️ {GetType().Name}: Failed to generate NodeGraph from planner result");
+                EndTime = DateTime.Now;
+                IsExecuting = false;
+                Console.WriteLine($"⚠️ {GetType().Name}: Failed to generate NodeGraph at {EndTime:HH:mm:ss.fff}");
+                Console.WriteLine($"⏱️ {GetType().Name}: Execution time: {EndTime - StartTime:hh\\:mm\\:ss\\.fff}");
                 return false;
             }
             
             // Step 4: Store in blackboard
             StoreNodeGraphInBlackboard();
             
-            Console.WriteLine($"✅ {GetType().Name}: Planning process completed successfully");
+            // Complete execution tracking
+            EndTime = DateTime.Now;
+            IsExecuting = false;
+            HasCompleted = true;
+            
+            Console.WriteLine($"✅ {GetType().Name}: Planning process completed successfully at {EndTime:HH:mm:ss.fff}");
+            Console.WriteLine($"⏱️ {GetType().Name}: Total execution time: {EndTime - StartTime:hh\\:mm\\:ss\\.fff}");
+            Console.WriteLine($"📊 {GetType().Name}: Generated {generatedNodeGraph.GetAllActionNodes().Count} actions");
+            
             return true;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ {GetType().Name}: Error during planning process: {ex.Message}");
+            EndTime = DateTime.Now;
+            IsExecuting = false;
+            Console.WriteLine($"❌ {GetType().Name}: Error during planning process at {EndTime:HH:mm:ss.fff}: {ex.Message}");
+            Console.WriteLine($"⏱️ {GetType().Name}: Execution time: {EndTime - StartTime:hh\\:mm\\:ss\\.fff}");
             return false;
         }
     }
@@ -111,6 +139,8 @@ public abstract class BTServicePlanner : BTServiceBase
     {
         return generatedNodeGraph;
     }
+
+    
     
     /// <summary>
     /// Check if planning has been completed and NodeGraph is available

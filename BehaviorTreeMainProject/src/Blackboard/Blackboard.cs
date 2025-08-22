@@ -603,6 +603,10 @@ public List<GenericBTAction> GetAllActionInstances()
     {
         return NodeGraphValues.Values.ToList();
     }
+     public List<Predicate> GetAllPredicates()
+    {
+        return PredicateValues.Values.ToList();
+    }
 
     public IDriver GetDriver()
     {

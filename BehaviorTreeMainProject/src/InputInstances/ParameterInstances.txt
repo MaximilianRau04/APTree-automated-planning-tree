@@ -38,6 +38,13 @@ ParameterInstance: positionOnRail {pr2}
 ParameterInstance: positionOnRail {pr3}
 ParameterInstance: positionOnRail {pr4}
 
+
+# Location - equipposition instances
+ParameterInstance: equipposition {ep1}
+ParameterInstance: equipposition  {ep2}
+ParameterInstance: equipposition  {ep3}
+ParameterInstance: equipposition  {ep4}
+
 # Location - stackPosition instances
 ParameterInstance: stackPosition {sp1}
 

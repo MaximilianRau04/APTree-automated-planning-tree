@@ -49,6 +49,15 @@ namespace AIPlanning
                 var responseJson = await response.Content.ReadAsStringAsync();
                 Console.WriteLine($"🔧 RestPlannerCommunicator: Response JSON:\n{responseJson}");
                 
+                // DEBUG: Show the raw response structure
+                Console.WriteLine($"🔍 RestPlannerCommunicator: RAW PYTHON SERVICE RESPONSE:");
+                Console.WriteLine($"📋 Response length: {responseJson?.Length ?? 0} characters");
+                Console.WriteLine($"📋 Response preview: {responseJson?.Substring(0, Math.Min(500, responseJson.Length))}");
+                Console.WriteLine($"📋 Full response:");
+                Console.WriteLine("=".PadRight(80, '='));
+                Console.WriteLine(responseJson);
+                Console.WriteLine("=".PadRight(80, '='));
+                
                 if (response.IsSuccessStatusCode)
                 {
                     // Deserialize successful response
@@ -56,6 +65,20 @@ namespace AIPlanning
                     {
                         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
                     });
+                    
+                    // DEBUG: Show what's in the PlanningResult
+                    Console.WriteLine($"🔍 RestPlannerCommunicator: PLANNING RESULT CONTENTS:");
+                    Console.WriteLine($"📋 Success: {result.Success}");
+                    Console.WriteLine($"📋 Plan length: {result.Plan?.Length ?? 0} characters");
+                    Console.WriteLine($"📋 Plan preview: {result.Plan?.Substring(0, Math.Min(300, result.Plan.Length))}");
+                    Console.WriteLine($"📋 Error: {result.Error ?? "None"}");
+                    Console.WriteLine($"📋 Planning time: {result.PlanningTimeSeconds} seconds");
+                    Console.WriteLine($"📋 Plan length: {result.PlanLength} actions");
+                    Console.WriteLine($"📋 Planner used: {result.PlannerUsed}");
+                    Console.WriteLine($"📋 Full Plan content:");
+                    Console.WriteLine("=".PadRight(80, '='));
+                    Console.WriteLine(result.Plan);
+                    Console.WriteLine("=".PadRight(80, '='));
                     
                     Console.WriteLine($"✅ RestPlannerCommunicator: Planning completed successfully");
                     return result;

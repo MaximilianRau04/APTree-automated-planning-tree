@@ -34,8 +34,8 @@ PredicateInstance: vgempty(client = r1, isNegated = false)
 Action travelML {
     parameters {
         client: robot
-        from: firstposition
-        to: firstposition
+        from: location
+        to: location
     }
     precondition {
         PredicateInstance: atAgent(agent = client, location = from, isNegated = false)
@@ -152,7 +152,7 @@ Action closeToolML {
 // Robot picks up an object with vacuum gripper
 Action pickUpML {
     parameters {
-        obj: beam
+        obj: element
         pos: firstposition
         client: robot
         vg: vacuumGripper

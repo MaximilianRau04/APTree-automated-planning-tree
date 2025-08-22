@@ -10,17 +10,17 @@ namespace BehaviorTreeMainProject
         // Parameter: client of type robot
         public Robot client { get; private set; }
 
-        // Parameter: from of type firstposition
-        public Firstposition from { get; private set; }
+        // Parameter: from of type location
+        public Location from { get; private set; }
 
-        // Parameter: to of type firstposition
-        public Firstposition to { get; private set; }
+        // Parameter: to of type location
+        public Location to { get; private set; }
 
         // Preconditions and Effects as State objects
         private State preconditions;
         private State effects;
 
-        public TravelML(string actionType, string instanceName, Blackboard<FastName> blackboard, Robot client, Firstposition from, Firstposition to)
+        public TravelML(string actionType, string instanceName, Blackboard<FastName> blackboard, Robot client, Location from, Location to)
             : base(actionType, instanceName, blackboard)
         {
             this.client = client;
