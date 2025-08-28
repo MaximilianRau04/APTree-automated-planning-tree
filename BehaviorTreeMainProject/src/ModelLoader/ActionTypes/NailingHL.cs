@@ -33,7 +33,7 @@ namespace BehaviorTreeMainProject
         {
             // Initialize preconditions
             preconditions = new State(StateType.Precondition, new FastName("nailingHL_preconditions"));
-            preconditions.AddPredicate(new FastName("nailingHL_pre_0"), new Empty(client, true));
+            preconditions.AddPredicate(new FastName("nailingHL_pre_0"), new Robotequipped(client, false));
             preconditions.AddPredicate(new FastName("nailingHL_pre_1"), new Atplace(obj, pos, false));
             preconditions.AddPredicate(new FastName("nailingHL_pre_2"), new Clear(obj, false));
             preconditions.AddPredicate(new FastName("nailingHL_pre_3"), new Nailed(obj, true));
@@ -46,11 +46,5 @@ namespace BehaviorTreeMainProject
         protected override State Preconditions => preconditions;
         protected override State Effects => effects;
 
-        protected override bool ExecuteActionLogic(float InDeltaTime)
-        {
-            // TODO: Implement action logic for NailingHL
-            // Access parameters via properties: obj, rob, loc, tool, etc.
-            return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);
-        }
     }
 }

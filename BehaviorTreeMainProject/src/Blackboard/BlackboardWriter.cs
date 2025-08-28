@@ -264,7 +264,7 @@ public class BlackboardWriter
         Console.WriteLine("Starting creation and registration of all instances...");
         
         RegisterParameterInstances(parameterInstancesFile);
-        RegisterPredicateInstances(predicateInstancesFile);
+         RegisterPredicateInstances(predicateInstancesFile);
         RegisterActionInstances(actionDefinitionStrings);
         
         Console.WriteLine("All instances creation and registration completed");
@@ -630,7 +630,7 @@ public class BlackboardWriter
     /// <param name="filePath">Path to the MontiCore grammar text file</param>
     /// <param name="blackboard">The blackboard to get entities from</param>
     /// <returns>List of created predicate instances</returns>
-    public List<Predicate> ParseMontiCorePredicateFile(string filePath, Blackboard<FastName> blackboard)
+    public  List<Predicate> ParseMontiCorePredicateFile(string filePath, Blackboard<FastName> blackboard)
     {
         List<Predicate> createdInstances = new List<Predicate>();
         
@@ -649,6 +649,8 @@ public class BlackboardWriter
             int successCount = 0;
             int errorCount = 0;
             
+            Console.WriteLine($"📄 Found {lines.Length} lines in file");
+            
             foreach (string line in lines)
             {
                 lineNumber++;
@@ -656,25 +658,44 @@ public class BlackboardWriter
                 // Skip empty lines and comments
                 if (string.IsNullOrWhiteSpace(line) || line.Trim().StartsWith("#"))
                 {
+                    Console.WriteLine($"  ⏭️ Line {lineNumber}: Skipping (empty or comment)");
                     continue;
                 }
+                
+                Console.WriteLine($"\n🔍 Line {lineNumber}: Processing '{line.Trim()}'");
                 
                 try
                 {
                     // Parse the line: PredicateInstance: predicateName(parameterName = value, isNegated = false/true)
-                    var instance = ParsePredicateInstanceLine(line.Trim(), blackboard);
+                    Predicate instance =  ParsePredicateInstanceLine(line.Trim(), blackboard);
                     
                     if (instance != null)
                     {
                         createdInstances.Add(instance);
                         successCount++;
                         Console.WriteLine($"  ✅ Line {lineNumber}: Created {instance.GetType().Name} instance '{instance.PredicateName}'");
+                        
+                        // Verify the instance was actually registered
+                        var allPredicates = blackboard.GetAllPredicates();
+                        var foundInBlackboard = allPredicates.Any(p => p.PredicateName == instance.PredicateName);
+                        Console.WriteLine($"  🔍 Line {lineNumber}: Predicate in blackboard: {foundInBlackboard}");
+                        
+                        if (!foundInBlackboard)
+                        {
+                            Console.WriteLine($"  ⚠️ WARNING: Predicate {instance.PredicateName} was created but not found in blackboard!");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"  ❌ Line {lineNumber}: ParsePredicateInstanceLine returned null");
+                        errorCount++;
                     }
                 }
                 catch (Exception ex)
                 {
                     errorCount++;
                     Console.WriteLine($"  ❌ Line {lineNumber}: Error parsing '{line.Trim()}': {ex.Message}");
+                    Console.WriteLine($"  📋 Exception details: {ex}");
                 }
             }
             
@@ -683,10 +704,15 @@ public class BlackboardWriter
             Console.WriteLine($"  ❌ Errors: {errorCount}");
             Console.WriteLine($"  📄 Total lines processed: {lineNumber}");
             
+            // Final verification
+            var finalPredicates = blackboard.GetAllPredicates();
+            Console.WriteLine($"  📊 Final predicate count in blackboard: {finalPredicates.Count}");
+            
         }
         catch (Exception ex)
         {
             Console.WriteLine($"❌ Error reading file {filePath}: {ex.Message}");
+            Console.WriteLine($"📋 Exception details: {ex}");
         }
         
         return createdInstances;
@@ -701,6 +727,8 @@ public class BlackboardWriter
     /// <returns>Created Predicate instance or null if parsing failed</returns>
     private Predicate ParsePredicateInstanceLine(string line, Blackboard<FastName> blackboard)
     {
+        Console.WriteLine($"  🔧 ParsePredicateInstanceLine: Starting to parse line: '{line}'");
+        
         // Expected format: PredicateInstance: predicateName(parameterName = value, isNegated = false/true)
         const string prefix = "PredicateInstance:";
         
@@ -711,10 +739,13 @@ public class BlackboardWriter
         
         // Remove the prefix and trim
         string content = line.Substring(prefix.Length).Trim();
+        Console.WriteLine($"  🔧 ParsePredicateInstanceLine: Content after prefix: '{content}'");
         
         // Find the opening and closing parentheses
         int openParenIndex = content.IndexOf('(');
         int closeParenIndex = content.LastIndexOf(')');
+        
+        Console.WriteLine($"  🔧 ParsePredicateInstanceLine: Parentheses positions - open: {openParenIndex}, close: {closeParenIndex}");
         
         if (openParenIndex == -1 || closeParenIndex == -1 || openParenIndex >= closeParenIndex)
         {
@@ -725,6 +756,9 @@ public class BlackboardWriter
         string predicateName = content.Substring(0, openParenIndex).Trim();
         string parametersContent = content.Substring(openParenIndex + 1, closeParenIndex - openParenIndex - 1).Trim();
         
+        Console.WriteLine($"  🔧 ParsePredicateInstanceLine: Predicate name: '{predicateName}'");
+        Console.WriteLine($"  🔧 ParsePredicateInstanceLine: Parameters content: '{parametersContent}'");
+        
         if (string.IsNullOrWhiteSpace(predicateName))
         {
             throw new ArgumentException("Predicate name cannot be empty");
@@ -732,9 +766,20 @@ public class BlackboardWriter
         
         // Parse parameters
         var parameters = ParsePredicateParameters(parametersContent);
+        Console.WriteLine($"  🔧 ParsePredicateInstanceLine: Parsed parameters: {string.Join(", ", parameters.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
+        
+        // Convert to ParameterMapping list
+        var parameterMappings = ConvertToParameterMappingList(parameters);
+        Console.WriteLine($"  🔧 ParsePredicateInstanceLine: Parameter mappings: {string.Join(", ", parameterMappings.Select(pm => $"{pm.ParameterName}={pm.ParameterValue}"))}");
+        
+        Console.WriteLine($"  🔧 ParsePredicateInstanceLine: Calling predicateFactory.CreatePredicateInstance...");
         
         // Create the predicate instance using the factory
-        return predicateFactory.CreatePredicateInstance(predicateName, ConvertToParameterMappingList(parameters), blackboard);
+        var result = predicateFactory.CreatePredicateInstance(predicateName, parameterMappings, blackboard);
+        
+        Console.WriteLine($"  🔧 ParsePredicateInstanceLine: Factory returned: {result?.GetType().Name} with PredicateName: {result?.PredicateName}");
+        
+        return result;
     }
     
     /// <summary>
@@ -839,11 +884,30 @@ public class BlackboardWriter
     public void ParseAndRegisterMontiCorePredicateFile(string filePath, Blackboard<FastName> blackboard)
     {
         Console.WriteLine($"\n=== PARSING AND REGISTERING MONTICORE PREDICATE FILE ===");
+        Console.WriteLine($"📁 File: {filePath}");
         
-        var instances = ParseMontiCorePredicateFile(filePath, blackboard);
+        List<Predicate> instances = ParseMontiCorePredicateFile(filePath, blackboard);
         
         Console.WriteLine($"\n=== PREDICATE INSTANCES CREATED AND REGISTERED ===");
-        Console.WriteLine($"  ✅ Successfully created and registered: {instances.Count} predicates");
+        Console.WriteLine($"  ✅ Successfully created: {instances.Count} predicates");
+        
+        // Verify predicates are actually in blackboard
+        var allPredicates = blackboard.GetAllPredicates();
+        Console.WriteLine($"  📊 Total predicates in blackboard: {allPredicates.Count}");
+        
+        if (allPredicates.Count > 0)
+        {
+            Console.WriteLine($"  📋 Predicates in blackboard:");
+            foreach (var pred in allPredicates)
+            {
+                Console.WriteLine($"    - {pred.PredicateName} ({pred.GetType().Name}) - isNegated: {pred.isNegated}");
+            }
+        }
+        else
+        {
+            Console.WriteLine($"  ⚠️ WARNING: No predicates found in blackboard after registration!");
+        }
+        
         Console.WriteLine($"  📝 Note: Predicates are automatically registered by the factory");
     }
 
@@ -924,7 +988,7 @@ public class BlackboardWriter
     /// </summary>
     /// <param name="actionDefinition">The action definition string</param>
     /// <returns>A unique key string</returns>
-    private string GenerateActionInstanceKey(string actionDefinition)
+    public string GenerateActionInstanceKey(string actionDefinition)
     {
         // Expected format: ActionInstance: actionType(parameter1 : value1, parameter2 : value2, ...)
         const string prefix = "ActionInstance:";
@@ -990,7 +1054,8 @@ public class BlackboardWriter
             Console.WriteLine($"🔍 Extracted NodeGraph name: {nodeGraphName}");
             
             // Use the existing Parser to create the NodeGraph
-            var nodeGraph = Parser.ParseNodeGraph(content, blackboard);
+            var (actionInstances, relations) = Parser.ParsePlannerOutput(content);
+            var nodeGraph = Parser.ParseNodeGraph(actionInstances, relations, blackboard);
             
             // Register the NodeGraph in the blackboard
             var fastNameKey = new FastName(nodeGraphName);

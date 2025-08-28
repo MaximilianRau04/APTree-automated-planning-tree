@@ -8,8 +8,17 @@ namespace ModelLoader.PredicateTypes
 
         public Stacked(Element myObject, bool isNegated) : base(isNegated)
         {
-            PredicateName = new FastName("stacked");
+            PredicateType = new FastName("stacked");
             this.myObject = myObject;
+            this.PredicateName = GetUniqueKey();
+        }
+
+        public override List<string> GetParameterValues()
+        {
+            return new List<string>
+            {
+                myObject?.NameKey?.ToString() ?? "null"
+            };
         }
     }
 }

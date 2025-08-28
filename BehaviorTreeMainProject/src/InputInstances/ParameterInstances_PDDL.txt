@@ -38,9 +38,7 @@ ep1 - equipposition
 ep2 - equipposition
 ep3 - equipposition
 ep4 - equipposition
-sp1 - stackposition
 r1 - robot
-h1 - human
 b1 - beam
 b2 - beam
 b3 - beam

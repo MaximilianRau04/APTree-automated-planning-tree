@@ -17,8 +17,12 @@ app = Flask(__name__)
 
 # Configuration - these will be overridden by request parameters
 DEFAULT_ENHSP_PATH = "/home/shermin/ENHSP-Public/enhsp.jar"  # Default path to ENHSP JAR file
-DEFAULT_DOMAIN_FILE_PATH = "Plannerinputs/domain.pddl"  # Default path to domain file
-DEFAULT_PROBLEM_FILE_PATH = "Plannerinputs/problemC1.pddl"  # Default path to problem file
+
+# Get the directory where this script is located
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# The PDDL files are in the same directory as this script
+DEFAULT_DOMAIN_FILE_PATH = os.path.join(SCRIPT_DIR, "Plannerinputs/domain.pddl")  # Default path to domain file
+DEFAULT_PROBLEM_FILE_PATH = os.path.join(SCRIPT_DIR, "Plannerinputs/problemC1.pddl")  # Default path to problem file
 DEFAULT_TIMEOUT_SECONDS = 120
 DEFAULT_PLANNER = "ENHSP"  # Default planner to use
 
@@ -77,6 +81,12 @@ def create_plan():
             if planner_name == DEFAULT_PLANNER:
                 planner_name = planner_config.get('plannerName', planner_name).upper()
         
+        # Convert relative paths to absolute paths if they start with "Plannerinputs/"
+        if domain_file_path.startswith("Plannerinputs/"):
+            domain_file_path = os.path.join(SCRIPT_DIR, domain_file_path)
+        if problem_file_path.startswith("Plannerinputs/"):
+            problem_file_path = os.path.join(SCRIPT_DIR, problem_file_path)
+        
         # Log extracted properties
         print(f"Extracted PDDL properties:")
         print(f"  - Domain file: {domain_file_path}")
@@ -107,6 +117,13 @@ def create_plan():
                 }
             }), 400
         
+        # Debug: Print current working directory and file paths
+        print(f"🔍 DEBUG: Current working directory: {os.getcwd()}")
+        print(f"🔍 DEBUG: Domain file path: {domain_file_path}")
+        print(f"🔍 DEBUG: Domain file absolute path: {os.path.abspath(domain_file_path)}")
+        print(f"🔍 DEBUG: Domain file exists: {os.path.exists(domain_file_path)}")
+        print(f"🔍 DEBUG: Domain file directory exists: {os.path.exists(os.path.dirname(domain_file_path))}")
+        
         # Check if domain and problem files exist
         if not os.path.exists(domain_file_path):
             return jsonify({
@@ -128,9 +145,9 @@ def create_plan():
                 }
             }), 500
         
-        # Copy existing domain and problem files to temporary location
-        domain_file = copy_file_to_temp(domain_file_path, 'domain_')
-        problem_file = copy_file_to_temp(problem_file_path, 'problem_')
+        # Use the original files directly (no temporary copies needed)
+        domain_file = domain_file_path
+        problem_file = problem_file_path
         
         # Call appropriate planner based on selection
         start_time = time.time()
@@ -161,10 +178,6 @@ def create_plan():
             }), 400
         
         planning_time = time.time() - start_time
-        
-        # Clean up temporary files
-        os.unlink(domain_file)
-        os.unlink(problem_file)
         
         if plan_result['success']:
             # Convert planner output to plan string format
@@ -247,89 +260,79 @@ def call_enhsp(domain_file, problem_file, planner_path, timeout_seconds):
         return {'success': False, 'error': f'Error calling ENHSP: {str(e)}'}
 
 def call_ff(domain_file, problem_file, timeout_seconds):
-    """Call FF planner using Docker container"""
+    """Call FF planner using existing Docker container"""
     try:
-        # First, let's check what's available in the container and install FF
-        print("🔍 Checking available planners in Docker container...")
-        check_cmd = [
-            'docker', 'run', '--rm',
-            'aiplanning/planutils:latest',
+        print("🔍 Using existing Docker container: stupefied_hellman")
+        
+        # Get the domain and problem file names (without path)
+        domain_filename = os.path.basename(domain_file)
+        problem_filename = os.path.basename(problem_file)
+        
+        print(f"🔍 Domain file: {domain_filename}")
+        print(f"🔍 Problem file: {problem_filename}")
+        
+        # Get the original file names (not the temp names)
+        # We need to extract the original names from the temp file names
+        # The temp files are like: /tmp/domain_xxx.pddl and /tmp/problem_xxx.pddl
+        # But we want the original names like: DomainML.pddl and problemPickUpHL_xxx.pddl
+        # For now, let's use the temp file names as they should work with the FF planner
+        original_domain_name = domain_filename
+        original_problem_name = problem_filename
+         
+        # Copy the PDDL files to the Docker container's Plannerinputs directory with original names
+        copy_domain_cmd = [
+            'docker', 'cp', domain_file, f'stupefied_hellman:/Plannerinputs/{original_domain_name}'
+        ]
+        copy_problem_cmd = [
+            'docker', 'cp', problem_file, f'stupefied_hellman:/Plannerinputs/{original_problem_name}'
+        ]
+        
+        print(f"Copying domain file: {' '.join(copy_domain_cmd)}")
+        copy_domain_result = subprocess.run(copy_domain_cmd, capture_output=True, text=True, timeout=30)
+        if copy_domain_result.returncode != 0:
+            print(f"⚠️ Warning: Failed to copy domain file: {copy_domain_result.stderr}")
+        
+        print(f"Copying problem file: {' '.join(copy_problem_cmd)}")
+        copy_problem_result = subprocess.run(copy_problem_cmd, capture_output=True, text=True, timeout=30)
+        if copy_problem_result.returncode != 0:
+            print(f"⚠️ Warning: Failed to copy problem file: {copy_problem_result.stderr}")
+         
+       
+        
+        
+        # Execute the FF planning command in the Docker container
+        # Use planutils run ff which is more reliable than just ff
+        ff_cmd = [
+            'docker', 'exec', 'stupefied_hellman',
             'bash', '-c',
-            'planutils activate && planutils list'
+            f'planutils activate && cd /Plannerinputs && cp * .. && cd / && planutils run ff {original_domain_name} {original_problem_name}'
         ]
         
-        check_result = subprocess.run(check_cmd, capture_output=True, text=True, timeout=30)
-        print(f"Available planners: {check_result.stdout}")
+        print(f"Calling FF with command: {' '.join(ff_cmd)}")
         
-        # Now try to install FF and check what command is available
-        install_cmd = [
-            'docker', 'run', '--rm',
-            '-v', f'{os.path.dirname(domain_file)}:/workspace',
-            '-w', '/workspace',
-            'aiplanning/planutils:latest',
-            'bash', '-c',
-            f'planutils activate && planutils install -y ff && echo "=== Checking FF installation ===" && which ff && ls -la /usr/local/bin/ff* && echo "=== Checking PATH ===" && echo $PATH && echo "=== Checking planutils bin ===" && ls -la ~/.planutils/bin/ff* && echo "=== Checking all ff commands ===" && find /usr -name "*ff*" 2>/dev/null | head -10'
-        ]
+        # Run FF
+        result = subprocess.run(
+            ff_cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds
+        )
         
-        print(f"Installing FF with command: {' '.join(install_cmd)}")
-        install_result = subprocess.run(install_cmd, capture_output=True, text=True, timeout=60)
-        print(f"Install stdout: {install_result.stdout}")
-        print(f"Install stderr: {install_result.stderr}")
+        print(f"FF stdout: {result.stdout}")
+        print(f"FF stderr: {result.stderr}")
+        print(f"🔍 DEBUG: FF return code: {result.returncode}")
+        print(f"🔍 DEBUG: FF stdout length: {len(result.stdout)}")
+        print(f"🔍 DEBUG: FF stdout preview: {repr(result.stdout[:500])}")
         
-        # Try different FF command names and paths (prioritize the working one)
-        ff_commands = [
-            '~/.planutils/bin/ff',  # This one works!
-            'ff', 
-            'ff-4.0', 
-            'ff-3.0', 
-            'ff-5.0', 
-            'ff-replan',
-            '/usr/local/bin/ff',
-            '/opt/planutils/bin/ff'
-        ]
-        
-        for ff_cmd in ff_commands:
-            print(f"🔍 Trying FF command: {ff_cmd}")
-            
-            # Build FF command using Docker
-            cmd = [
-                'docker', 'run', '--rm',
-                '-v', f'{os.path.dirname(domain_file)}:/workspace',
-                '-w', '/workspace',
-                'aiplanning/planutils:latest',
-                'bash', '-c',
-                f'planutils activate && planutils install -y ff && {ff_cmd} {os.path.basename(domain_file)} {os.path.basename(problem_file)}'
-            ]
-            
-            print(f"Calling FF with command: {' '.join(cmd)}")
-            
-            # Run FF
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=timeout_seconds
-            )
-            
-            print(f"FF stdout: {result.stdout}")
-            print(f"FF stderr: {result.stderr}")
-            print(f"🔍 DEBUG: FF return code: {result.returncode}")
-            print(f"🔍 DEBUG: FF stdout length: {len(result.stdout)}")
-            print(f"🔍 DEBUG: FF stdout preview: {repr(result.stdout[:500])}")
-            
-            if result.returncode == 0:
-                # Parse FF output
-                plan = parse_ff_output(result.stdout)
-                return {'success': True, 'plan': plan}
-            else:
-                print(f"⚠️ FF command '{ff_cmd}' failed with return code {result.returncode}")
-                continue
-        
-        # If all commands failed, return the last error
-        return {
-            'success': False, 
-            'error': f'All FF commands failed. Last error: {result.stderr}'
-        }
+        if result.returncode == 0:
+            # Parse FF output
+            plan = parse_ff_output(result.stdout)
+            return {'success': True, 'plan': plan}
+        else:
+            return {
+                'success': False, 
+                'error': f'FF failed with return code {result.returncode}: {result.stderr}'
+            }
             
     except subprocess.TimeoutExpired:
         return {'success': False, 'error': 'FF planning timed out'}
@@ -409,6 +412,8 @@ def parse_ff_output(output):
 def convert_enhsp_to_plan_string(enhsp_plan):
     """Convert ENHSP plan to plan string format (like NodeGraphGenerated.txt)"""
     plan_lines = []
+    action_instances = []  # Store full action instance names for relations
+    action_names = []  # Store simplified action names for relations
     
     # Add action instances
     for i, action in enumerate(enhsp_plan):
@@ -418,19 +423,24 @@ def convert_enhsp_to_plan_string(enhsp_plan):
         
         # Create action string like "PickUpHL_lp4_fp25_r1"
         action_string = f"{action_name}_{'_'.join(parameters)}"
-        plan_lines.append(f"ActionInstance: {action_string}")
+        full_action_instance = f"ActionInstance: {action_string}"
+        plan_lines.append(full_action_instance)
+        action_instances.append(full_action_instance)  # Store for relations
+        action_names.append(action_string)  # Store simplified name for relations
     
-    # Add sequential relations
-    for i in range(len(enhsp_plan) - 1):
-        action1_name = normalize_action_name(enhsp_plan[i]['name'])
-        action2_name = normalize_action_name(enhsp_plan[i + 1]['name'])
-        plan_lines.append(f"Relation: {action1_name} MEETS {action2_name}")
+    # Add sequential relations using simplified action names (without ActionInstance: prefix)
+    for i in range(len(action_names) - 1):
+        action1_name = action_names[i]
+        action2_name = action_names[i + 1]
+        plan_lines.append(f"{action1_name} --[MEETS]--> {action2_name}")
     
     return '\n'.join(plan_lines)
 
 def convert_ff_to_plan_string(ff_plan):
     """Convert FF plan to plan string format (like NodeGraphGenerated.txt)"""
     plan_lines = []
+    action_instances = []  # Store full action instance names for relations
+    action_names = []  # Store simplified action names for relations
     
     # Add action instances
     for i, action in enumerate(ff_plan):
@@ -440,13 +450,16 @@ def convert_ff_to_plan_string(ff_plan):
         
         # Create action string like "TravelML_r1_pr2_ep1"
         action_string = f"{action_name}_{'_'.join(parameters)}"
-        plan_lines.append(f"ActionInstance: {action_string}")
+        full_action_instance = f"ActionInstance: {action_string}"
+        plan_lines.append(full_action_instance)
+        action_instances.append(full_action_instance)  # Store for relations
+        action_names.append(action_string)  # Store simplified name for relations
     
-    # Add sequential relations
-    for i in range(len(ff_plan) - 1):
-        action1_name = normalize_action_name(ff_plan[i]['name'])
-        action2_name = normalize_action_name(ff_plan[i + 1]['name'])
-        plan_lines.append(f"Relation: {action1_name} MEETS {action2_name}")
+    # Add sequential relations using simplified action names (without ActionInstance: prefix)
+    for i in range(len(action_names) - 1):
+        action1_name = action_names[i]
+        action2_name = action_names[i + 1]
+        plan_lines.append(f"{action1_name} --[MEETS]--> {action2_name}")
     
     return '\n'.join(plan_lines)
 
@@ -493,6 +506,7 @@ def normalize_action_name(action_name):
 
 if __name__ == '__main__':
     print("Starting PDDL Planning Service...")
+    print(f"Script directory: {SCRIPT_DIR}")
     print(f"Supported planners: {', '.join(SUPPORTED_PLANNERS)}")
     print(f"Default planner: {DEFAULT_PLANNER}")
     print(f"Default ENHSP path: {DEFAULT_ENHSP_PATH}")

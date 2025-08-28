@@ -9,9 +9,19 @@ namespace ModelLoader.PredicateTypes
 
         public Allset(Layer lay, Module mod, bool isNegated) : base(isNegated)
         {
-            PredicateName = new FastName("allset");
+            PredicateType = new FastName("allset");
             this.lay = lay;
             this.mod = mod;
+            this.PredicateName = GetUniqueKey();
+        }
+
+        public override List<string> GetParameterValues()
+        {
+            return new List<string>
+            {
+                lay?.NameKey?.ToString() ?? "null",
+                mod?.NameKey?.ToString() ?? "null"
+            };
         }
     }
 }

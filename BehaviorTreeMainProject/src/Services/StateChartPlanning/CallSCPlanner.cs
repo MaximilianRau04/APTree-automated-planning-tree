@@ -3,9 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using PlanningDataStructures;
 using AIPlanning;
+using BehaviorTreeMainProject.Services;
 
 public class CallSCPlanner : BTServicePlanner
 {
+    private DateTime planningStartTime;
+    private bool planningStarted = false;
+
     private readonly Blackboard<FastName> blackboard;
     private readonly FactoryAction actionFactory;
   
@@ -25,31 +29,74 @@ public class CallSCPlanner : BTServicePlanner
         this.actionFactory = FactoryAction.Instance;
     }
 
-   
-    
+    public override bool Tick(float InDeltaTime)
+    {
+        if (!planningStarted)
+        {
+            planningStartTime = DateTime.Now;
+            planningStarted = true;
+            
+            // Track planning service start
+            LoggingService.TrackPlanningService(
+                "CallSCPlanner", 
+                "StateChart", 
+                planningStartTime, 
+                false, 
+                0
+            );
+        }
+        
+        return base.Tick(InDeltaTime);
+    }
+
     protected override NodeGraph GenerateNodeGraphFromResult(PlanningResult result)
     {
-        Console.WriteLine($"🔧 CallSCPlanner: Converting StateChart result to NodeGraph...");
+        var endTime = DateTime.Now;
+        bool success = result.Success;
+        int actionsGenerated = 0;
+
+        LoggingService.LogInfo($"🔧 CallSCPlanner: Converting StateChart result to NodeGraph...");
         
         try
         {
             if (string.IsNullOrEmpty(result.Plan))
             {
-                Console.WriteLine("⚠️ CallSCPlanner: No plan in planning result");
-                return null;
+                LoggingService.LogWarning($"⚠️ CallSCPlanner: No plan in planning result");
+                success = false;
             }
-            
-            // Parse the plan string and create NodeGraph
-            var nodeGraph = ParsePlanStringToNodeGraph(result.Plan);
-            
-            Console.WriteLine($"✅ CallSCPlanner: Generated NodeGraph with {nodeGraph.GetAllActionNodes().Count} actions");
-            return nodeGraph;
+            else
+            {
+                // Parse the plan string and create NodeGraph
+                var nodeGraph = ParsePlanStringToNodeGraph(result.Plan);
+                
+                if (nodeGraph != null)
+                {
+                    actionsGenerated = nodeGraph.GetAllActionNodes().Count;
+                    LoggingService.LogSuccess($"✅ CallSCPlanner: Generated NodeGraph with {actionsGenerated} actions");
+                }
+                else
+                {
+                    success = false;
+                }
+            }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ CallSCPlanner: Error generating NodeGraph: {ex.Message}");
-            return null;
+            LoggingService.LogError($"❌ CallSCPlanner: Error generating NodeGraph: {ex.Message}");
+            success = false;
         }
+
+        // Track planning service completion
+        LoggingService.TrackPlanningService(
+            "CallSCPlanner", 
+            "StateChart", 
+            planningStartTime, 
+            success, 
+            actionsGenerated,
+            endTime
+        );
+
+        return success ? ParsePlanStringToNodeGraph(result.Plan) : null;
     }
     
 
@@ -83,11 +130,10 @@ public class CallSCPlanner : BTServicePlanner
                 }
             }
             
-            // Parse Relation lines
-            if (trimmedLine.StartsWith("Relation:"))
+            // Parse Relation lines (new format: action1 --[CONSTRAINT]--> action2)
+            if (trimmedLine.Contains("--[") && trimmedLine.Contains("]-->"))
             {
-                var relationString = trimmedLine.Substring("Relation:".Length).Trim();
-                ParseRelationString(relationString, actions, nodeGraph);
+                ParseRelationString(trimmedLine, actions, nodeGraph);
             }
         }
         
@@ -160,31 +206,52 @@ public class CallSCPlanner : BTServicePlanner
     {
         try
         {
-            // Parse relation string like "action1 OVERLAPS action2" or "action1 MEETS action2"
-            var parts = relationString.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length >= 3)
+            // Parse relation string like "action1 --[OVERLAPS]--> action2"
+            // Find the arrow pattern "--[CONSTRAINT]-->"
+            int arrowStart = relationString.IndexOf("--[");
+            if (arrowStart == -1)
             {
-                var action1Name = parts[0];
-                var relationType = parts[1];
-                var action2Name = parts[2];
+                LoggingService.LogError($"❌ CallSCPlanner: No arrow pattern '--[' found in relation: {relationString}");
+                return;
+            }
+            
+            int arrowEnd = relationString.IndexOf("]-->", arrowStart);
+            if (arrowEnd == -1)
+            {
+                LoggingService.LogError($"❌ CallSCPlanner: No closing arrow pattern ']-->' found in relation: {relationString}");
+                return;
+            }
+            
+            // Extract action names and constraint
+            string action1Name = relationString.Substring(0, arrowStart).Trim();
+            string constraintStr = relationString.Substring(arrowStart + 3, arrowEnd - arrowStart - 3).Trim();
+            string action2Name = relationString.Substring(arrowEnd + 4).Trim();
+            
+            LoggingService.LogInfo($"🔧 CallSCPlanner: Parsed relation: {action1Name} --[{constraintStr}]--> {action2Name}");
+            
+            // Find the corresponding actions
+            var action1 = actions.FirstOrDefault(a => a.InstanceName.ToString().Equals(action1Name, StringComparison.OrdinalIgnoreCase));
+            var action2 = actions.FirstOrDefault(a => a.InstanceName.ToString().Equals(action2Name, StringComparison.OrdinalIgnoreCase));
+            
+            if (action1 != null && action2 != null)
+            {
+                // Add order relation and temporal constraint
+                nodeGraph.AddOrderRelation(action1, action2);
                 
-                // Find the corresponding actions
-                var action1 = actions.FirstOrDefault(a => a.InstanceName.ToString().Equals(action1Name, StringComparison.OrdinalIgnoreCase));
-                var action2 = actions.FirstOrDefault(a => a.InstanceName.ToString().Equals(action2Name, StringComparison.OrdinalIgnoreCase));
+                // Add temporal constraint (StateChart focuses on temporal relationships)
+                var constraintType = ParseTemporalConstraint(constraintStr);
+                nodeGraph.AddTemporalConstraint(action1, action2, constraintType);
                 
-                if (action1 != null && action2 != null)
-                {
-                    // Add temporal constraint (StateChart focuses on temporal relationships)
-                    var constraintType = ParseTemporalConstraint(relationType);
-                    nodeGraph.AddTemporalConstraint(action1, action2, constraintType);
-                    
-                    Console.WriteLine($"🔧 CallSCPlanner: Added relation {action1Name} {relationType} {action2Name}");
-                }
+                LoggingService.LogInfo($"🔧 CallSCPlanner: Added relation {action1Name} {constraintStr} {action2Name}");
+            }
+            else
+            {
+                LoggingService.LogError($"❌ CallSCPlanner: Action not found - action1: {action1Name}, action2: {action2Name}");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"⚠️ CallSCPlanner: Error parsing relation string: {ex.Message}");
+            LoggingService.LogError($"❌ CallSCPlanner: Error parsing relation string: {ex.Message}");
         }
     }
     
@@ -209,12 +276,12 @@ public class CallSCPlanner : BTServicePlanner
             // StateChart uses state names as strings
             var currentState = "Idle"; // Default state
             
-            Console.WriteLine($"🔧 CallSCPlanner: Extracted current state: {currentState}");
+            LoggingService.LogInfo($"🔧 CallSCPlanner: Extracted current state: {currentState}");
             return currentState;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"⚠️ CallSCPlanner: Error extracting current state: {ex.Message}");
+            LoggingService.LogError($"❌ CallSCPlanner: Error extracting current state: {ex.Message}");
             return "Error";
         }
     }
@@ -226,12 +293,12 @@ public class CallSCPlanner : BTServicePlanner
             // Extract target state from blackboard
             var targetState = "Completed"; // Default target state
             
-            Console.WriteLine($"🔧 CallSCPlanner: Extracted target state: {targetState}");
+            LoggingService.LogInfo($"🔧 CallSCPlanner: Extracted target state: {targetState}");
             return targetState;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"⚠️ CallSCPlanner: Error extracting target state: {ex.Message}");
+            LoggingService.LogError($"❌ CallSCPlanner: Error extracting target state: {ex.Message}");
             return "Error";
         }
     }

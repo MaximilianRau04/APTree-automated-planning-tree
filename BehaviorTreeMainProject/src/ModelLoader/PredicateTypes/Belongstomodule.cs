@@ -9,9 +9,19 @@ namespace ModelLoader.PredicateTypes
 
         public Belongstomodule(Element myObject, Module mod, bool isNegated) : base(isNegated)
         {
-            PredicateName = new FastName("belongstomodule");
+            PredicateType = new FastName("belongstomodule");
             this.myObject = myObject;
             this.mod = mod;
+            this.PredicateName = GetUniqueKey();
+        }
+
+        public override List<string> GetParameterValues()
+        {
+            return new List<string>
+            {
+                myObject?.NameKey?.ToString() ?? "null",
+                mod?.NameKey?.ToString() ?? "null"
+            };
         }
     }
 }

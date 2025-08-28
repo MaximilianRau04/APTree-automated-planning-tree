@@ -70,18 +70,29 @@ public static class BlackboardExtensions
     }
 public static string FormatPredicate(Predicate predicate)
 {
-    var parameters = predicate.GetAllProperties()
-        .Where(p => p.Key != "PredicateName" && p.Key != "PredicateType" && p.Key != "isNegated")
-        .Select(p => GetInstanceId(p.Value as Entity))
-        .ToList();
+    try
+    {
+        var parameters = predicate.GetAllProperties()
+            .Where(p => p.Key != "PredicateName" && p.Key != "PredicateType" && p.Key != "isNegated")
+            .Select(p => GetInstanceId(p.Value as Entity))
+            .Where(id => !string.IsNullOrEmpty(id)) // Filter out null/empty IDs
+            .ToList();
 
-    return $"{predicate.PredicateName}({string.Join(",", parameters)})";
+        return $"{predicate.PredicateName}({string.Join(",", parameters)})";
+    }
+    catch (Exception ex)
+    {
+        // Fallback to a simpler format if there's an error
+        return $"{predicate.PredicateName}(error_formatting_parameters: {ex.Message})";
+    }
 }
 
 private static string GetInstanceId(Entity obj)
 {
+    if (obj == null)
+        return "";
     
-    return obj.NameKey.ToString() ?? "";
+    return obj.NameKey?.ToString() ?? "";
 }
 
 /// <summary>

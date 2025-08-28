@@ -15,7 +15,7 @@ public class FactoryAction : Singleton<FactoryAction>
         Blackboard<FastName> blackboard)
     {
         // Parse the action instance definition
-        var (actionTypeName, instanceName, parameterValues) = ParseActionInstanceDefinition(actionInstanceDefinition);
+        var (actionTypeName, instanceName, parameterValues) = ParseActionInstanceDefinition(actionInstanceDefinition, blackboard);
         
         Console.WriteLine($"🔧 Creating action instance: {actionTypeName} with name: {instanceName}");
         
@@ -49,6 +49,7 @@ public class FactoryAction : Singleton<FactoryAction>
         Console.WriteLine($"✅ Found constructor with {targetConstructor.GetParameters().Length} parameters");
 
         // Build constructor arguments in the correct order
+        // Note: The constructor will automatically set actionType to the actual class name
         var constructorArgs = new List<object> { actionTypeName, instanceName, blackboard };
         
         // Get constructor parameters (skip the first 3: actionType, instanceName, blackboard)
@@ -107,9 +108,13 @@ public class FactoryAction : Singleton<FactoryAction>
     /// Parses an ActionInstance definition string like:
     /// "ActionInstance: pickUp(pickedObject : b1, rob : r1, loc : fp1, robTool : vg1)"
     /// </summary>
-    private (string actionTypeName, string instanceName, Dictionary<string, string> parameters) ParseActionInstanceDefinition(string definition)
+    private (string actionTypeName, string instanceName, Dictionary<string, string> parameters) ParseActionInstanceDefinition(string definition, Blackboard<FastName> blackboard)
     {
-        // Remove "ActionInstance: " prefix
+        // Use the existing BlackboardWriter to generate the proper instance name
+        var blackboardWriter = new BlackboardWriter(blackboard);
+        string instanceName = blackboardWriter.GenerateActionInstanceKey(definition);
+        
+        // Remove "ActionInstance: " prefix for parsing
         string content = definition.Replace("ActionInstance: ", "").Trim();
         
         // Find the opening parenthesis
@@ -121,14 +126,14 @@ public class FactoryAction : Singleton<FactoryAction>
             throw new ArgumentException($"Invalid ActionInstance format: {definition}");
         }
         
-        // Extract action type name (use the part before the first parenthesis as instance name)
+        // Extract action type name
         string actionTypeName = content.Substring(0, openParen).Trim();
-        string instanceName = actionTypeName; // Use action type name as instance name
         
         // Extract parameters
         string paramsString = content.Substring(openParen + 1, closeParen - openParen - 1);
-        var parameters = new Dictionary<string, string>();
         
+        // Parse parameters into dictionary
+        var parameters = new Dictionary<string, string>();
         if (!string.IsNullOrWhiteSpace(paramsString))
         {
             string[] paramPairs = paramsString.Split(',');

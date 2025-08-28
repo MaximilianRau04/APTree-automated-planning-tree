@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Neo4j.Driver;
 using System.Linq;
 using System.Reflection;
+using BehaviorTreeMainProject.Services;
 
 
 //we need to fix the query so that the parent types are also added to the graph
@@ -347,13 +348,39 @@ public List<GenericBTAction> GetAllActionInstances()
     // Set methods for predicates
     private void SetPredicateSecondary(FastName key, Predicate predicate)
     {
+        LoggingService.LogInfo($"🔧 BLACKBOARD_SECONDARY: SetPredicateSecondary called with key: {key}");
+        
         string newPredicateStr = BlackboardExtensions.FormatPredicate(predicate);
+        LoggingService.LogInfo($"🔧 BLACKBOARD_SECONDARY: Formatted predicate string: {newPredicateStr}");
+        
+        LoggingService.LogInfo($"🔧 BLACKBOARD_SECONDARY: Current PredicateValues count: {PredicateValues.Count}");
         
         // Check if identical predicate exists
-        if (!PredicateValues.ContainsKey(key) || BlackboardExtensions.FormatPredicate(PredicateValues[key]) != newPredicateStr)
+        if (!PredicateValues.ContainsKey(key))
         {
+            LoggingService.LogInfo($"🔧 BLACKBOARD_SECONDARY: Key {key} not found in PredicateValues, adding new predicate");
             PredicateValues[key] = predicate;
+            LoggingService.LogInfo($"🔧 BLACKBOARD_SECONDARY: PredicateValues count after adding: {PredicateValues.Count}");
+            LoggingService.LogSuccess($"🔧 BLACKBOARD_SECONDARY: Successfully added predicate with key: {key}");
         }
+        else if (BlackboardExtensions.FormatPredicate(PredicateValues[key]) != newPredicateStr)
+        {
+            LoggingService.LogInfo($"🔧 BLACKBOARD_SECONDARY: Key {key} exists but predicate content differs, updating predicate");
+            LoggingService.LogInfo($"🔧 BLACKBOARD_SECONDARY: Old predicate: {BlackboardExtensions.FormatPredicate(PredicateValues[key])}");
+            LoggingService.LogInfo($"🔧 BLACKBOARD_SECONDARY: New predicate: {newPredicateStr}");
+            PredicateValues[key] = predicate;
+            LoggingService.LogInfo($"🔧 BLACKBOARD_SECONDARY: PredicateValues count after updating: {PredicateValues.Count}");
+            LoggingService.LogSuccess($"🔧 BLACKBOARD_SECONDARY: Successfully updated predicate with key: {key}");
+        }
+        else
+        {
+            LoggingService.LogInfo($"🔧 BLACKBOARD_SECONDARY: Key {key} exists and predicate content is identical, no update needed");
+        }
+        
+        // Final verification
+        var finalCount = PredicateValues.Count;
+        var keyExists = PredicateValues.ContainsKey(key);
+        LoggingService.LogInfo($"🔧 BLACKBOARD_SECONDARY: Final verification - Count: {finalCount}, Key exists: {keyExists}");
     }
     
 
@@ -432,15 +459,22 @@ public List<GenericBTAction> GetAllActionInstances()
     // Use it before adding new predicates
     public async Task SetPredicate(FastName key, Predicate predicate)
     {
+        LoggingService.LogInfo($"🔧 BLACKBOARD: SetPredicate called with key: {key}");
+        LoggingService.LogInfo($"🔧 BLACKBOARD: Predicate type: {predicate.GetType().Name}");
+        LoggingService.LogInfo($"🔧 BLACKBOARD: Predicate.PredicateName: {predicate.PredicateName}");
+        LoggingService.LogInfo($"🔧 BLACKBOARD: Predicate.isNegated: {predicate.isNegated}");
+        
         string newPredicateStr = BlackboardExtensions.FormatPredicate(predicate);
+        LoggingService.LogInfo($"🔧 BLACKBOARD: Formatted predicate string: {newPredicateStr}");
         
         // Check for identical predicate
         if (PredicateValues.Values.Any(p => BlackboardExtensions.FormatPredicate(p) == newPredicateStr))
         {
-            Console.WriteLine($"Identical predicate already exists: {newPredicateStr}");
+            LoggingService.LogWarning($"🔧 BLACKBOARD: Identical predicate already exists: {newPredicateStr}");
             return;
         }
 
+        LoggingService.LogInfo($"🔧 BLACKBOARD: Calling SetPredicateSecondary with key: {key}");
         SetPredicateSecondary(key, predicate);
         
         if (_driver == null)
@@ -491,6 +525,63 @@ public List<GenericBTAction> GetAllActionInstances()
             await tx.RunAsync(query, queryParams);
         });
     }
+
+    public void SetPredicateSync(FastName key, Predicate predicate)
+    {
+        LoggingService.LogInfo($"🔧 BLACKBOARD_SYNC: SetPredicateSync called with key: {key}");
+        LoggingService.LogInfo($"🔧 BLACKBOARD_SYNC: Predicate type: {predicate.GetType().Name}");
+        LoggingService.LogInfo($"🔧 BLACKBOARD_SYNC: Predicate.PredicateName: {predicate.PredicateName}");
+        LoggingService.LogInfo($"🔧 BLACKBOARD_SYNC: Predicate.isNegated: {predicate.isNegated}");
+        
+        // Check current state
+        LoggingService.LogInfo($"🔧 BLACKBOARD_SYNC: Current PredicateValues count: {PredicateValues.Count}");
+        
+        // Check if a predicate with the same key already exists
+        if (PredicateValues.ContainsKey(key))
+        {
+            var existingPredicate = PredicateValues[key];
+            LoggingService.LogWarning($"🔧 BLACKBOARD_SYNC: WARNING - Predicate with key '{key}' already exists in blackboard!");
+            LoggingService.LogInfo($"🔧 BLACKBOARD_SYNC: Found existing predicate with same key: {existingPredicate.GetType().Name}");
+            LoggingService.LogInfo($"🔧 BLACKBOARD_SYNC: Old isNegated value: {existingPredicate.isNegated}");
+            LoggingService.LogInfo($"🔧 BLACKBOARD_SYNC: New isNegated value: {predicate.isNegated}");
+            
+            // Update the isNegated property of the existing predicate
+            existingPredicate.isNegated = predicate.isNegated;
+            
+            LoggingService.LogSuccess($"🔧 BLACKBOARD_SYNC: Updated existing predicate negation: {key} -> isNegated: {predicate.isNegated}");
+            return;
+        }
+
+        // Check for identical predicate (different key but same content)
+        string newPredicateStr = BlackboardExtensions.FormatPredicate(predicate);
+        LoggingService.LogInfo($"🔧 BLACKBOARD_SYNC: Formatted predicate string: {newPredicateStr}");
+        
+        if (PredicateValues.Values.Any(p => BlackboardExtensions.FormatPredicate(p) == newPredicateStr))
+        {
+            LoggingService.LogWarning($"🔧 BLACKBOARD_SYNC: Identical predicate already exists: {newPredicateStr}");
+            return;
+        }
+
+        // Directly store the predicate in the dictionary
+        LoggingService.LogInfo($"🔧 BLACKBOARD_SYNC: Storing predicate directly in PredicateValues with key: {key}");
+        PredicateValues[key] = predicate;
+        
+        // Verify the predicate was actually added
+        LoggingService.LogInfo($"🔧 BLACKBOARD_SYNC: PredicateValues count after storing: {PredicateValues.Count}");
+        var foundInDict = PredicateValues.ContainsKey(key);
+        LoggingService.LogInfo($"🔧 BLACKBOARD_SYNC: Key {key} found in PredicateValues: {foundInDict}");
+        
+        if (!foundInDict)
+        {
+            LoggingService.LogError($"🔧 BLACKBOARD_SYNC ERROR: Predicate with key {key} was not added to PredicateValues!");
+        }
+        else
+        {
+            LoggingService.LogSuccess($"🔧 BLACKBOARD_SYNC: Successfully stored predicate with key: {key}");
+        }
+    }
+
+
 
     // Implement IDisposable to properly close Neo4j connection
     public void Dispose()
@@ -606,6 +697,17 @@ public List<GenericBTAction> GetAllActionInstances()
      public List<Predicate> GetAllPredicates()
     {
         return PredicateValues.Values.ToList();
+    }
+
+    /// <summary>
+    /// Gets all non-negated (positive) predicates from the blackboard
+    /// </summary>
+    /// <returns>List of all predicates where isNegated is false</returns>
+    public List<Predicate> GetTruePredicates()
+    {
+        return PredicateValues.Values
+            .Where(p => !p.isNegated)
+            .ToList();
     }
 
     public IDriver GetDriver()

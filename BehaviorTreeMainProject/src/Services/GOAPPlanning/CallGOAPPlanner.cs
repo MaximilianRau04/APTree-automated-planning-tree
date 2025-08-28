@@ -3,9 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using PlanningDataStructures;
 using AIPlanning;
+using BehaviorTreeMainProject.Services;
 
 public class CallGOAPPlanner : BTServicePlanner
 {
+    private DateTime planningStartTime;
+    private bool planningStarted = false;
+
     private readonly Blackboard<FastName> blackboard;
     private readonly FactoryAction actionFactory;
   
@@ -25,29 +29,75 @@ public class CallGOAPPlanner : BTServicePlanner
         this.actionFactory = FactoryAction.Instance;
     }
 
-       protected override NodeGraph GenerateNodeGraphFromResult(PlanningResult result)
+    public override bool Tick(float InDeltaTime)
     {
-        Console.WriteLine($"🔧 CallGOAPPlanner: Converting GOAP result to NodeGraph...");
+        if (!planningStarted)
+        {
+            planningStartTime = DateTime.Now;
+            planningStarted = true;
+            
+            // Track planning service start
+            LoggingService.TrackPlanningService(
+                "CallGOAPPlanner", 
+                "GOAP", 
+                planningStartTime, 
+                false, 
+                0
+            );
+        }
+        
+        return base.Tick(InDeltaTime);
+    }
+
+    protected override NodeGraph GenerateNodeGraphFromResult(PlanningResult result)
+    {
+        var endTime = DateTime.Now;
+        bool success = result.Success;
+        int actionsGenerated = 0;
+
+
+        LoggingService.LogInfo($"🔧 CallGOAPPlanner: Converting GOAP result to NodeGraph...");
         
         try
         {
             if (string.IsNullOrEmpty(result.Plan))
             {
-                Console.WriteLine("⚠️ CallGOAPPlanner: No plan in planning result");
-                return null;
+                LoggingService.LogWarning("⚠️ CallGOAPPlanner: No plan in planning result");
+                success = false;
             }
-            
-            // Parse the plan string and create NodeGraph
-            var nodeGraph = ParsePlanStringToNodeGraph(result.Plan);
-            
-            Console.WriteLine($"✅ CallGOAPPlanner: Generated NodeGraph with {nodeGraph.GetAllActionNodes().Count} actions");
-            return nodeGraph;
+            else
+            {
+                // Parse the plan string and create NodeGraph
+                var nodeGraph = ParsePlanStringToNodeGraph(result.Plan);
+                
+                if (nodeGraph != null)
+                {
+                    actionsGenerated = nodeGraph.GetAllActionNodes().Count;
+                    Console.WriteLine($"✅ CallGOAPPlanner: Generated NodeGraph with {actionsGenerated} actions");
+                }
+                else
+                {
+                    success = false;
+                }
+            }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"❌ CallGOAPPlanner: Error generating NodeGraph: {ex.Message}");
-            return null;
+            success = false;
         }
+
+        // Track planning service completion
+        LoggingService.TrackPlanningService(
+            "CallGOAPPlanner", 
+            "GOAP", 
+            planningStartTime, 
+            success, 
+            actionsGenerated,
+            endTime
+        );
+
+        return success ? ParsePlanStringToNodeGraph(result.Plan) : null;
     }
     
 
@@ -81,11 +131,10 @@ public class CallGOAPPlanner : BTServicePlanner
                 }
             }
             
-            // Parse Relation lines
-            if (trimmedLine.StartsWith("Relation:"))
+            // Parse Relation lines (new format: action1 --[CONSTRAINT]--> action2)
+            if (trimmedLine.Contains("--[") && trimmedLine.Contains("]-->"))
             {
-                var relationString = trimmedLine.Substring("Relation:".Length).Trim();
-                ParseRelationString(relationString, actions, nodeGraph);
+                ParseRelationString(trimmedLine, actions, nodeGraph);
             }
         }
         
@@ -159,33 +208,51 @@ public class CallGOAPPlanner : BTServicePlanner
     {
         try
         {
-            // Parse relation string like "action1 MEETS action2" or "action1 PRECEDES action2"
-            var parts = relationString.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length >= 3)
+            // Parse relation string like "action1 --[MEETS]--> action2"
+            // Find the arrow pattern "--[CONSTRAINT]-->"
+            int arrowStart = relationString.IndexOf("--[");
+            if (arrowStart == -1)
             {
-                var action1Name = parts[0];
-                var relationType = parts[1];
-                var action2Name = parts[2];
+                LoggingService.LogError($"❌ CallGOAPPlanner: No arrow pattern '--[' found in relation: {relationString}");
+                return;
+            }
+            
+            int arrowEnd = relationString.IndexOf("]-->", arrowStart);
+            if (arrowEnd == -1)
+            {
+                LoggingService.LogError($"❌ CallGOAPPlanner: No closing arrow pattern ']-->' found in relation: {relationString}");
+                return;
+            }
+            
+            // Extract action names and constraint
+            string action1Name = relationString.Substring(0, arrowStart).Trim();
+            string constraintStr = relationString.Substring(arrowStart + 3, arrowEnd - arrowStart - 3).Trim();
+            string action2Name = relationString.Substring(arrowEnd + 4).Trim();
+            
+            LoggingService.LogInfo($"🔧 CallGOAPPlanner: Parsed relation: {action1Name} --[{constraintStr}]--> {action2Name}");
+            
+            // Find the corresponding actions
+            var action1 = actions.FirstOrDefault(a => a.InstanceName.ToString().Equals(action1Name, StringComparison.OrdinalIgnoreCase));
+            var action2 = actions.FirstOrDefault(a => a.InstanceName.ToString().Equals(action2Name, StringComparison.OrdinalIgnoreCase));
+            
+            if (action1 != null && action2 != null)
+            {
+                // Add order relation and temporal constraint
+                nodeGraph.AddOrderRelation(action1, action2);
                 
-                // Find the corresponding actions
-                var action1 = actions.FirstOrDefault(a => a.InstanceName.ToString().Equals(action1Name, StringComparison.OrdinalIgnoreCase));
-                var action2 = actions.FirstOrDefault(a => a.InstanceName.ToString().Equals(action2Name, StringComparison.OrdinalIgnoreCase));
+                var constraintType = ParseTemporalConstraint(constraintStr);
+                nodeGraph.AddTemporalConstraint(action1, action2, constraintType);
                 
-                if (action1 != null && action2 != null)
-                {
-                    // Add order relation and temporal constraint
-                    nodeGraph.AddOrderRelation(action1, action2);
-                    
-                    var constraintType = ParseTemporalConstraint(relationType);
-                    nodeGraph.AddTemporalConstraint(action1, action2, constraintType);
-                    
-                    Console.WriteLine($"🔧 CallGOAPPlanner: Added relation {action1Name} {relationType} {action2Name}");
-                }
+                LoggingService.LogInfo($"🔧 CallGOAPPlanner: Added relation {action1Name} {constraintStr} {action2Name}");
+            }
+            else
+            {
+                LoggingService.LogError($"❌ CallGOAPPlanner: Action not found - action1: {action1Name}, action2: {action2Name}");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"⚠️ CallGOAPPlanner: Error parsing relation string: {ex.Message}");
+            LoggingService.LogError($"❌ CallGOAPPlanner: Error parsing relation string: {ex.Message}");
         }
     }
     

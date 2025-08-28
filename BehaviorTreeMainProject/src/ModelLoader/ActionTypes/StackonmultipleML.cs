@@ -60,11 +60,5 @@ namespace BehaviorTreeMainProject
         protected override State Preconditions => preconditions;
         protected override State Effects => effects;
 
-        protected override bool ExecuteActionLogic(float InDeltaTime)
-        {
-            // TODO: Implement action logic for StackonmultipleML
-            // Access parameters via properties: obj, rob, loc, tool, etc.
-            return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);
-        }
     }
 }

@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\sherk\\Documents\\BehaviorTreeMainProject\\behaviorTreeMainProject\\BehaviorTreeMainProject.csproj": {}
+    "C:\\Users\\sherk\\Documents\\BehaviorTreeMainProject\\BehaviorTreeMainProject\\BehaviorTreeMainProject.csproj": {}
   },
   "projects": {
-    "C:\\Users\\sherk\\Documents\\BehaviorTreeMainProject\\behaviorTreeMainProject\\BehaviorTreeMainProject.csproj": {
+    "C:\\Users\\sherk\\Documents\\BehaviorTreeMainProject\\BehaviorTreeMainProject\\BehaviorTreeMainProject.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\sherk\\Documents\\BehaviorTreeMainProject\\behaviorTreeMainProject\\BehaviorTreeMainProject.csproj",
+        "projectUniqueName": "C:\\Users\\sherk\\Documents\\BehaviorTreeMainProject\\BehaviorTreeMainProject\\BehaviorTreeMainProject.csproj",
         "projectName": "BehaviorTreeMainProject",
-        "projectPath": "C:\\Users\\sherk\\Documents\\BehaviorTreeMainProject\\behaviorTreeMainProject\\BehaviorTreeMainProject.csproj",
+        "projectPath": "C:\\Users\\sherk\\Documents\\BehaviorTreeMainProject\\BehaviorTreeMainProject\\BehaviorTreeMainProject.csproj",
         "packagesPath": "C:\\Users\\sherk\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\sherk\\Documents\\BehaviorTreeMainProject\\behaviorTreeMainProject\\obj\\",
+        "outputPath": "C:\\Users\\sherk\\Documents\\BehaviorTreeMainProject\\BehaviorTreeMainProject\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\sherk\\AppData\\Roaming\\NuGet\\NuGet.Config"

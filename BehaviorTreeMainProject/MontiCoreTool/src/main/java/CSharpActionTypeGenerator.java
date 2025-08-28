@@ -176,13 +176,7 @@ public class CSharpActionTypeGenerator {
             writer.println("        protected override State Effects => effects;");
             writer.println();
             
-            // Generate ExecuteActionLogic method
-            writer.println("        protected override bool ExecuteActionLogic(float InDeltaTime)");
-            writer.println("        {");
-            writer.println("            // TODO: Implement action logic for " + className);
-            writer.println("            // Access parameters via properties: obj, rob, loc, tool, etc.");
-            writer.println("            return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);");
-            writer.println("        }");
+            // ExecuteActionLogic method generation removed - will use base class implementation
             writer.println("    }");
             writer.println("}");
             

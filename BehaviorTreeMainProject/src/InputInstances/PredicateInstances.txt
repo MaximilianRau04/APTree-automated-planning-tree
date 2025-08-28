@@ -30,23 +30,22 @@ PredicateInstance: clear(myObject = b5, isNegated = false)
 PredicateInstance: clear(myObject = b6, isNegated = false)
 
 # belongstolayer predicates
-PredicateInstance: belongstolayer(myObject = b1, lay = l1, isNegated = false)
-PredicateInstance: belongstolayer(myObject = b2, lay = l1, isNegated = false)
-PredicateInstance: belongstolayer(myObject = b3, lay = l1, isNegated = false)
-PredicateInstance: belongstolayer(myObject = b4, lay = l1, isNegated = false)
-PredicateInstance: belongstolayer(myObject = b5, lay = l1, isNegated = false)
-PredicateInstance: belongstolayer(myObject = b6, lay = l1, isNegated = false)
+PredicateInstance: belongstolayer(myObject = b1, lay = lay1, isNegated = false)
+PredicateInstance: belongstolayer(myObject = b2, lay = lay1, isNegated = false)
+PredicateInstance: belongstolayer(myObject = b3, lay = lay1, isNegated = false)
+PredicateInstance: belongstolayer(myObject = b4, lay = lay1, isNegated = false)
+PredicateInstance: belongstolayer(myObject = b5, lay = lay1, isNegated = false)
+PredicateInstance: belongstolayer(myObject = b6, lay = lay1, isNegated = false)
 
 # belongstomodule predicates
-PredicateInstance: belongstomodule(myObject = b1, mod = c1, isNegated = false)
-PredicateInstance: belongstomodule(myObject = b2, mod = c1, isNegated = false)
-PredicateInstance: belongstomodule(myObject = b3, mod = c1, isNegated = false)
-PredicateInstance: belongstomodule(myObject = b4, mod = c1, isNegated = false)
-PredicateInstance: belongstomodule(myObject = b5, mod = c1, isNegated = false)
-PredicateInstance: belongstomodule(myObject = b6, mod = c1, isNegated = false) 
+PredicateInstance: belongstomodule(myObject = b1, mod = m1, isNegated = false)
+PredicateInstance: belongstomodule(myObject = b2, mod = m1, isNegated = false)
+PredicateInstance: belongstomodule(myObject = b3, mod = m1, isNegated = false)
+PredicateInstance: belongstomodule(myObject = b4, mod = m1, isNegated = false)
+PredicateInstance: belongstomodule(myObject = b5, mod = m1, isNegated = false)
+PredicateInstance: belongstomodule(myObject = b6, mod = m1, isNegated = false) 
 
-# empty predicates
-PredicateInstance: empty(client = r1, isNegated = false)
+
 
 # Additional predicates from problemC2.pddl :init section
 # atplace predicates for problemC2 objects
@@ -167,3 +166,13 @@ PredicateInstance: belongstomodule(myObject = b21, mod = m4, isNegated = false)
 PredicateInstance: belongstomodule(myObject = b22, mod = m4, isNegated = false)
 PredicateInstance: belongstomodule(myObject = b23, mod = m4, isNegated = false)
 PredicateInstance: belongstomodule(myObject = b24, mod = m4, isNegated = false)
+
+
+PredicateInstance: attool(tool = vg1, loc = ep1, isNegated = false)
+PredicateInstance: attool(tool = gg1, loc = ep2, isNegated = false)
+PredicateInstance: attool(tool = ng1, loc = ep3, isNegated = false)
+
+PredicateInstance: atagent(agent = r1, location = pr2, isNegated = false)
+
+
+PredicateInstance: vgempty(client = r1, isNegated = false)

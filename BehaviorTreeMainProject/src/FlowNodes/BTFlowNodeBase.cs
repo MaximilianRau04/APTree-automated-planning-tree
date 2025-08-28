@@ -1,4 +1,5 @@
 using System.Collections;
+using BehaviorTreeMainProject.Services;
 
 public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
 {
@@ -12,6 +13,9 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
      
      // Replace simple list with node graph structure
      protected NodeGraph actionGraph = new();
+     
+     // Property to check if NodeGraph is locked (has been set and cannot be replaced)
+     public bool IsNodeGraphLocked => actionGraph != null;
      
      protected BTServicePlanner planner;
      
@@ -30,7 +34,7 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
         return GetEnumerator();
     }
 
-    public abstract IBTNode AddChild(IBTNode Innode);
+   
 
     public BTFlowNodeBase(FastName nodeName, SuccessCriteria criteria = SuccessCriteria.ALL, float threshold = 1.0f)
     {
@@ -39,23 +43,87 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
         this.successThreshold = threshold;
     }
 /// <summary>
+/// Evaluates the ALL success criteria - fails immediately if any action fails
+/// </summary>
+/// <returns>True if all actions succeeded, false if any action failed</returns>
+    protected bool EvaluateAllSuccessCriteria()
+    {
+        var actionNodes = actionGraph.GetAllActionNodes();
+        if (actionNodes.Count == 0) return false;
+        
+        // For ALL criteria, check if any action has failed - if so, fail immediately
+        var failedActions = actionNodes.Where(node => node.LastStatus == EBTNodeResult.failed).ToList();
+        if (failedActions.Any())
+        {
+            LoggingService.LogWarning($"❌ FlowNode: ALL success criteria failed - {failedActions.Count} actions failed:");
+            foreach (var failedAction in failedActions)
+            {
+                LoggingService.LogWarning($"   ❌ Failed action: {failedAction.InstanceName.ToString()}");
+            }
+            return false;
+        }
+        
+        // Check if all actions have succeeded
+        var succeededActions = actionNodes.Where(node => node.LastStatus == EBTNodeResult.Succeeded).ToList();
+        var inProgressActions = actionNodes.Where(node => node.LastStatus != EBTNodeResult.Succeeded && node.LastStatus != EBTNodeResult.failed).ToList();
+        
+        LoggingService.LogInfo($"🔍 FlowNode: ALL criteria check - Total: {actionNodes.Count}, Succeeded: {succeededActions.Count}, InProgress: {inProgressActions.Count}, Failed: {failedActions.Count}");
+        
+        // If all actions have succeeded, return true
+        if (succeededActions.Count == actionNodes.Count)
+        {
+            LoggingService.LogSuccess($"✅ FlowNode: ALL success criteria met - all {actionNodes.Count} actions succeeded");
+            return true;
+        }
+        
+        // If some actions are still in progress, we can't make a final decision yet
+        if (inProgressActions.Any())
+        {
+            LoggingService.LogInfo($"🔍 FlowNode: ALL criteria - {inProgressActions.Count} actions still in progress, waiting for completion");
+            return false;
+        }
+        
+        // This should not happen, but just in case
+        LoggingService.LogWarning($"⚠️ FlowNode: ALL criteria - unexpected state, returning false");
+        return false;
+    }
+
+/// <summary>
 /// this function evaluates the success criteria to see if a flow node is successful or not
 /// </summary>
 /// <returns></returns>
     protected bool EvaluateSuccessCriteria()
     {
+        // For ALL criteria, use the specialized function that fails immediately on any failure
+        if (successCriteria == SuccessCriteria.ALL)
+        {
+            return EvaluateAllSuccessCriteria();
+        }
+        
         var actionNodes = actionGraph.GetAllActionNodes();
         if (actionNodes.Count == 0) return false;
         
         int successCount = actionNodes.Count(node => node.LastStatus == EBTNodeResult.Succeeded);
+        int failedCount = actionNodes.Count(node => node.LastStatus == EBTNodeResult.failed);
         int totalCount = actionNodes.Count;
+        int inProgressCount = totalCount - successCount - failedCount;
         
+        LoggingService.LogInfo($"🔍 FlowNode: Success criteria evaluation - Total: {totalCount}, Succeeded: {successCount}, Failed: {failedCount}, InProgress: {inProgressCount}");
+        
+        // If any actions are still in progress, we can't make a final decision yet
+        if (inProgressCount > 0)
+        {
+            LoggingService.LogInfo($"🔍 FlowNode: {inProgressCount} actions still in progress, cannot evaluate final success yet");
+            return false;
+        }
+        
+        // All actions have completed (either succeeded or failed), now evaluate based on criteria
         return successCriteria switch
         {
-            SuccessCriteria.ALL => successCount == totalCount,
-            SuccessCriteria.ANY => successCount > 0,
-            SuccessCriteria.COUNT => successCount >= (int)successThreshold,
-            SuccessCriteria.PERCENTAGE => successCount >= (totalCount * successThreshold),
+            SuccessCriteria.ALL => successCount == totalCount, // All must succeed, any failure means overall failure
+            SuccessCriteria.ANY => successCount > 0, // At least one must succeed
+            SuccessCriteria.COUNT => successCount >= (int)successThreshold, // Must have at least threshold number of successes
+            SuccessCriteria.PERCENTAGE => successCount >= (totalCount * successThreshold), // Must have at least threshold percentage of successes
             _ => false
         };
     }
@@ -162,6 +230,60 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
     /// <param name="graph">The NodeGraph to use</param>
     public void SetActionGraph(NodeGraph graph)
     {
+        LoggingService.LogInfo($"🔧 BTFlowNodeBase: SetActionGraph called - New NodeGraph HashCode: {graph?.GetHashCode()}");
+        LoggingService.LogInfo($"🔧 BTFlowNodeBase: New NodeGraph has {graph?.GetAllActionNodes().Count ?? 0} actions");
+        
+        // Prevent NodeGraph replacement once it's been set, UNLESS the new graph has actions and current is empty
+        if (actionGraph != null)
+        {
+            int currentActionCount = actionGraph.GetAllActionNodes().Count;
+            int newActionCount = graph?.GetAllActionNodes().Count ?? 0;
+            
+            LoggingService.LogInfo($"🔧 BTFlowNodeBase: Current NodeGraph has {currentActionCount} actions");
+            LoggingService.LogInfo($"🔧 BTFlowNodeBase: New NodeGraph has {newActionCount} actions");
+            
+            // Allow replacement if current graph is empty and new graph has actions
+            if (currentActionCount == 0 && newActionCount > 0)
+            {
+                LoggingService.LogInfo($"🔧 BTFlowNodeBase: Allowing replacement - current graph is empty, new graph has {newActionCount} actions");
+                LoggingService.LogInfo($"🔧 BTFlowNodeBase: Replacing empty NodeGraph (HashCode: {actionGraph.GetHashCode()}) with populated NodeGraph (HashCode: {graph?.GetHashCode()})");
+                actionGraph = graph;
+                return;
+            }
+            
+            // Prevent replacement if current graph has actions (to preserve completion statuses)
+            if (currentActionCount > 0)
+            {
+                LoggingService.LogWarning($"🔒 BTFlowNodeBase: NodeGraph already set with {currentActionCount} actions (HashCode: {actionGraph.GetHashCode()}), preventing replacement with new NodeGraph (HashCode: {graph?.GetHashCode()})");
+                LoggingService.LogWarning($"🔒 BTFlowNodeBase: This prevents loss of completion statuses. New NodeGraph will be ignored.");
+                return; // Don't replace the existing NodeGraph
+            }
+        }
+        
+        LoggingService.LogInfo($"🔧 BTFlowNodeBase: Setting initial NodeGraph (HashCode: {graph?.GetHashCode()})");
+        actionGraph = graph;
+    }
+    
+    /// <summary>
+    /// Clears the action graph (for reset scenarios)
+    /// </summary>
+    public void ClearActionGraph()
+    {
+        if (actionGraph != null)
+        {
+            LoggingService.LogWarning($"🔄 BTFlowNodeBase: Clearing action graph (HashCode: {actionGraph.GetHashCode()})");
+            actionGraph = null;
+        }
+    }
+    
+    /// <summary>
+    /// Force sets the action graph (bypasses the lock - use with caution)
+    /// </summary>
+    /// <param name="graph">The NodeGraph to use</param>
+    public void ForceSetActionGraph(NodeGraph graph)
+    {
+        LoggingService.LogWarning($"⚠️ BTFlowNodeBase: ForceSetActionGraph called - This bypasses the NodeGraph lock!");
+        LoggingService.LogWarning($"⚠️ BTFlowNodeBase: Previous HashCode: {actionGraph?.GetHashCode()}, New HashCode: {graph?.GetHashCode()}");
         actionGraph = graph;
     }
     
@@ -181,7 +303,11 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
     public void SetPlanningService(BTServiceBase service)
     {
         PlanningService = service;
-        Console.WriteLine($"🔧 BTFlowNodeBase: Set planning service {service.GetType().Name}");
+        
+        // Add the planning service to the general services list so it gets ticked
+        AddService(service, false); // false = not always on
+        
+        Console.WriteLine($"🔧 BTFlowNodeBase: Set planning service {service.GetType().Name} and added to services list");
     }
     
     /// <summary>

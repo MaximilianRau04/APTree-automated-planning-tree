@@ -43,23 +43,16 @@ namespace BehaviorTreeMainProject
             preconditions = new State(StateType.Precondition, new FastName("stackonmultipleHL_preconditions"));
             preconditions.AddPredicate(new FastName("stackonmultipleHL_pre_0"), new Holding(client, plate, false));
             preconditions.AddPredicate(new FastName("stackonmultipleHL_pre_1"), new Atplace(plate, pos, true));
-            preconditions.AddPredicate(new FastName("stackonmultipleHL_pre_2"), new Empty(client, true));
+            preconditions.AddPredicate(new FastName("stackonmultipleHL_pre_2"), new Robotequipped(client, false));
 
             // Initialize effects
             effects = new State(StateType.Effect, new FastName("stackonmultipleHL_effects"));
             effects.AddPredicate(new FastName("stackonmultipleHL_eff_0"), new Atplace(plate, pos, false));
-            effects.AddPredicate(new FastName("stackonmultipleHL_eff_1"), new Empty(client, false));
-            effects.AddPredicate(new FastName("stackonmultipleHL_eff_2"), new Clear(plate, true));
+            effects.AddPredicate(new FastName("stackonmultipleHL_eff_1"), new Clear(plate, false));
         }
 
         protected override State Preconditions => preconditions;
         protected override State Effects => effects;
 
-        protected override bool ExecuteActionLogic(float InDeltaTime)
-        {
-            // TODO: Implement action logic for StackonmultipleHL
-            // Access parameters via properties: obj, rob, loc, tool, etc.
-            return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);
-        }
     }
 }

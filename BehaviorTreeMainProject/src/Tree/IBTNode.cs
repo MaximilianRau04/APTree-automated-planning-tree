@@ -13,6 +13,7 @@ public interface IBTNode
      // Add debug display name property
     string DebugDisplayName { get; }
     void SetOwiningTree(IBehaviorTree InOwningtree);
+    void SetTreeForAllServices(IBehaviorTree InOwningtree);
 bool DoDecoratorsNowPermitRunning(float InDeltaTime);
     void Reset();
     EBTNodeResult Tick(float InDeltaTime);

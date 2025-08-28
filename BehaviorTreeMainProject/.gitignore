@@ -25,3 +25,6 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Ignore the entire plannerinputs folder
+plannerinputs/

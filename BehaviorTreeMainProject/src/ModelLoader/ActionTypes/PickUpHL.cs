@@ -33,7 +33,7 @@ namespace BehaviorTreeMainProject
         {
             // Initialize preconditions
             preconditions = new State(StateType.Precondition, new FastName("pickUpHL_preconditions"));
-            preconditions.AddPredicate(new FastName("pickUpHL_pre_0"), new Empty(client, false));
+            preconditions.AddPredicate(new FastName("pickUpHL_pre_0"), new Robotequipped(client, true));
             preconditions.AddPredicate(new FastName("pickUpHL_pre_1"), new Atplace(obj, grabPos, false));
             preconditions.AddPredicate(new FastName("pickUpHL_pre_2"), new Holding(client, obj, true));
             preconditions.AddPredicate(new FastName("pickUpHL_pre_3"), new Positionfree(grabPos, true));
@@ -46,17 +46,11 @@ namespace BehaviorTreeMainProject
             effects.AddPredicate(new FastName("pickUpHL_eff_1"), new Atplace(obj, grabPos, true));
             effects.AddPredicate(new FastName("pickUpHL_eff_2"), new Clear(obj, true));
             effects.AddPredicate(new FastName("pickUpHL_eff_3"), new Positionfree(grabPos, false));
-            effects.AddPredicate(new FastName("pickUpHL_eff_4"), new Empty(client, true));
+            effects.AddPredicate(new FastName("pickUpHL_eff_4"), new Robotequipped(client, false));
         }
 
         protected override State Preconditions => preconditions;
         protected override State Effects => effects;
 
-        protected override bool ExecuteActionLogic(float InDeltaTime)
-        {
-            // TODO: Implement action logic for PickUpHL
-            // Access parameters via properties: obj, rob, loc, tool, etc.
-            return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);
-        }
     }
 }

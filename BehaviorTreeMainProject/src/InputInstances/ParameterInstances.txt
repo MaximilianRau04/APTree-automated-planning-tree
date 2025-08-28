@@ -51,8 +51,6 @@ ParameterInstance: stackPosition {sp1}
 # Agent - robot instances
 ParameterInstance: robot {r1}
 
-# Agent - human instances
-ParameterInstance: human {h1}
 
 # Element - beam instances
 ParameterInstance: beam {b1}

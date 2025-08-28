@@ -8,8 +8,17 @@ namespace ModelLoader.PredicateTypes
 
         public Nailed(Element myObject, bool isNegated) : base(isNegated)
         {
-            PredicateName = new FastName("nailed");
+            PredicateType = new FastName("nailed");
             this.myObject = myObject;
+            this.PredicateName = GetUniqueKey();
+        }
+
+        public override List<string> GetParameterValues()
+        {
+            return new List<string>
+            {
+                myObject?.NameKey?.ToString() ?? "null"
+            };
         }
     }
 }

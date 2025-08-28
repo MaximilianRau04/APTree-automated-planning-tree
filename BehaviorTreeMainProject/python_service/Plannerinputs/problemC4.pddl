@@ -53,7 +53,7 @@
     (belongstomodule b23 m4)
     (belongstolayer b24 lay1) 
     (belongstomodule b24 m4) 
-    (empty r1)
+    (vgempty r1)
   )
 
 

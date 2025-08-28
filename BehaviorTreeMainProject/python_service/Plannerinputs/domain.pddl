@@ -10,7 +10,9 @@
 
     cassette - module 
 
-    robot -agent                                   
+    robot -agent    
+
+    vaccumgripper -tool                               
   )
  
   (:predicates
@@ -26,7 +28,7 @@
     (stacked ?obj - element)     
     (glued ?obj - element) 
     (nailed ?obj - element)   
-    (empty ?rob -agent)
+    (vgempty ?vg -tool)
 )
 
   ; assigns the number of element that can be stacked on top of this module
@@ -39,7 +41,7 @@
     :parameters (?obj - element ?p - location  ?client - robot )
     
     :precondition (and    
-      (empty ?client)                            
+      (vgempty ?client)                            
       (atplace ?obj ?p)    
       (not (holding ?client ?obj))  
       (not (positionfree ?p)) 
@@ -52,7 +54,7 @@
                  (not(atplace ?obj ?p))
                  (not(clear ?obj))
                  (positionfree ?p)
-                 (not (empty ?client))
+                 (not (vgempty ?client))
              )
     )
 
@@ -61,7 +63,7 @@
     :parameters (?obj - element ?p -  location   ?client - robot )
     
     :precondition (and
-      (not (empty ?client))
+      (not (vgempty ?client))
       (holding ?client ?obj) 
       (not(clear ?obj)) 
       (positionfree ?p)     
@@ -72,7 +74,7 @@
       (not (holding ?client ?obj))
       (clear ?obj)
       (not(positionfree ?p))  
-      (empty ?client)
+      (vgempty ?client)
      )        
   )
      
@@ -85,7 +87,7 @@
     :parameters (?obj1 - element ?obj2 - element  ?client - robot ?pr - positiononrail ?lay - layer ?mod - module)
     
     :precondition (and 
-      (not (empty ?client))  
+      (not (vgempty ?client))  
       (holding ?client ?obj1) 
       (atplace ?obj2 ?pr)    
       (>= (freecapacity ?obj2) 0)
@@ -99,7 +101,7 @@
       (atplace ?obj1 ?pr)           
       (not (clear ?obj2))  
       (clear ?obj1)
-      (empty ?client)
+      (vgempty ?client)
       (when (<= (freecapacity ?obj2 ) 1) 
       (allset ?lay ?mod))
             )
@@ -112,7 +114,7 @@
         (allset ?lay ?mod)
         (holding ?client ?plate)
         (not (atplace ?plate ?p))
-        (not (empty ?client)) 
+        (not (vgempty ?client)) 
               
                 )
     
@@ -124,7 +126,7 @@
           )                          
         ) 
         (atplace ?plate ?p) 
-        (empty ?client) 
+        (vgempty ?client) 
         (clear ?plate)
                            
         )
@@ -137,7 +139,7 @@
      (:action gluingPLateHL
         :parameters (?obj - plate ?p - positiononrail ?client - robot)
         :precondition (and 
-        (empty ?client)
+        (vgempty ?client)
         (atplace ?obj ?p) 
         (clear ?obj)      
         (not (glued ?obj))  
@@ -150,7 +152,7 @@
        (:action gluingBeamHL
         :parameters (?obj - beam ?p - positiononrail ?client - robot ?mod - module ?lay -layer )
         :precondition (and 
-        (empty ?client)
+        (vgempty ?client)
         (atplace ?obj ?p) 
         (clear ?obj)      
         (not (glued ?obj))  
@@ -167,7 +169,7 @@
       (:action nailingHL
         :parameters (?obj - element ?p - positiononrail ?client - robot )
         :precondition (and 
-        (empty ?client)
+        (vgempty ?client)
         (atplace ?obj ?p)
         (clear ?obj)
         (not (nailed ?obj))

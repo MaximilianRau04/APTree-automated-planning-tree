@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using ModelLoader.PredicateTypes;
+using BehaviorTreeMainProject.Services;
 
 public class FactoryPredicate
 {
@@ -22,19 +23,19 @@ public class FactoryPredicate
     // Create a predicate instance by predicate name and parameter mappings
     public Predicate CreatePredicateInstance(string predicateName, List<ParameterMapping> parameterMappings, Blackboard<FastName> blackboard)
     {
-        Console.WriteLine($"\n🔍 DEBUG: Creating predicate instance for '{predicateName}'");
-        Console.WriteLine($"📋 Parameter mappings: {string.Join(", ", parameterMappings.Select(pm => $"{pm.ParameterName}={pm.ParameterValue}"))}");
+        LoggingService.LogInfo($"FACTORY: Creating predicate instance for '{predicateName}'");
+        LoggingService.LogInfo($"FACTORY: Parameter mappings: {string.Join(", ", parameterMappings.Select(pm => $"{pm.ParameterName}={pm.ParameterValue}"))}");
         
         // Dynamically find the predicate type
         Type predicateType = FindPredicateType(predicateName);
         
         if (predicateType == null)
         {
-            Console.WriteLine($"❌ ERROR: Unknown predicate type: {predicateName}");
+            LoggingService.LogError($"FACTORY: Unknown predicate type: {predicateName}");
             throw new ArgumentException($"Unknown predicate type: {predicateName}");
         }
         
-        Console.WriteLine($"✅ Found predicate type: {predicateType.Name}");
+        LoggingService.LogInfo($"FACTORY: Found predicate type: {predicateType.Name}");
 
         // Get the actual parameter values from blackboard
         var parameterValues = new List<object>();
@@ -95,7 +96,7 @@ public class FactoryPredicate
 
         Console.WriteLine($"\n🔧 Creating instance with parameters: {string.Join(", ", parameterValues.Select(v => $"{v}"))}");
         
-        // Create instance using constructor with parameters
+        // Create instance using constructor with parameters (no predicatename needed)
         var instance = Activator.CreateInstance(predicateType, parameterValues.ToArray()) as Predicate;
         
         if (instance == null)
@@ -104,7 +105,17 @@ public class FactoryPredicate
             throw new InvalidOperationException($"Failed to create instance of predicate type {predicateName}");
         }
         
-        Console.WriteLine($"✅ Successfully created predicate instance: {instance.GetType().Name}");
+        Console.WriteLine($"✅ FACTORY: Successfully created predicate instance: {instance.GetType().Name}");
+        Console.WriteLine($"🔑 FACTORY: Predicate unique key (PredicateName): {instance.PredicateName}");
+        
+        // Log the GetParameterValues result to see what's being generated
+        var paramValues = instance.GetParameterValues();
+        Console.WriteLine($"📋 FACTORY: GetParameterValues result: {string.Join(", ", paramValues)}");
+        
+        // Log the unique key generation
+        var uniqueKey = instance.PredicateName;
+        Console.WriteLine($"🔑 FACTORY: GetUniqueKey result: {uniqueKey}");
+        Console.WriteLine($"🔑 FACTORY: PredicateName vs GetUniqueKey match: {instance.PredicateName == uniqueKey}");
 
         // Set any additional properties that might not be in constructor
         foreach (var mapping in parameterMappings)
@@ -112,7 +123,7 @@ public class FactoryPredicate
             var property = predicateType.GetProperty(mapping.ParameterName);
             if (property != null && !parameterTypes.Contains(property.PropertyType))
             {
-                Console.WriteLine($"🔧 Setting additional property: {mapping.ParameterName} = {mapping.ParameterValue}");
+                Console.WriteLine($"🔧 FACTORY: Setting additional property: {mapping.ParameterName} = {mapping.ParameterValue}");
                 
                 // Get the actual entity from blackboard using the parameter name
                 var key = new FastName(mapping.ParameterValue);
@@ -120,18 +131,31 @@ public class FactoryPredicate
 
                 // Set the property value
                 property.SetValue(instance, value);
-                Console.WriteLine($"✅ Set predicate property {mapping.ParameterName} = {mapping.ParameterValue} (actual: {value})");
+                Console.WriteLine($"✅ FACTORY: Set predicate property {mapping.ParameterName} = {mapping.ParameterValue} (actual: {value})");
             }
         }
         
-        Console.WriteLine($"🔧 Registering predicate in blackboard with key: {instance.PredicateName}");
+        // The predicate's PredicateName is already set to the unique key in the constructor
+        Console.WriteLine($"🔧 FACTORY: Final PredicateName (unique key): {instance.PredicateName}");
         
-        // Create a unique key for this predicate instance based on its name and parameters
-        var uniqueKey = CreateUniquePredicateKey(instance, parameterMappings);
-        Console.WriteLine($"🔧 Using unique key: {uniqueKey}");
+        // Register the predicate in the blackboard using the PredicateName (which is the unique key)
+        Console.WriteLine($"🔧 FACTORY: Registering predicate with blackboard using key: {instance.PredicateName}");       
         
-        blackboard.SetPredicate(uniqueKey, instance);
-        Console.WriteLine($"✅ Successfully registered predicate: {uniqueKey}");
+        blackboard.SetPredicateSync(instance.PredicateName, instance);
+        
+        // Check blackboard state after registration
+        var predicatesAfter = blackboard.GetAllPredicates();
+        Console.WriteLine($"🔧 FACTORY: Predicates in blackboard after registration: {predicatesAfter.Count}");
+        
+        var foundInBlackboard = predicatesAfter.Any(p => p.PredicateName == instance.PredicateName);
+        Console.WriteLine($"🔧 FACTORY: Predicate found in blackboard after registration: {foundInBlackboard}");
+        
+        if (!foundInBlackboard)
+        {
+            Console.WriteLine($"⚠️ FACTORY WARNING: Predicate {instance.PredicateName} was not found in blackboard after SetPredicateSync!");
+        }
+        
+        Console.WriteLine($"✅ FACTORY: Successfully registered predicate with key: {instance.PredicateName}");
         
         return instance;
     }
@@ -180,23 +204,7 @@ public class FactoryPredicate
         return null;
     }
 
-    /// <summary>
-    /// Creates a unique key for a predicate instance based on its name and parameters
-    /// </summary>
-    /// <param name="predicate">The predicate instance</param>
-    /// <param name="parameterMappings">The parameter mappings used to create the predicate</param>
-    /// <returns>A unique FastName key</returns>
-    private FastName CreateUniquePredicateKey(Predicate predicate, List<ParameterMapping> parameterMappings)
-    {
-        // Create a unique identifier by combining predicate name with parameter values
-        var parameterValues = parameterMappings
-            .Where(pm => pm.ParameterName.ToLower() != "isnegated") // Exclude isNegated from the key
-            .OrderBy(pm => pm.ParameterName) // Sort for consistent ordering
-            .Select(pm => pm.ParameterValue);
-        
-        string uniqueKeyString = $"{predicate.PredicateName}_{string.Join("_", parameterValues)}";
-        return new FastName(uniqueKeyString);
-    }
+
 
     /// <summary>
     /// Get entity from blackboard based on type

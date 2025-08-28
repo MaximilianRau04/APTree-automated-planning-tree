@@ -9,9 +9,19 @@ namespace ModelLoader.PredicateTypes
 
         public Belongstolayer(Element myObject, Layer lay, bool isNegated) : base(isNegated)
         {
-            PredicateName = new FastName("belongstolayer");
+            PredicateType = new FastName("belongstolayer");
             this.myObject = myObject;
             this.lay = lay;
+            this.PredicateName = GetUniqueKey();
+        }
+
+        public override List<string> GetParameterValues()
+        {
+            return new List<string>
+            {
+                myObject?.NameKey?.ToString() ?? "null",
+                lay?.NameKey?.ToString() ?? "null"
+            };
         }
     }
 }

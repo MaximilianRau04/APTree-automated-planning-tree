@@ -10,8 +10,8 @@ namespace BehaviorTreeMainProject
         // Parameter: client of type robot
         public Robot client { get; private set; }
 
-        // Parameter: too of type vacuumGripper
-        public VacuumGripper too { get; private set; }
+        // Parameter: too of type tool
+        public Tool too { get; private set; }
 
         // Parameter: ep of type equipposition
         public Equipposition ep { get; private set; }
@@ -20,7 +20,7 @@ namespace BehaviorTreeMainProject
         private State preconditions;
         private State effects;
 
-        public DeequipML(string actionType, string instanceName, Blackboard<FastName> blackboard, Robot client, VacuumGripper too, Equipposition ep)
+        public DeequipML(string actionType, string instanceName, Blackboard<FastName> blackboard, Robot client, Tool too, Equipposition ep)
             : base(actionType, instanceName, blackboard)
         {
             this.client = client;
@@ -34,24 +34,20 @@ namespace BehaviorTreeMainProject
             // Initialize preconditions
             preconditions = new State(StateType.Precondition, new FastName("deequipML_preconditions"));
             preconditions.AddPredicate(new FastName("deequipML_pre_0"), new HasTool(client, too, false));
-            preconditions.AddPredicate(new FastName("deequipML_pre_1"), new Empty(client, true));
+            preconditions.AddPredicate(new FastName("deequipML_pre_1"), new Robotequipped(client, false));
             preconditions.AddPredicate(new FastName("deequipML_pre_2"), new Positionfree(ep, false));
+            preconditions.AddPredicate(new FastName("deequipML_pre_3"), new AtTool(too, ep, true));
 
             // Initialize effects
             effects = new State(StateType.Effect, new FastName("deequipML_effects"));
-            effects.AddPredicate(new FastName("deequipML_eff_0"), new Empty(client, false));
+            effects.AddPredicate(new FastName("deequipML_eff_0"), new Robotequipped(client, true));
             effects.AddPredicate(new FastName("deequipML_eff_1"), new HasTool(client, too, true));
             effects.AddPredicate(new FastName("deequipML_eff_2"), new Positionfree(ep, true));
+            effects.AddPredicate(new FastName("deequipML_eff_3"), new AtTool(too, ep, false));
         }
 
         protected override State Preconditions => preconditions;
         protected override State Effects => effects;
 
-        protected override bool ExecuteActionLogic(float InDeltaTime)
-        {
-            // TODO: Implement action logic for DeequipML
-            // Access parameters via properties: obj, rob, loc, tool, etc.
-            return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);
-        }
     }
 }

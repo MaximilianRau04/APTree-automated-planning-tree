@@ -8,8 +8,17 @@ namespace ModelLoader.PredicateTypes
 
         public Glued(Element myObject, bool isNegated) : base(isNegated)
         {
-            PredicateName = new FastName("glued");
+            PredicateType = new FastName("glued");
             this.myObject = myObject;
+            this.PredicateName = GetUniqueKey();
+        }
+
+        public override List<string> GetParameterValues()
+        {
+            return new List<string>
+            {
+                myObject?.NameKey?.ToString() ?? "null"
+            };
         }
     }
 }

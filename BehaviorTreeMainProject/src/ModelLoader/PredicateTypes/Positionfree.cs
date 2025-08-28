@@ -8,8 +8,17 @@ namespace ModelLoader.PredicateTypes
 
         public Positionfree(Location pos, bool isNegated) : base(isNegated)
         {
-            PredicateName = new FastName("positionfree");
+            PredicateType = new FastName("positionfree");
             this.pos = pos;
+            this.PredicateName = GetUniqueKey();
+        }
+
+        public override List<string> GetParameterValues()
+        {
+            return new List<string>
+            {
+                pos?.NameKey?.ToString() ?? "null"
+            };
         }
     }
 }

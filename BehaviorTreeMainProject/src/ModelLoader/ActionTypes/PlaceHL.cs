@@ -33,10 +33,9 @@ namespace BehaviorTreeMainProject
         {
             // Initialize preconditions
             preconditions = new State(StateType.Precondition, new FastName("placeHL_preconditions"));
-            preconditions.AddPredicate(new FastName("placeHL_pre_0"), new Empty(client, true));
-            preconditions.AddPredicate(new FastName("placeHL_pre_1"), new Holding(client, obj, false));
-            preconditions.AddPredicate(new FastName("placeHL_pre_2"), new Clear(obj, true));
-            preconditions.AddPredicate(new FastName("placeHL_pre_3"), new Positionfree(placePos, false));
+            preconditions.AddPredicate(new FastName("placeHL_pre_0"), new Holding(client, obj, false));
+            preconditions.AddPredicate(new FastName("placeHL_pre_1"), new Clear(obj, true));
+            preconditions.AddPredicate(new FastName("placeHL_pre_2"), new Positionfree(placePos, false));
 
             // Initialize effects
             effects = new State(StateType.Effect, new FastName("placeHL_effects"));
@@ -44,17 +43,10 @@ namespace BehaviorTreeMainProject
             effects.AddPredicate(new FastName("placeHL_eff_1"), new Holding(client, obj, true));
             effects.AddPredicate(new FastName("placeHL_eff_2"), new Clear(obj, false));
             effects.AddPredicate(new FastName("placeHL_eff_3"), new Positionfree(placePos, true));
-            effects.AddPredicate(new FastName("placeHL_eff_4"), new Empty(client, false));
         }
 
         protected override State Preconditions => preconditions;
         protected override State Effects => effects;
 
-        protected override bool ExecuteActionLogic(float InDeltaTime)
-        {
-            // TODO: Implement action logic for PlaceHL
-            // Access parameters via properties: obj, rob, loc, tool, etc.
-            return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);
-        }
     }
 }

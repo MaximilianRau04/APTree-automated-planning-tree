@@ -2,16 +2,16 @@ using System;
 
 namespace ModelLoader.PredicateTypes
 {
-    public class HasTool : Predicate
+    public class AtTool : Predicate
     {
-        public Agent agent { get; set; }
         public Tool tool { get; set; }
+        public Location loc { get; set; }
 
-        public HasTool(Agent agent, Tool tool, bool isNegated) : base(isNegated)
+        public AtTool(Tool tool, Location loc, bool isNegated) : base(isNegated)
         {
-            PredicateType = new FastName("hasTool");
-            this.agent = agent;
+            PredicateType = new FastName("atTool");
             this.tool = tool;
+            this.loc = loc;
             this.PredicateName = GetUniqueKey();
         }
 
@@ -19,8 +19,8 @@ namespace ModelLoader.PredicateTypes
         {
             return new List<string>
             {
-                agent?.NameKey?.ToString() ?? "null",
-                tool?.NameKey?.ToString() ?? "null"
+                tool?.NameKey?.ToString() ?? "null",
+                loc?.NameKey?.ToString() ?? "null"
             };
         }
     }

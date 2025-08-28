@@ -9,9 +9,19 @@ namespace ModelLoader.PredicateTypes
 
         public IsAt(Element myObject, Location location, bool isNegated) : base(isNegated)
         {
-            PredicateName = new FastName("isAt");
+            PredicateType = new FastName("isAt");
             this.myObject = myObject;
             this.location = location;
+            this.PredicateName = GetUniqueKey();
+        }
+
+        public override List<string> GetParameterValues()
+        {
+            return new List<string>
+            {
+                myObject?.NameKey?.ToString() ?? "null",
+                location?.NameKey?.ToString() ?? "null"
+            };
         }
     }
 }

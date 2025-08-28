@@ -7,8 +7,8 @@ namespace BehaviorTreeMainProject
 {
     public class NailingML : GenericBTAction
     {
-        // Parameter: obj of type beam
-        public Beam obj { get; private set; }
+        // Parameter: obj of type element
+        public Element obj { get; private set; }
 
         // Parameter: pos of type positionOnRail
         public PositionOnRail pos { get; private set; }
@@ -23,7 +23,7 @@ namespace BehaviorTreeMainProject
         private State preconditions;
         private State effects;
 
-        public NailingML(string actionType, string instanceName, Blackboard<FastName> blackboard, Beam obj, PositionOnRail pos, Robot client, NailGripper ng)
+        public NailingML(string actionType, string instanceName, Blackboard<FastName> blackboard, Element obj, PositionOnRail pos, Robot client, NailGripper ng)
             : base(actionType, instanceName, blackboard)
         {
             this.obj = obj;
@@ -50,11 +50,5 @@ namespace BehaviorTreeMainProject
         protected override State Preconditions => preconditions;
         protected override State Effects => effects;
 
-        protected override bool ExecuteActionLogic(float InDeltaTime)
-        {
-            // TODO: Implement action logic for NailingML
-            // Access parameters via properties: obj, rob, loc, tool, etc.
-            return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);
-        }
     }
 }

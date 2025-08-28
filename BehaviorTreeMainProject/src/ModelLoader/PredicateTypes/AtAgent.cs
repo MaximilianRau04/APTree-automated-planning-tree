@@ -9,9 +9,19 @@ namespace ModelLoader.PredicateTypes
 
         public AtAgent(Agent agent, Location location, bool isNegated) : base(isNegated)
         {
-            PredicateName = new FastName("atAgent");
+            PredicateType = new FastName("atAgent");
             this.agent = agent;
             this.location = location;
+            this.PredicateName = GetUniqueKey();
+        }
+
+        public override List<string> GetParameterValues()
+        {
+            return new List<string>
+            {
+                agent?.NameKey?.ToString() ?? "null",
+                location?.NameKey?.ToString() ?? "null"
+            };
         }
     }
 }

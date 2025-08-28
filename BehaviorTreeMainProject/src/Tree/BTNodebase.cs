@@ -1,4 +1,5 @@
 using System.Reflection.PortableExecutable;
+using BehaviorTreeMainProject.Services;
 
 public abstract class BTNodeBase : IBTNode
 {
@@ -24,7 +25,7 @@ public abstract class BTNodeBase : IBTNode
 public bool HasFinished => (LastStatus == EBTNodeResult.Succeeded || LastStatus ==EBTNodeResult.failed);
 // to store if all the decorators allow for running this node
 
-    protected bool bDecoratorsAllowRunning = false;
+    protected bool bDecoratorsAllowRunning = true;
 
 // to diffrentiate between flow nodes and action nodes
     public abstract bool HasChildren { get; }
@@ -54,7 +55,12 @@ public bool HasFinished => (LastStatus == EBTNodeResult.Succeeded || LastStatus 
 
     public IBTNode AddService(BTServiceBase InService, bool InIsAlwaysOn = false)
     {
-        InService.SetOwiningTree(OwningTree);
+        // Only set the tree if it's already available
+        if (OwningTree != null)
+        {
+            InService.SetOwiningTree(OwningTree);
+        }
+        
         if (InIsAlwaysOn)
         {
             if (AlwaysOnServices == null)
@@ -70,6 +76,35 @@ public bool HasFinished => (LastStatus == EBTNodeResult.Succeeded || LastStatus 
             }
         return this;
 
+    }
+
+    /// <summary>
+    /// Set the tree for all services that don't have it set yet
+    /// This should be called after SetOwiningTree is called on the node
+    /// </summary>
+    public void SetTreeForAllServices(IBehaviorTree InOwningtree)
+    {
+        if (AlwaysOnServices != null)
+        {
+            foreach (var service in AlwaysOnServices)
+            {
+                if (service.OwningTree == null)
+                {
+                    service.SetOwiningTree(InOwningtree);
+                }
+            }
+        }
+        
+        if (GenrealServices != null)
+        {
+            foreach (var service in GenrealServices)
+            {
+                if (service.OwningTree == null)
+                {
+                    service.SetOwiningTree(InOwningtree);
+                }
+            }
+        }
     }
 /// <summary>
 /// 
@@ -103,6 +138,33 @@ public bool HasFinished => (LastStatus == EBTNodeResult.Succeeded || LastStatus 
     {
         this.OwningTree = InOwningtree;
     }
+
+    /// <summary>
+    /// Add a child node and set up proper parent-child relationship
+    /// This method should be overridden by derived classes that can have children
+    /// </summary>
+    public virtual IBTNode AddChild(IBTNode childNode)
+    {
+        LoggingService.LogInfo($"🔧 BTNodeBase: AddChild called for {DebugDisplayName} - adding child: {childNode.DebugDisplayName}");
+        
+        // Set the owning tree for the child
+        childNode.SetOwiningTree(OwningTree);
+        LoggingService.LogInfo($"🔧 BTNodeBase: Set OwningTree for child {childNode.DebugDisplayName}");
+        
+        // Set the tree for all services that don't have it set yet
+        childNode.SetTreeForAllServices(OwningTree);
+        LoggingService.LogInfo($"🔧 BTNodeBase: Set tree for all services of child {childNode.DebugDisplayName}");
+        
+        // If this is a GenericBTAction, also set the tree for its SubtreeInjectionService
+        if (childNode is GenericBTAction action)
+        {
+            action.SetTreeForSubtreeInjectionService(OwningTree);
+            LoggingService.LogInfo($"🔧 BTNodeBase: Set tree for SubtreeInjectionService of {childNode.DebugDisplayName}");
+        }
+        
+        LoggingService.LogInfo($"🔧 BTNodeBase: AddChild completed for {childNode.DebugDisplayName}");
+        return childNode;
+    }
 /// <summary>
 /// main logic of the ticks. ticks decide which nodes are gonna be executed
 /// </summary>
@@ -122,7 +184,7 @@ public bool HasFinished => (LastStatus == EBTNodeResult.Succeeded || LastStatus 
         {
             //checks if the decorators can change the result and if yes, we will change the result and also the action upon exit will be executed
             LastStatus = EBTNodeResult.failed;
-            Console.WriteLine("here1");
+            LoggingService.LogWarning($"❌ BTNodeBase: AlwaysOnServices failed for {DebugDisplayName}, setting status to failed");
             return OnTickReturn(LastStatus);
         }
 
@@ -136,24 +198,24 @@ public bool HasFinished => (LastStatus == EBTNodeResult.Succeeded || LastStatus 
             if (bDecoratorsAllowRunning && bCanSendExitNotification)
                 OnExit();
             bDecoratorsAllowRunning = false;
-            Console.WriteLine(LastStatus.ToString());
+            LoggingService.LogWarning($"❌ BTNodeBase: Decorators failed for {DebugDisplayName}, setting status to {LastStatus}");
             return OnTickReturn(LastStatus);
         }
         // if the decorators have changed to permit running then we reset the node
-        if (!bDecoratorsAllowRunning)
-        {
-            Reset();
-            bDecoratorsAllowRunning = true;
-        }
+        // if (!bDecoratorsAllowRunning)
+        // {
+        //     Reset();
+        //     bDecoratorsAllowRunning = true;
+        // }
 
-        // have we already finished?
+        // have we already finished? if yes, then we return the result
         if (HasFinished)
             return OnTickReturn(LastStatus);
         CurrentTickPhase = EBTNodeTickPhase.GeneralServices; 
-        if(!OnTick_GenralServices(InDeltaTime))           
+        if(!OnTick_GeneralServices(InDeltaTime))           
             return OnTickReturn(EBTNodeResult.failed);
         
-        //node has never been ticked?
+        //node has never been ticked? if yes, then we enter the node
         if(LastStatus == EBTNodeResult.readyToTick )
         {
             OnEnter();
@@ -216,15 +278,29 @@ public bool HasFinished => (LastStatus == EBTNodeResult.Succeeded || LastStatus 
         }
         return true;
     }
-    protected virtual bool OnTick_GenralServices(float InDeltaTime)
+    protected virtual bool OnTick_GeneralServices(float InDeltaTime)
     {
-        if(GenrealServices != null)
+        LoggingService.LogInfo($"🚨 DEBUG: BTNodeBase.OnTick_GeneralServices called for {DebugDisplayName}");
+        LoggingService.LogInfo($"🔍 BTNodeBase: GeneralServices count: {GenrealServices?.Count ?? 0}");
+        
+        if(GenrealServices != null && GenrealServices.Count > 0)
         {
+            LoggingService.LogInfo($"🔍 BTNodeBase: Executing {GenrealServices.Count} general services");
             foreach(var service in GenrealServices)
             {
+                LoggingService.LogInfo($"   🔄 BTNodeBase: Calling service.Tick() for {service.GetType().Name}");
                 if (!service.Tick(InDeltaTime))
+                {
+                    LoggingService.LogWarning($"   ❌ BTNodeBase: Service {service.GetType().Name} returned false");
                     return false;
+                }
+                LoggingService.LogInfo($"   ✅ BTNodeBase: Service {service.GetType().Name} returned true");
             }
+            LoggingService.LogInfo($"   ✅ BTNodeBase: All general services completed successfully");
+        }
+        else
+        {
+            LoggingService.LogInfo($"🔍 BTNodeBase: No general services to execute");
         }
         return true;
     }

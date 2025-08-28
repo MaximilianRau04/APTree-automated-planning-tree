@@ -2,13 +2,13 @@ using System;
 
 namespace ModelLoader.PredicateTypes
 {
-    public class Vgempty : Predicate
+    public class Robotequipped : Predicate
     {
         public Agent client { get; set; }
 
-        public Vgempty(Agent client, bool isNegated) : base(isNegated)
+        public Robotequipped(Agent client, bool isNegated) : base(isNegated)
         {
-            PredicateType = new FastName("vgempty");
+            PredicateType = new FastName("robotequipped");
             this.client = client;
             this.PredicateName = GetUniqueKey();
         }

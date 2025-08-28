@@ -130,8 +130,8 @@ public class CSharpPredicateGenerator {
             writer.println(") : base(isNegated)");
             writer.println("        {");
             
-            // Set PredicateName
-            writer.println("            PredicateName = new FastName(\"" + predicate.getName() + "\");");
+            // Set PredicateType
+            writer.println("            PredicateType = new FastName(\"" + predicate.getName() + "\");");
             
             // Generate constructor body
             if (predicate.getParameterDeclarationList() != null) {
@@ -141,6 +141,28 @@ public class CSharpPredicateGenerator {
                 }
             }
             
+            // Set the unique key as PredicateName after all properties are initialized
+            writer.println("            this.PredicateName = GetUniqueKey();");
+            
+            writer.println("        }");
+            writer.println();
+            
+            // Generate GetParameterValues method
+            writer.println("        public override List<string> GetParameterValues()");
+            writer.println("        {");
+            writer.println("            return new List<string>");
+            writer.println("            {");
+            
+            if (predicate.getParameterDeclarationList() != null && !predicate.getParameterDeclarationList().isEmpty()) {
+                for (int i = 0; i < predicate.getParameterDeclarationList().size(); i++) {
+                    ASTParameterDeclaration param = predicate.getParameterDeclarationList().get(i);
+                    String paramName = param.getName();
+                    String separator = (i < predicate.getParameterDeclarationList().size() - 1) ? "," : "";
+                    writer.println("                " + paramName + "?.NameKey?.ToString() ?? \"null\"" + separator);
+                }
+            }
+            
+            writer.println("            };");
             writer.println("        }");
             writer.println("    }");
             writer.println("}");

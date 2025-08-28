@@ -9,9 +9,19 @@ namespace ModelLoader.PredicateTypes
 
         public Holding(Agent agent, Element myObject, bool isNegated) : base(isNegated)
         {
-            PredicateName = new FastName("holding");
+            PredicateType = new FastName("holding");
             this.agent = agent;
             this.myObject = myObject;
+            this.PredicateName = GetUniqueKey();
+        }
+
+        public override List<string> GetParameterValues()
+        {
+            return new List<string>
+            {
+                agent?.NameKey?.ToString() ?? "null",
+                myObject?.NameKey?.ToString() ?? "null"
+            };
         }
     }
 }

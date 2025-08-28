@@ -16,6 +16,7 @@ public abstract class BTActionNodeBase :BTNodeBase
     {
         this.blackboard = blackboard;
         this.instanceName = new FastName(instanceName);
+        this.debugDisplayName = instanceName; // Set the debug display name
     }
 
     public override bool HasChildren => false;

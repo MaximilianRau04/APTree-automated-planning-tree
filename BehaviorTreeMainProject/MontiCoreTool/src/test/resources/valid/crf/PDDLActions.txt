@@ -85,9 +85,6 @@ predicate atplace {
     place - Location
 }
 
-predicate empty {
-    client - Agent
-}
 
 predicate clear {
     myObject - Element
@@ -138,57 +135,6 @@ PredicateInstance: hasTool(agent = r1, tool = vg1, isNegated = false)
 
 
 
-// Robot equips the endeffector
-Action equipeML {
-    parameters {
-        client: robot
-        too: vacuumGripper
-        ep: equipposition
-    }
-    precondition {
-        PredicateInstance: empty(client = client, isNegated = false)
-        PredicateInstance: positionfree(pos = ep, isNegated = true)
-    }    
-    effect {
-        PredicateInstance: hasTool(agent = client, tool = too, isNegated = false)
-        PredicateInstance: empty(client = client, isNegated = true)
-        PredicateInstance: positionfree(pos = ep, isNegated = false)
-    }   
-    function {
-        {client,too,ep},
-        {Boolean}
-    }
-    implementation {
-        equipeImplementation
-    }
-}
-
-// Robot puts the endeffector down
-Action deequipML {
-    parameters {
-        client: robot
-        too: vacuumGripper
-        ep: equipposition
-    }
-    precondition {
-        PredicateInstance: hasTool(agent = client, tool = too, isNegated = false)
-        PredicateInstance: empty(client = client, isNegated = true)
-        PredicateInstance: positionfree(pos = ep, isNegated = false)
-    }    
-    effect {
-        PredicateInstance: empty(client = client, isNegated = false)
-        PredicateInstance: hasTool(agent = client, tool = too, isNegated = true)
-        PredicateInstance: positionfree(pos = ep, isNegated = true)
-    }   
-    function {
-        {client,too,ep},
-        {Boolean}
-    }
-    implementation {
-        deequipImplementation
-    }
-}
-
 // Robot picks up an object from the table
 Action pickUpHL {
     parameters {
@@ -197,7 +143,7 @@ Action pickUpHL {
         client: robot
     }
     precondition {
-        PredicateInstance: empty(rob = client, isNegated = false)
+        PredicateInstance: robotequipped(rob = client, isNegated = true)
         PredicateInstance: atplace(myObject = obj, place = grabPos, isNegated = false)
         PredicateInstance: holding(agent = client, myObject = obj, isNegated = true)
         PredicateInstance: positionfree(pos = grabPos, isNegated = true)
@@ -209,7 +155,7 @@ Action pickUpHL {
         PredicateInstance: atplace(myObject = obj, place = grabPos, isNegated = true)
         PredicateInstance: clear(myObject = obj, isNegated = true)
         PredicateInstance: positionfree(pos = grabPos, isNegated = false)
-        PredicateInstance: empty(rob = client, isNegated = true)
+        PredicateInstance: robotequipped(rob = client, isNegated = false)
     }   
     function {
         {obj,grabPos,client},
@@ -228,7 +174,6 @@ Action placeHL {
         client: robot
     }
     precondition {
-        PredicateInstance: empty(rob = client, isNegated = true)
         PredicateInstance: holding(agent = client, myObject = obj, isNegated = false)
         PredicateInstance: clear(myObject = obj, isNegated = true)
         PredicateInstance: positionfree(pos = placePos, isNegated = false)
@@ -238,7 +183,7 @@ Action placeHL {
         PredicateInstance: holding(agent = client, myObject = obj, isNegated = true)
         PredicateInstance: clear(myObject = obj, isNegated = false)
         PredicateInstance: positionfree(pos = placePos, isNegated = true)
-        PredicateInstance: empty(rob = client, isNegated = false)
+    
     }   
     function {
         {obj,placePos,client},
@@ -260,7 +205,7 @@ Action stackHL {
         mod: cassette
     }
     precondition {
-        PredicateInstance: empty(rob = client, isNegated = true)
+        PredicateInstance: robotequipped(rob = client, isNegated = false)
         PredicateInstance: holding(agent = client, myObject = obj1, isNegated = false)
         PredicateInstance: atplace(myObject = obj2, place = pr, isNegated = false)
     }    
@@ -270,7 +215,6 @@ Action stackHL {
         PredicateInstance: holding(agent = client, myObject = obj1, isNegated = true)
         PredicateInstance: atplace(myObject = obj1, place = pr, isNegated = false)
         PredicateInstance: clear(myObject = obj2, isNegated = true)
-        PredicateInstance: empty(rob = client, isNegated = fasle)
     }   
     function {
         {obj1,obj2,client,pr,lay,mod},
@@ -293,12 +237,11 @@ Action stackonmultipleHL {
     precondition {
         PredicateInstance: holding(agent = client, myObject = plate, isNegated = false)
         PredicateInstance: atplace(myObject = plate, place = pos, isNegated = true)
-        PredicateInstance: empty(rob = client, isNegated = true)
+        PredicateInstance: robotequipped(rob = client, isNegated = false)
     }    
     effect {
         PredicateInstance: atplace(myObject = plate, place = pos, isNegated = false)
-        PredicateInstance: empty(rob = client, isNegated = false)
-        PredicateInstance: clear(myObject = plate, isNegated = true)
+        PredicateInstance: clear(myObject = plate, isNegated = false)
     }   
     function {
         {plate,client,pos,mod,lay},
@@ -317,7 +260,7 @@ Action gluingPLateHL {
         client: robot
     }
     precondition {
-        PredicateInstance: empty(rob = client, isNegated = false)
+        PredicateInstance: robotequipped(rob = client, isNegated = true)
         PredicateInstance: atplace(myObject = obj, place = pos, isNegated = false)
         PredicateInstance: clear(myObject = obj, isNegated = false)
         PredicateInstance: glued(myObject = obj, isNegated = true)
@@ -343,7 +286,7 @@ Action gluingBeamHL {
         lay: stack
     }
     precondition {
-        PredicateInstance: empty(rob = client, isNegated = false)
+        PredicateInstance: robotequipped(rob = client, isNegated = true)
         PredicateInstance: atplace(myObject = obj, place = pos, isNegated = false)
         PredicateInstance: clear(myObject = obj, isNegated = false)
         PredicateInstance: glued(myObject = obj, isNegated = true)
@@ -368,7 +311,7 @@ Action nailingHL {
         client: robot
     }
     precondition {
-        PredicateInstance: empty(client = client, isNegated = true)
+        PredicateInstance: robotequipped(client = client, isNegated = false)
         PredicateInstance: atplace(myObject = obj, place = pos, isNegated = false)
         PredicateInstance: clear(myObject = obj, isNegated = false)
         PredicateInstance: nailed(myObject = obj, isNegated = true)

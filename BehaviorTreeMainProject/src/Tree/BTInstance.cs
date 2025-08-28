@@ -28,6 +28,16 @@ public class BTInstance : IBehaviorTree
      public IBTNode AddChildToRootNode<NodeType>(IBTNode InNode) 
     {
         InNode.SetOwiningTree(this);
+        
+        // Set the tree for all services that don't have it set yet
+        InNode.SetTreeForAllServices(this);
+        
+        // If this is a GenericBTAction, also set the tree for its SubtreeInjectionService
+        if (InNode is GenericBTAction action)
+        {
+            action.SetTreeForSubtreeInjectionService(this);
+        }
+        
         return (RootNode as BTFlowNode_Composite).AddChild(InNode);
         
     }

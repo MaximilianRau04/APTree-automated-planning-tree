@@ -23,13 +23,12 @@
    
   )
   (:init  
-    (pos r1 pr2) 
+    (atagent r1 pr2) 
     (atplace lp1 fp1) 
     (positionfree pr2)
     (attool vg1 ep1) 
     (attool gg1 ep2)
     (attool ng1 ep3)
-    (empty r1) 
     (clear lp1)  
     (vgempty r1) 
   )
@@ -37,7 +36,7 @@
 
   (:goal (and
 
-(holding r1 lp1)
+  (holding r1 lp1)
         ) 
   )
 )

@@ -10,14 +10,14 @@ namespace BehaviorTreeMainProject
         // Parameter: client of type robot
         public Robot client { get; private set; }
 
-        // Parameter: too of type vacuumGripper
-        public VacuumGripper too { get; private set; }
+        // Parameter: too of type tool
+        public Tool too { get; private set; }
 
         // Preconditions and Effects as State objects
         private State preconditions;
         private State effects;
 
-        public InitializeML(string actionType, string instanceName, Blackboard<FastName> blackboard, Robot client, VacuumGripper too)
+        public InitializeML(string actionType, string instanceName, Blackboard<FastName> blackboard, Robot client, Tool too)
             : base(actionType, instanceName, blackboard)
         {
             this.client = client;
@@ -29,7 +29,7 @@ namespace BehaviorTreeMainProject
         {
             // Initialize preconditions
             preconditions = new State(StateType.Precondition, new FastName("initializeML_preconditions"));
-            preconditions.AddPredicate(new FastName("initializeML_pre_0"), new RobotEquiped(client, false));
+            preconditions.AddPredicate(new FastName("initializeML_pre_0"), new Robotequipped(client, false));
             preconditions.AddPredicate(new FastName("initializeML_pre_1"), new HasTool(client, too, false));
             preconditions.AddPredicate(new FastName("initializeML_pre_2"), new ActiveTool(too, true));
 
@@ -41,11 +41,5 @@ namespace BehaviorTreeMainProject
         protected override State Preconditions => preconditions;
         protected override State Effects => effects;
 
-        protected override bool ExecuteActionLogic(float InDeltaTime)
-        {
-            // TODO: Implement action logic for InitializeML
-            // Access parameters via properties: obj, rob, loc, tool, etc.
-            return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);
-        }
     }
 }

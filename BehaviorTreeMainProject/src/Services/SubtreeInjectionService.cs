@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using PlanningDataStructures;
 using AIPlanning;
+using BehaviorTreeMainProject.Services.AIPlanning;
 using ModelLoader.ParameterTypes;
 
 namespace BehaviorTreeMainProject
@@ -26,18 +27,83 @@ namespace BehaviorTreeMainProject
         // Track generated problem files for debugging
         private readonly List<string> generatedProblemFiles;
 
-        public SubtreeInjectionService(IBehaviorTree owningTree) : base(owningTree)
+        // Logging system
+        private static readonly string LogFilePath = "SubtreeInjectionService_Debug.log";
+        private static readonly object LogLock = new object();
+
+        public SubtreeInjectionService(IBehaviorTree owningTree, GenericBTAction action) : base(owningTree)
         {
             subtreeConfigurations = new Dictionary<string, SubtreeConfiguration>();
             cachedSubtrees = new Dictionary<string, BTFlowNode_Dynamic>();
             defaultPlannerMapping = new Dictionary<string, string>();
-            pendingAction = null;
+            pendingAction = action;
             parameterInstances = new Dictionary<string, string>();
             generatedProblemFiles = new List<string>();
             
             InitializeDefaultConfigurations();
             InitializeDefaultPlannerMapping();
             LoadParameterInstances();
+        }
+
+        /// <summary>
+        /// Alternative constructor that allows setting the tree later
+        /// </summary>
+        public SubtreeInjectionService(GenericBTAction action) : base(null)
+        {
+            subtreeConfigurations = new Dictionary<string, SubtreeConfiguration>();
+            cachedSubtrees = new Dictionary<string, BTFlowNode_Dynamic>();
+            defaultPlannerMapping = new Dictionary<string, string>();
+            pendingAction = action;
+            parameterInstances = new Dictionary<string, string>();
+            generatedProblemFiles = new List<string>();
+            
+            InitializeDefaultConfigurations();
+            InitializeDefaultPlannerMapping();
+            LoadParameterInstances();
+        }
+
+        /// <summary>
+        /// Log message to both console and file
+        /// </summary>
+        private void LogMessage(string message)
+        {
+            var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
+            var logMessage = $"[{timestamp}] {message}";
+            
+            // Write to console
+            Console.WriteLine(logMessage);
+            
+            // Write to file
+            lock (LogLock)
+            {
+                try
+                {
+                    File.AppendAllText(LogFilePath, logMessage + Environment.NewLine);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[{timestamp}] ❌ Failed to write to log file: {ex.Message}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Clear the log file
+        /// </summary>
+        public static void ClearLogFile()
+        {
+            lock (LogLock)
+            {
+                try
+                {
+                    File.WriteAllText(LogFilePath, $"=== SubtreeInjectionService Debug Log - Started at {DateTime.Now} ==={Environment.NewLine}");
+                    Console.WriteLine($"✅ Log file cleared: {LogFilePath}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"❌ Failed to clear log file: {ex.Message}");
+                }
+            }
         }
 
         /// <summary>
@@ -59,32 +125,20 @@ namespace BehaviorTreeMainProject
                             parameterInstances[parts[0].Trim()] = parts[1].Trim();
                         }
                     }
-                    Console.WriteLine($"✅ SubtreeInjectionService: Loaded {parameterInstances.Count} parameter instances");
+                    LogMessage($"✅ SubtreeInjectionService: Loaded {parameterInstances.Count} parameter instances");
                 }
                 else
                 {
-                    Console.WriteLine($"⚠️ SubtreeInjectionService: Parameter instances file not found at {filePath}");
+                    LogMessage($"⚠️ SubtreeInjectionService: Parameter instances file not found at {filePath}");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ SubtreeInjectionService: Error loading parameter instances: {ex.Message}");
+                LogMessage($"❌ SubtreeInjectionService: Error loading parameter instances: {ex.Message}");
             }
         }
 
-        /// <summary>
-        /// Queue an action for subtree injection in the next tick
-        /// </summary>
-        public void QueueActionForInjection(GenericBTAction action, Dictionary<string, object> customParameters = null)
-        {
-            pendingAction = action;
-            // Store custom parameters with the action for later use
-            if (customParameters != null)
-            {
-                Console.WriteLine($"📝 SubtreeInjectionService: Stored custom parameters for {action.actionType}");
-            }
-            Console.WriteLine($"📋 SubtreeInjectionService: Queued {action.actionType} for subtree injection in next tick");
-        }
+        
 
         /// <summary>
         /// Service tick method - implements the required logic:
@@ -95,161 +149,212 @@ namespace BehaviorTreeMainProject
         /// </summary>
         public override bool Tick(float InDeltaTime)
         {
-            // If no action is pending, return true
-            if (pendingAction == null)
+            LogMessage($"🔍 SubtreeInjectionService: Tick called for service attached to tree: {OwningTree?.GetType().Name}");
+            
+            // First, check if we have a pending action to process
+            if (pendingAction != null)
             {
-                return true;
+                var actionType = pendingAction.actionType.ToString();
+                LogMessage($"🔍 SubtreeInjectionService: Processing queued action: {actionType}");
+                LogMessage($"🔍 SubtreeInjectionService: Action type ends with 'HL': {actionType.EndsWith("HL")}");
+                
+                // 1. Check if the action is HL by checking the name of the action
+                if (!actionType.EndsWith("HL"))
+                {
+                    LogMessage($"🔍 SubtreeInjectionService: Action {actionType} is not a high-level action (no 'HL' suffix)");
+                    // 2. If it is not HL return true
+                    return true;
+                }
+                
+                // 3. If it is HL, then we Inject the subtree
+                LogMessage($"🔍 SubtreeInjectionService: Detected high-level action: {actionType}");
+                try
+                {
+                    ProcessSubtreeInjection( null); // customParameters would be passed here if needed
+                    LogMessage($"✅ SubtreeInjectionService: Successfully injected subtree for {actionType}");
+                    // 4. If the injection was successful return true
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    LogMessage($"❌ SubtreeInjectionService: Failed to inject subtree for {actionType}: {ex.Message}");
+                    // 4. else, return false
+                    return false; 
+                }
             }
+            else
+            {
+                LogMessage($"🔍 SubtreeInjectionService: No pending action to process (pendingAction is null)");
+            }
+            
+            return true; // No action to process
+            
+               
+            }
+            
+           
 
-            var action = pendingAction;
-            pendingAction = null; // Clear the pending action
-            
-            var actionType = action.actionType.ToString();
-            Console.WriteLine($"🔍 SubtreeInjectionService: Processing action in tick: {actionType}");
-            
-            // 1. Check if the action is HL by checking the name of the action
-            if (!actionType.EndsWith("HL"))
-            {
-                Console.WriteLine($"🔍 SubtreeInjectionService: Action {actionType} is not a high-level action (no 'HL' suffix)");
-                // 2. If it is not HL return true
-                return true;
-            }
-            
-            // 3. If it is HL, then we Inject the subtree
-            Console.WriteLine($"🔍 SubtreeInjectionService: Detected high-level action: {actionType}");
-            try
-            {
-                ProcessSubtreeInjection(action, null); // customParameters would be passed here if needed
-                Console.WriteLine($"✅ SubtreeInjectionService: Successfully injected subtree for {actionType}");
-                // 4. If the injection was successful return true
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ SubtreeInjectionService: Failed to inject subtree for {actionType}: {ex.Message}");
-                // 4. else, return false
-                return false; 
-            }
-        }
+        
 
         /// <summary>
         /// Process subtree injection for a specific action
         /// </summary>
-        private void ProcessSubtreeInjection(GenericBTAction action, Dictionary<string, object> customParameters = null)
+        private void ProcessSubtreeInjection( Dictionary<string, object> customParameters = null)
         {
             try
             {
-                var actionType = action.actionType.ToString();
-                Console.WriteLine($"🔧 SubtreeInjectionService: Processing injection for {actionType}");
+                var actionType = pendingAction.actionType.ToString();
+                LogMessage($"🔧 SubtreeInjectionService: Processing injection for {actionType}");
                 
                 // Get the default planner for this action type
                 string configName = GetDefaultPlannerForAction(actionType);
                 
                 // Create instance name from action
-                string instanceName = action.InstanceName.ToString();
+                string instanceName = pendingAction.InstanceName.ToString();
                 
                 // Generate dynamic PDDL problem file
-                string problemFileName = GenerateDynamicPDDLProblem(action, instanceName);
+                string problemFileName = GenerateDynamicPDDLProblem(instanceName);
                 
                 // Merge custom parameters with the generated problem file
                 var mergedParameters = customParameters ?? new Dictionary<string, object>();
                 mergedParameters["problemFile"] = problemFileName;
                 
-                Console.WriteLine($"🔧 SubtreeInjectionService: Using dynamic problem file: {problemFileName}");
-                Console.WriteLine($"🔧 SubtreeInjectionService: Merged parameters count: {mergedParameters.Count}");
+                LogMessage($"🔧 SubtreeInjectionService: Using dynamic problem file: {problemFileName}");
+                LogMessage($"🔧 SubtreeInjectionService: Merged parameters count: {mergedParameters.Count}");
                 foreach (var param in mergedParameters)
                 {
-                    Console.WriteLine($"   Parameter: {param.Key} = {param.Value}");
+                    LogMessage($"   Parameter: {param.Key} = {param.Value}");
                 }
                 
                 // Inject the subtree
-                InjectSubtreeIntoAction(action, configName, instanceName, mergedParameters);
+                InjectSubtreeIntoAction(pendingAction, configName, instanceName, mergedParameters);
                 
-                Console.WriteLine($"✅ SubtreeInjectionService: Successfully processed injection for {actionType}");
+                LogMessage($"✅ SubtreeInjectionService: Successfully processed injection for {actionType}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ SubtreeInjectionService: Error processing injection: {ex.Message}");
+                LogMessage($"❌ SubtreeInjectionService: Error processing injection: {ex.Message}");
             }
         }
 
         /// <summary>
         /// Generate a dynamic PDDL problem file for the given action
         /// </summary>
-        public string GenerateDynamicPDDLProblem(GenericBTAction action, string instanceName)
+        public string GenerateDynamicPDDLProblem( string instanceName)
         {
             try
             {
-                var actionType = action.actionType.ToString();
-                var actionFullName = action.GetType().Name; // Get the full class name
-                string problemFileName = $"problem{actionFullName}_{instanceName}.pddl";
-                string problemFilePath = $"python_service/Plannerinputs/{problemFileName}";
+                LogMessage($"🔧 SubtreeInjectionService: Starting GenerateDynamicPDDLProblem for instance: {instanceName}");
                 
-                Console.WriteLine($"🔧 SubtreeInjectionService: Generating PDDL problem file: {problemFileName}");
+                // Check if pendingAction is null
+                if (pendingAction == null)
+                {
+                    LogMessage($"❌ SubtreeInjectionService: pendingAction is null!");
+                    throw new InvalidOperationException("pendingAction is null");
+                }
+                // setting the address
+                var actionType = pendingAction.actionType.ToString();
+                var actionFullName = pendingAction.GetType().Name; // Get the full class name
+                string problemFileName = $"problem{instanceName}.pddl";
+                string problemFilePath = $"python_service/Plannerinputs/{problemFileName}";
+                string relativeProblemPath = $"Plannerinputs/{problemFileName}";
+                
+                LogMessage($"🔧 SubtreeInjectionService: Generating PDDL problem file: {problemFileName}");
+                LogMessage($"🔧 SubtreeInjectionService: Action type: {actionType}, Action full name: {actionFullName}");
+                
+                // Check if LinkedBlackboard is null
+                if (LinkedBlackboard == null)
+                {
+                    LogMessage($"❌ SubtreeInjectionService: LinkedBlackboard is null!");
+                    throw new InvalidOperationException("LinkedBlackboard is null");
+                }
                 
                 // 1. Retrieve predicates from blackboard
-                var initialstatepredicates = LinkedBlackboard.GetAllPredicates();
+                LogMessage($"🔧 SubtreeInjectionService: About to call LinkedBlackboard.GetAllPredicates()");
+                var initialstatepredicates = LinkedBlackboard.GetTruePredicates();
+                LogMessage($"🔧 SubtreeInjectionService: Retrieved {initialstatepredicates?.Count ?? 0} initial state predicates");
+                
+                if (initialstatepredicates == null)
+                {
+                    LogMessage($"❌ SubtreeInjectionService: initialstatepredicates is null!");
+                    throw new InvalidOperationException("initialstatepredicates is null");
+                }
+                
+                LogMessage($"🔧 SubtreeInjectionService: About to call Parser.ConvertMultiplePredicatesToPDDL()");
                 string initialstatepredicatesPDDL = Parser.ConvertMultiplePredicatesToPDDL(initialstatepredicates);
-                Console.WriteLine($"📋 SubtreeInjectionService: Retrieved {initialstatepredicates.Count} initial state predicates");
-                Console.WriteLine($"📋 SubtreeInjectionService: Initial state PDDL: {initialstatepredicatesPDDL}");
+                LogMessage($"📋 SubtreeInjectionService: Initial state PDDL: {initialstatepredicatesPDDL}");
                 
                 // 2. Get action effects for goals
-                var goalstatePredicates = action.GetActionEffects();
-                Console.WriteLine($"🎯 SubtreeInjectionService: Retrieved {goalstatePredicates.Count} goal predicates from action effects");
+                LogMessage($"🔧 SubtreeInjectionService: About to call pendingAction.GetActionEffects()");
+                var goalstatePredicates = pendingAction.GetActionEffects();
+                LogMessage($"🔧 SubtreeInjectionService: Retrieved {goalstatePredicates?.Count ?? 0} goal predicates from action effects");
+                
+                if (goalstatePredicates == null)
+                {
+                    LogMessage($"❌ SubtreeInjectionService: goalstatePredicates is null!");
+                    throw new InvalidOperationException("goalstatePredicates is null");
+                }
+                
                 foreach (var predicate in goalstatePredicates)
                 {
-                    Console.WriteLine($"   Goal predicate: {predicate.PredicateName}");
+                    LogMessage($"   Goal predicate: {predicate?.PredicateName}");
                 }
+                
+                LogMessage($"🔧 SubtreeInjectionService: About to call Parser.ConvertMultiplePredicatesToPDDL() for goals");
                 string goalstatepredicatesPDDL = Parser.ConvertMultiplePredicatesToPDDL(goalstatePredicates);
-                Console.WriteLine($"🎯 SubtreeInjectionService: Goal state PDDL: {goalstatepredicatesPDDL}");
+                LogMessage($"🎯 SubtreeInjectionService: Goal state PDDL: {goalstatepredicatesPDDL}");
                 
                 // 3. Generate PDDL problem content
+                LogMessage($"🔧 SubtreeInjectionService: About to call GeneratePDDLProblemContent()");
                 string pddlContent = GeneratePDDLProblemContent(actionFullName, initialstatepredicatesPDDL, goalstatepredicatesPDDL);
+                LogMessage($"🔧 SubtreeInjectionService: Generated PDDL content length: {pddlContent?.Length ?? 0}");
                 
                 // 4. Write to file
+                LogMessage($"🔧 SubtreeInjectionService: About to write file to: {problemFilePath}");
                 File.WriteAllText(problemFilePath, pddlContent);
+                LogMessage($"🔧 SubtreeInjectionService: File written successfully");
                 
                 // 5. Verify file was created and contains content
                 if (File.Exists(problemFilePath))
                 {
                     var fileContent = File.ReadAllText(problemFilePath);
-                    Console.WriteLine($"✅ SubtreeInjectionService: Generated PDDL problem file: {problemFilePath}");
-                    Console.WriteLine($"📄 SubtreeInjectionService: File size: {fileContent.Length} characters");
-                    Console.WriteLine($"📄 SubtreeInjectionService: Problem file content preview:");
-                    Console.WriteLine(pddlContent);
+                    LogMessage($"✅ SubtreeInjectionService: Generated PDDL problem file: {problemFilePath}");
+                    LogMessage($"📄 SubtreeInjectionService: File size: {fileContent.Length} characters");
+                    LogMessage($"📄 SubtreeInjectionService: Problem file content preview:");
+                    LogMessage(pddlContent);
                     
                     // Verify that goals are present
                     if (fileContent.Contains("(:goal"))
                     {
-                        Console.WriteLine($"✅ SubtreeInjectionService: Problem file contains goal section");
+                        LogMessage($"✅ SubtreeInjectionService: Problem file contains goal section");
                     }
                     else
                     {
-                        Console.WriteLine($"⚠️ SubtreeInjectionService: Problem file does NOT contain goal section!");
+                        LogMessage($"⚠️ SubtreeInjectionService: Problem file does NOT contain goal section!");
                     }
                 }
                 else
                 {
-                    Console.WriteLine($"❌ SubtreeInjectionService: Failed to create problem file: {problemFilePath}");
+                    LogMessage($"❌ SubtreeInjectionService: Failed to create problem file: {problemFilePath}");
                 }
                 
                 // Track the generated problem file
                 generatedProblemFiles.Add(problemFilePath);
                 
-                return problemFilePath;
+                LogMessage($"✅ SubtreeInjectionService: Successfully completed GenerateDynamicPDDLProblem");
+                return relativeProblemPath;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ SubtreeInjectionService: Error generating PDDL problem: {ex.Message}");
-                Console.WriteLine($"❌ SubtreeInjectionService: Stack trace: {ex.StackTrace}");
+                LogMessage($"❌ SubtreeInjectionService: Error generating PDDL problem: {ex.Message}");
+                LogMessage($"❌ SubtreeInjectionService: Exception type: {ex.GetType().Name}");
+                LogMessage($"❌ SubtreeInjectionService: Stack trace: {ex.StackTrace}");
                 // Fallback to default problem file
-                return "python_service/Plannerinputs/problemC1.pddl";
+                return "Plannerinputs/bigproblem.pddl";
             }
         }
 
    
-
-
 
         /// <summary>
         /// Generate PDDL problem content
@@ -289,18 +394,18 @@ namespace BehaviorTreeMainProject
                 
                 if (!File.Exists(filePath))
                 {
-                    Console.WriteLine($"❌ SubtreeInjectionService: ParameterInstances_PDDL.txt file not found at {filePath}");
+                    LogMessage($"❌ SubtreeInjectionService: ParameterInstances_PDDL.txt file not found at {filePath}");
                     return string.Empty;
                 }
                 
                 string content = File.ReadAllText(filePath);
-                Console.WriteLine($"✅ SubtreeInjectionService: Successfully read {content.Length} characters from ParameterInstances_PDDL.txt");
+                LogMessage($"✅ SubtreeInjectionService: Successfully read {content.Length} characters from ParameterInstances_PDDL.txt");
                 
                 return content;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ SubtreeInjectionService: Error reading ParameterInstances_PDDL.txt: {ex.Message}");
+                LogMessage($"❌ SubtreeInjectionService: Error reading ParameterInstances_PDDL.txt: {ex.Message}");
                 return string.Empty;
             }
         }
@@ -310,19 +415,11 @@ namespace BehaviorTreeMainProject
         /// </summary>
         private void InitializeDefaultPlannerMapping()
         {
-            // Map action types to default planners
-            defaultPlannerMapping["PickUpHL"] = "FF_Default";
-            defaultPlannerMapping["PlaceHL"] = "FF_Default";
-            defaultPlannerMapping["StackHL"] = "FF_Default";
-            defaultPlannerMapping["GluingHL"] = "ENHSP_Default";
-            defaultPlannerMapping["NailingHL"] = "ENHSP_Default";
-            defaultPlannerMapping["TravelHL"] = "GOAP_Default";
-            defaultPlannerMapping["InitializeHL"] = "StateChart_Default";
             
             // Generic mapping for any HL action not specifically mapped
             defaultPlannerMapping["*HL"] = "FF_Default";
             
-            Console.WriteLine("✅ SubtreeInjectionService: Initialized default planner mapping");
+            LogMessage("✅ SubtreeInjectionService: Initialized default planner mapping");
         }
 
         /// <summary>
@@ -337,7 +434,7 @@ namespace BehaviorTreeMainProject
             }
             else
             // Fallback to FF_Default
-            Console.WriteLine($"⚠️ SubtreeInjectionService: No mapping found for {actionType}, using FF_Default");
+            LogMessage($"⚠️ SubtreeInjectionService: No mapping found for {actionType}, using FF_Default");
             return "FF_Default";
         }
 
@@ -347,7 +444,7 @@ namespace BehaviorTreeMainProject
         public void SetPlannerMapping(string actionType, string configName)
         {
             defaultPlannerMapping[actionType] = configName;
-            Console.WriteLine($"✅ SubtreeInjectionService: Set planner mapping {actionType} -> {configName}");
+            LogMessage($"✅ SubtreeInjectionService: Set planner mapping {actionType} -> {configName}");
         }
 
         /// <summary>
@@ -396,9 +493,9 @@ namespace BehaviorTreeMainProject
         {
             // FF Planner Configuration
             var ffConfig = new SubtreeConfiguration("FF_Default", PlannerType.FF, SuccessCriteria.ALL);
-            ffConfig.PlannerParameters["domainFile"] = "python_service/Plannerinputs/domain.pddl";
-            ffConfig.PlannerParameters["problemFile"] = "python_service/Plannerinputs/problemC1.pddl";
-            ffConfig.PlannerParameters["plannerPath"] = "/home/shermin/ENHSP-Public/enhsp.jar";
+                            ffConfig.PlannerParameters["domainFile"] = "Plannerinputs/DomainML.pddl";
+                          ffConfig.PlannerParameters["problemFile"] = "Plannerinputs/bigproblem.pddl";
+            ffConfig.PlannerParameters["plannerPath"] = "ff";  // FF planner command for Docker
             ffConfig.PlannerParameters["timeoutSeconds"] = 30;
             ffConfig.PlannerParameters["maxPlanLength"] = 10;
             ffConfig.PlannerParameters["executionMode"] = CallPDDLPlanner.ParallelExecutionMode.Sequential;
@@ -406,12 +503,12 @@ namespace BehaviorTreeMainProject
 
             // ENHSP Planner Configuration
             var enhspConfig = new SubtreeConfiguration("ENHSP_Default", PlannerType.ENHSP, SuccessCriteria.ALL);
-            enhspConfig.PlannerParameters["domainFile"] = "python_service/Plannerinputs/domain.pddl";
-            enhspConfig.PlannerParameters["problemFile"] = "python_service/Plannerinputs/problemC1.pddl";
+                            enhspConfig.PlannerParameters["domainFile"] = "Plannerinputs/domain.pddl";
+                enhspConfig.PlannerParameters["problemFile"] = "Plannerinputs/problemC1.pddl";
             enhspConfig.PlannerParameters["plannerPath"] = "/home/shermin/ENHSP-Public/enhsp.jar";
             enhspConfig.PlannerParameters["timeoutSeconds"] = 30;
             enhspConfig.PlannerParameters["maxPlanLength"] = 10;
-            enhspConfig.PlannerParameters["executionMode"] = CallPDDLPlanner.ParallelExecutionMode.Parallel;
+            enhspConfig.PlannerParameters["executionMode"] = CallPDDLPlanner.ParallelExecutionMode.Sequential;
             subtreeConfigurations["ENHSP_Default"] = enhspConfig;
 
             // GOAP Planner Configuration
@@ -433,7 +530,7 @@ namespace BehaviorTreeMainProject
             stateChartConfig.PlannerParameters["availableTransitions"] = new List<string> { "start", "process", "complete" };
             subtreeConfigurations["StateChart_Default"] = stateChartConfig;
 
-            Console.WriteLine("✅ SubtreeInjectionService: Initialized default configurations");
+            LogMessage("✅ SubtreeInjectionService: Initialized default configurations");
         }
 
         /// <summary>
@@ -442,7 +539,7 @@ namespace BehaviorTreeMainProject
         public void RegisterConfiguration(string configName, SubtreeConfiguration configuration)
         {
             subtreeConfigurations[configName] = configuration;
-            Console.WriteLine($"✅ SubtreeInjectionService: Registered configuration '{configName}'");
+            LogMessage($"✅ SubtreeInjectionService: Registered configuration '{configName}'");
         }
 
         /// <summary>
@@ -473,13 +570,13 @@ namespace BehaviorTreeMainProject
         {
             try
             {
-                Console.WriteLine($"🔧 SubtreeInjectionService: Creating subtree '{config.Name}' for instance '{instanceName}'");
+                LogMessage($"🔧 SubtreeInjectionService: Creating subtree '{config.Name}' for instance '{instanceName}'");
 
                 // Check cache first
                 string cacheKey = $"{config.Name}_{instanceName}";
                 if (config.UseCaching && cachedSubtrees.TryGetValue(cacheKey, out var cachedSubtree))
                 {
-                    Console.WriteLine($"✅ SubtreeInjectionService: Using cached subtree for '{cacheKey}'");
+                    LogMessage($"✅ SubtreeInjectionService: Using cached subtree for '{cacheKey}'");
                     return cachedSubtree;
                 }
 
@@ -497,15 +594,15 @@ namespace BehaviorTreeMainProject
                 if (config.UseCaching)
                 {
                     cachedSubtrees[cacheKey] = subtree;
-                    Console.WriteLine($"💾 SubtreeInjectionService: Cached subtree for '{cacheKey}'");
+                    LogMessage($"💾 SubtreeInjectionService: Cached subtree for '{cacheKey}'");
                 }
 
-                Console.WriteLine($"✅ SubtreeInjectionService: Created subtree successfully");
+                LogMessage($"✅ SubtreeInjectionService: Created subtree successfully");
                 return subtree;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ SubtreeInjectionService: Error creating subtree: {ex.Message}");
+                LogMessage($"❌ SubtreeInjectionService: Error creating subtree: {ex.Message}");
                 throw;
             }
         }
@@ -517,7 +614,7 @@ namespace BehaviorTreeMainProject
         {
             var subtree = CreateSubtree(configName, instanceName, customParameters);
             action.SetAsHighLevelAction(subtree, subtree.PlanningService);
-            Console.WriteLine($"✅ SubtreeInjectionService: Injected subtree '{configName}' into action '{action.InstanceName.ToString()}'");
+            LogMessage($"✅ SubtreeInjectionService: Injected subtree '{configName}' into action '{action.InstanceName.ToString()}'");
         }
 
         
@@ -528,7 +625,7 @@ namespace BehaviorTreeMainProject
         public void RemoveSubtreeFromAction(GenericBTAction action)
         {
             action.RemoveSubtree();
-            Console.WriteLine($"✅ SubtreeInjectionService: Removed subtree from action '{action.InstanceName.ToString()}'");
+            LogMessage($"✅ SubtreeInjectionService: Removed subtree from action '{action.InstanceName.ToString()}'");
         }
 
         /// <summary>
@@ -537,7 +634,7 @@ namespace BehaviorTreeMainProject
         public void ClearCache()
         {
             cachedSubtrees.Clear();
-            Console.WriteLine("🧹 SubtreeInjectionService: Cleared subtree cache");
+            LogMessage("🧹 SubtreeInjectionService: Cleared subtree cache");
         }
 
         /// <summary>
@@ -557,6 +654,114 @@ namespace BehaviorTreeMainProject
         }
 
         /// <summary>
+        /// Find the action this service is attached to
+        /// </summary>
+        private GenericBTAction FindAttachedAction()
+        {
+            // The service is attached to a specific action, so we need to find that action
+            // We can do this by searching through the tree and finding the action that has this service
+            if (OwningTree?.RootNode == null)
+            {
+                LogMessage($"🔍 SubtreeInjectionService: No root node found");
+                return null;
+            }
+            
+            LogMessage($"🔍 SubtreeInjectionService: Searching for attached action in tree with root: {OwningTree.RootNode.GetType().Name}");
+            var foundAction = FindActionWithService(OwningTree.RootNode);
+            
+            if (foundAction != null)
+            {
+                LogMessage($"🔍 SubtreeInjectionService: Found attached action: {foundAction.actionType}");
+            }
+            else
+            {
+                LogMessage($"🔍 SubtreeInjectionService: No attached action found");
+            }
+            
+            return foundAction;
+        }
+        
+        /// <summary>
+        /// Recursively find the action that has this service attached to it
+        /// </summary>
+        private GenericBTAction FindActionWithService(IBTNode node)
+        {
+            // Check if this node is a GenericBTAction and has this service
+            if (node is GenericBTAction action)
+            {
+                // Check if this action has this service in its services list
+                if (HasServiceAttached(action))
+                {
+                    return action;
+                }
+            }
+            
+            // Check if this node has children (composite nodes, flow nodes, etc.)
+            var children = GetNodeChildren(node);
+            foreach (var child in children)
+            {
+                var foundAction = FindActionWithService(child);
+                if (foundAction != null)
+                {
+                    return foundAction;
+                }
+            }
+            
+            return null;
+        }
+        
+        /// <summary>
+        /// Check if an action has this service attached to it
+        /// </summary>
+        private bool HasServiceAttached(GenericBTAction action)
+        {
+            // We need to check if this action has this service in its services list
+            // Since we can't directly access the services list, we'll use a different approach
+            // We can check if the action has a SubtreeInjectionService by trying to get it
+            try
+            {
+                var subtreeService = action.GetSubtreeInjectionService();
+                var isAttached = subtreeService == this;
+                LogMessage($"🔍 SubtreeInjectionService: Checking action {action.actionType} - Service match: {isAttached}");
+                return isAttached;
+            }
+            catch (Exception ex)
+            {
+                // If we can't get the service, assume it's not this one
+                LogMessage($"🔍 SubtreeInjectionService: Error checking service for action {action.actionType}: {ex.Message}");
+                return false;
+            }
+        }
+        
+        /// <summary>
+        /// Get children of a node using available methods
+        /// </summary>
+        private List<IBTNode> GetNodeChildren(IBTNode node)
+        {
+            var children = new List<IBTNode>();
+            
+            // Try different approaches to get children
+            if (node is BTFlowNode_Composite compositeNode)
+            {
+                // Use the GetChildren method if available
+                var compositeChildren = compositeNode.GetChildren();
+                children.AddRange(compositeChildren);
+            }
+            else if (node is BTFlowNode_Dynamic dynamicNode)
+            {
+                // For dynamic nodes, check if they have an action graph
+                var actionGraph = dynamicNode.GetActionGraph();
+                if (actionGraph != null)
+                {
+                    var actionNodes = actionGraph.GetAllActionNodes();
+                    children.AddRange(actionNodes);
+                }
+            }
+            
+            return children;
+        }
+
+        /// <summary>
         /// Create FF subtree
         /// </summary>
         private BTFlowNode_Dynamic CreateFFSubtree(SubtreeConfiguration config, string instanceName, Dictionary<string, object> customParameters)
@@ -573,12 +778,12 @@ namespace BehaviorTreeMainProject
             // Merge default and custom parameters
             var parameters = MergeParameters(config.PlannerParameters, customParameters);
             
-            Console.WriteLine($"🔧 SubtreeInjectionService: Creating FF subtree with parameters:");
-            Console.WriteLine($"   Domain File: {parameters["domainFile"]}");
-            Console.WriteLine($"   Problem File: {parameters["problemFile"]}");
-            Console.WriteLine($"   Planner Path: {parameters["plannerPath"]}");
-            Console.WriteLine($"   Timeout: {parameters["timeoutSeconds"]} seconds");
-            Console.WriteLine($"   Max Plan Length: {parameters["maxPlanLength"]}");
+            LogMessage($"🔧 SubtreeInjectionService: Creating FF subtree with parameters:");
+            LogMessage($"   Domain File: {parameters["domainFile"]}");
+            LogMessage($"   Problem File: {parameters["problemFile"]}");
+            LogMessage($"   Planner Path: {parameters["plannerPath"]}");
+            LogMessage($"   Timeout: {parameters["timeoutSeconds"]} seconds");
+            LogMessage($"   Max Plan Length: {parameters["maxPlanLength"]}");
 
             var pddlRequest = new PDDLPlanningRequest(
                 parameters["domainFile"].ToString(),
@@ -614,12 +819,12 @@ namespace BehaviorTreeMainProject
 
             var parameters = MergeParameters(config.PlannerParameters, customParameters);
             
-            Console.WriteLine($"🔧 SubtreeInjectionService: Creating ENHSP subtree with parameters:");
-            Console.WriteLine($"   Domain File: {parameters["domainFile"]}");
-            Console.WriteLine($"   Problem File: {parameters["problemFile"]}");
-            Console.WriteLine($"   Planner Path: {parameters["plannerPath"]}");
-            Console.WriteLine($"   Timeout: {parameters["timeoutSeconds"]} seconds");
-            Console.WriteLine($"   Max Plan Length: {parameters["maxPlanLength"]}");
+            LogMessage($"🔧 SubtreeInjectionService: Creating ENHSP subtree with parameters:");
+            LogMessage($"   Domain File: {parameters["domainFile"]}");
+            LogMessage($"   Problem File: {parameters["problemFile"]}");
+            LogMessage($"   Planner Path: {parameters["plannerPath"]}");
+            LogMessage($"   Timeout: {parameters["timeoutSeconds"]} seconds");
+            LogMessage($"   Max Plan Length: {parameters["maxPlanLength"]}");
 
             var pddlRequest = new PDDLPlanningRequest(
                 parameters["domainFile"].ToString(),
@@ -705,7 +910,8 @@ namespace BehaviorTreeMainProject
         }
 
      
-       
+
+        
 
         /// <summary>
         /// Merge default and custom parameters
@@ -714,97 +920,23 @@ namespace BehaviorTreeMainProject
         {
             var merged = new Dictionary<string, object>(defaultParams);
             
-            Console.WriteLine($"🔧 SubtreeInjectionService: Merging parameters - Default params: {defaultParams.Count}, Custom params: {customParams?.Count ?? 0}");
+            LogMessage($"🔧 SubtreeInjectionService: Merging parameters - Default params: {defaultParams.Count}, Custom params: {customParams?.Count ?? 0}");
             
             if (customParams != null)
             {
                 foreach (var kvp in customParams)
                 {
                     var oldValue = defaultParams.ContainsKey(kvp.Key) ? defaultParams[kvp.Key].ToString() : "not set";
-                    Console.WriteLine($"🔧 SubtreeInjectionService: Overriding parameter {kvp.Key}: {oldValue} -> {kvp.Value}");
+                    LogMessage($"🔧 SubtreeInjectionService: Overriding parameter {kvp.Key}: {oldValue} -> {kvp.Value}");
                     merged[kvp.Key] = kvp.Value;
                 }
             }
             
-            Console.WriteLine($"🔧 SubtreeInjectionService: Final merged parameters count: {merged.Count}");
+            LogMessage($"🔧 SubtreeInjectionService: Final merged parameters count: {merged.Count}");
             return merged;
         }
 
-        /// <summary>
-        /// Demonstrates how to use the SubtreeInjectionService with automatic HL detection
-        /// </summary>
-        public static void DemonstrateUsage(IBehaviorTree behaviorTree, Blackboard<FastName> blackboard, 
-                                          Element beam1, Location location1, Robot robot1, VacuumGripper vg1)
-        {
-            Console.WriteLine("\n🔧 SubtreeInjectionService: Demonstrating automatic HL detection");
-            
-            // Create the service
-            var service = new SubtreeInjectionService(behaviorTree);
-            
-                         // Example 1: Queue HL action for injection in next tick
-             Console.WriteLine("\n📋 Example 1: Queue HL action for injection");
-             var pickUpAction1 = new PickUpHL("PickUpHL", "pickup1", blackboard, beam1, location1, robot1);
-             service.QueueActionForInjection(pickUpAction1); // Queues for injection in next tick
-             Console.WriteLine($"   ✅ Queued {pickUpAction1.InstanceName.ToString()} for subtree injection");
-             
-             // Example 2: Custom planner mapping
-             Console.WriteLine("\n📋 Example 2: Custom planner mapping");
-             service.SetPlannerMapping("PickUpHL", "ENHSP_Default"); // Override default mapping
-             var pickUpAction2 = new PickUpHL("PickUpHL", "pickup2", blackboard, beam1, location1, robot1);
-             service.QueueActionForInjection(pickUpAction2); // Now uses ENHSP instead of FF
-             Console.WriteLine($"   ✅ Queued {pickUpAction2.InstanceName.ToString()} for ENHSP injection");
-             
-             // Example 3: Custom parameters with automatic detection
-             Console.WriteLine("\n📋 Example 3: Custom parameters with automatic detection");
-             var customParams = new Dictionary<string, object> 
-             { 
-                 ["timeoutSeconds"] = 45,
-                 ["maxPlanLength"] = 8
-             };
-             var pickUpAction3 = new PickUpHL("PickUpHL", "pickup3", blackboard, beam1, location1, robot1);
-             service.QueueActionForInjection(pickUpAction3, customParams);
-             Console.WriteLine($"   ✅ Queued {pickUpAction3.InstanceName.ToString()} with custom parameters");
-             
-             // Example 4: Non-HL action (no injection)
-             Console.WriteLine("\n📋 Example 4: Non-HL action (no injection)");
-             var pickUpAction4 = new PickUpML("PickUpML", "pickup4", blackboard, beam1, new Firstposition(), robot1, vg1);
-             service.QueueActionForInjection(pickUpAction4); // No injection because no "HL" suffix
-             Console.WriteLine($"   ✅ No injection for: {pickUpAction4.InstanceName.ToString()}");
-            
-            // Example 5: Manual injection override
-            Console.WriteLine("\n📋 Example 5: Manual injection override");
-            var pickUpAction5 = new PickUpML("PickUpML", "pickup5", blackboard, beam1, new Firstposition(), robot1, vg1);
-            service.InjectSubtreeIntoAction(pickUpAction5, "GOAP_Default", "pickup5"); // Force injection
-            Console.WriteLine($"   ✅ Manually injected GOAP subtree into: {pickUpAction5.InstanceName.ToString()}");
-            
-            // Example 6: Remove subtree
-            Console.WriteLine("\n📋 Example 6: Remove subtree");
-            service.RemoveSubtreeFromAction(pickUpAction1);
-            Console.WriteLine($"   ✅ Removed subtree from: {pickUpAction1.InstanceName.ToString()}");
-            
-            // Example 7: Statistics
-            Console.WriteLine("\n📋 Example 7: Statistics");
-            var stats = service.GetStatistics();
-            Console.WriteLine($"   📊 Cached subtrees: {stats.cachedSubtrees}");
-            Console.WriteLine($"   📊 Configurations: {stats.configurations}");
-            Console.WriteLine($"   📊 Planner mappings: {stats.plannerMappings}");
-            
-            // Example 8: Show planner mappings
-            Console.WriteLine("\n📋 Example 8: Current planner mappings");
-            var mappings = service.GetPlannerMappings();
-            foreach (var mapping in mappings)
-            {
-                Console.WriteLine($"   🔗 {mapping.Key} -> {mapping.Value}");
-            }
-            
-            // Example 9: Generate PDDL problem file
-            Console.WriteLine("\n📋 Example 9: Generate PDDL problem file");
-            var testAction = new PickUpHL("PickUpHL", "testpickup", blackboard, beam1, location1, robot1);
-            string problemFile = service.GenerateDynamicPDDLProblem(testAction, "testpickup");
-            Console.WriteLine($"   📄 Generated problem file: {problemFile}");
-            
-            Console.WriteLine("\n🎯 SubtreeInjectionService: Demonstration completed!");
-        }
+        
 
         /// <summary>
         /// Create StateChart subtree

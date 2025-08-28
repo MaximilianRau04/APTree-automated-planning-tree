@@ -132,3 +132,10 @@
 (belongstomodule b22 m4)
 (belongstomodule b23 m4)
 (belongstomodule b24 m4)
+
+(attool vg1 ep1) 
+(attool gg1 ep2)
+(attool ng1 ep3)
+
+ (atagent r1 pr2) 
+(vgempty r1) 

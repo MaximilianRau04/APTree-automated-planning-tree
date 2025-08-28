@@ -1,4 +1,5 @@
 using System.Collections;
+using BehaviorTreeMainProject.Services;
 
 public class BTFlowNode_Composite : BTFlowNodeBase
 {
@@ -6,6 +7,10 @@ public class BTFlowNode_Composite : BTFlowNodeBase
     
     // List to store flow nodes (since NodeGraph is designed for action nodes)
     private List<IBTNode> flowNodes = new List<IBTNode>();
+    
+    // State tracking for subtree execution - only execute one child at a time
+    private int currentChildIndex = 0;
+    private bool isExecutingSubtree = false;
     
     public BTFlowNode_Composite(
         FastName nodeName,
@@ -21,23 +26,32 @@ public class BTFlowNode_Composite : BTFlowNodeBase
     /// <summary>
     /// Add a child node (can be any IBTNode, including other flow nodes)
     /// </summary>
-    public override IBTNode AddChild(IBTNode childNode)
+    public IBTNode AddChild(IBTNode childNode)
     {
         childNode.SetOwiningTree(OwningTree);
+        
+        // Set the tree for all services that don't have it set yet
+        childNode.SetTreeForAllServices(OwningTree);
+        
+        // If this is a GenericBTAction, also set the tree for its SubtreeInjectionService
+        if (childNode is GenericBTAction action)
+        {
+            action.SetTreeForSubtreeInjectionService(OwningTree);
+        }
         
         // Store flow nodes in a separate list since NodeGraph is designed for action nodes
         // We'll use the actionGraph from the base class for action nodes and a separate list for flow nodes
         if (childNode is GenericBTAction actionNode)
         {
             actionGraph.AddNode(actionNode);
-            Console.WriteLine($"✅ Added action node: {childNode.DebugDisplayName} to composite flow node actionGraph");
+            // Console.WriteLine($"✅ Added action node: {childNode.DebugDisplayName} to composite flow node actionGraph");
         }
         else
         {
             // For flow nodes, we'll store them in a separate list for now
             // In the future, we could extend NodeGraph to handle flow nodes
             flowNodes.Add(childNode);
-            Console.WriteLine($"✅ Added flow node: {childNode.DebugDisplayName} to composite flow node flowNodes list");
+            // Console.WriteLine($"✅ Added flow node: {childNode.DebugDisplayName} to composite flow node flowNodes list");
         }
         
         return childNode;
@@ -84,51 +98,84 @@ public class BTFlowNode_Composite : BTFlowNodeBase
     
     /// <summary>
     /// Execute the composite flow node logic
-    /// This ticks all child nodes and evaluates success criteria
+    /// This executes one child subtree at a time until completion
     /// </summary>
     protected override bool OnTick_NodeLogic(float inDeltaTime)
     {
         var allChildren = GetChildren();
-        Console.WriteLine($"   🔍 CompositeFlow: Executing {allChildren.Count} child nodes");
         
-        // Tick all child nodes
-        foreach (var childNode in allChildren)
+        // If no children, fail immediately
+        if (allChildren.Count == 0)
         {
-            Console.WriteLine($"   ⚡ Ticking child: {childNode.DebugDisplayName}");
-            var previousStatus = childNode.LastStatus;
-            childNode.Tick(inDeltaTime);
-            Console.WriteLine($"   📊 Child {childNode.DebugDisplayName}: {previousStatus} → {childNode.LastStatus}");
+            LastStatus = EBTNodeResult.failed;
+            return false;
         }
         
-        // Check if all child nodes have finished
-        bool allChildrenFinished = allChildren.All(child => child.HasFinished);
-        
-        if (allChildrenFinished)
+        // If we haven't started executing yet, start with the first child
+        if (!isExecutingSubtree)
         {
-            // All children have finished, evaluate success criteria
-            bool success = EvaluateCompositeSuccessCriteria();
-            Console.WriteLine($"   🎯 Composite success criteria evaluation: {success}");
+            currentChildIndex = 0;
+            isExecutingSubtree = true;
+            LoggingService.LogInfo($"🔄 CompositeFlow: Starting subtree execution with {allChildren.Count} children");
+        }
+        
+        // Execute only the current child until it completes
+        if (currentChildIndex < allChildren.Count)
+        {
+            var currentChild = allChildren[currentChildIndex];
+            var previousStatus = currentChild.LastStatus;
             
-            if (success)
+            LoggingService.LogInfo($"🎯 CompositeFlow: Executing child {currentChildIndex + 1}/{allChildren.Count}: {currentChild.DebugDisplayName}");
+            
+            // Tick the current child
+            currentChild.Tick(inDeltaTime);
+            
+            LoggingService.LogInfo($"📊 CompositeFlow: Child {currentChild.DebugDisplayName}: {previousStatus} → {currentChild.LastStatus}");
+            
+            // Check if current child has finished
+            if (currentChild.HasFinished)
             {
-                LastStatus = EBTNodeResult.Succeeded;
-                Console.WriteLine($"   🏆 CompositeFlow status set to: {LastStatus}");
+                LoggingService.LogInfo($"✅ CompositeFlow: Child {currentChild.DebugDisplayName} completed with status: {currentChild.LastStatus}");
+                
+                // Move to next child
+                currentChildIndex++;
+                
+                // Check if we've completed all children
+                if (currentChildIndex >= allChildren.Count)
+                {
+                    // All children have finished, evaluate success criteria
+                    bool success = EvaluateCompositeSuccessCriteria();
+                    LoggingService.LogInfo($"🎯 CompositeFlow: All children completed, success criteria evaluation: {success}");
+                    
+                    if (success)
+                    {
+                        LastStatus = EBTNodeResult.Succeeded;
+                        LoggingService.LogSuccess($"🏆 CompositeFlow: Subtree execution completed successfully");
+                    }
+                    else
+                    {
+                        LastStatus = EBTNodeResult.failed;
+                        LoggingService.LogWarning($"❌ CompositeFlow: Subtree execution failed");
+                    }
+                    
+                    // Reset execution state
+                    isExecutingSubtree = false;
+                    return false; // We're done
+                }
+                else
+                {
+                    LoggingService.LogInfo($"🔄 CompositeFlow: Moving to next child ({currentChildIndex + 1}/{allChildren.Count})");
+                }
             }
             else
             {
-                LastStatus = EBTNodeResult.failed;
-                Console.WriteLine($"   ❌ CompositeFlow status set to: {LastStatus}");
+                LoggingService.LogInfo($"⏳ CompositeFlow: Child {currentChild.DebugDisplayName} still running, continuing execution");
             }
         }
-        else
-        {
-            // Some children are still running
-            LastStatus = EBTNodeResult.InProgress;
-            Console.WriteLine($"   🔄 CompositeFlow status set to: {LastStatus} (children still running)");
-        }
         
-        // Return true if we should continue ticking, false if we're done
-        return !allChildrenFinished;
+        // Still executing
+        LastStatus = EBTNodeResult.InProgress;
+        return true; // Continue ticking
     }
     
     /// <summary>
@@ -142,7 +189,7 @@ public class BTFlowNode_Composite : BTFlowNodeBase
         int successCount = allChildren.Count(node => node.LastStatus == EBTNodeResult.Succeeded);
         int totalCount = allChildren.Count;
         
-        Console.WriteLine($"   📊 Composite evaluation: {successCount}/{totalCount} children succeeded");
+        // Console.WriteLine($"   📊 Composite evaluation: {successCount}/{totalCount} children succeeded");
         
         return successCriteria switch
         {
@@ -164,16 +211,23 @@ public class BTFlowNode_Composite : BTFlowNodeBase
     }
     
     /// <summary>
-    /// Reset all child nodes
+    /// Reset all child nodes and execution state
     /// </summary>
     public override void Reset()
     {
         base.Reset();
+        
+        // Reset execution state
+        currentChildIndex = 0;
+        isExecutingSubtree = false;
+        
+        // Reset all child nodes
         var allChildren = GetChildren();
         foreach (var childNode in allChildren)
         {
             childNode.Reset();
         }
-        Console.WriteLine($"🔄 Reset composite flow node and all {allChildren.Count} children");
+        
+        LoggingService.LogInfo($"🔄 CompositeFlow: Reset execution state and all {allChildren.Count} children");
     }
 }

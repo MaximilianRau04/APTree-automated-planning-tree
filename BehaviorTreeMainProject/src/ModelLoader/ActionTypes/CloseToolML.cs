@@ -10,14 +10,14 @@ namespace BehaviorTreeMainProject
         // Parameter: client of type robot
         public Robot client { get; private set; }
 
-        // Parameter: too of type vacuumGripper
-        public VacuumGripper too { get; private set; }
+        // Parameter: too of type tool
+        public Tool too { get; private set; }
 
         // Preconditions and Effects as State objects
         private State preconditions;
         private State effects;
 
-        public CloseToolML(string actionType, string instanceName, Blackboard<FastName> blackboard, Robot client, VacuumGripper too)
+        public CloseToolML(string actionType, string instanceName, Blackboard<FastName> blackboard, Robot client, Tool too)
             : base(actionType, instanceName, blackboard)
         {
             this.client = client;
@@ -40,11 +40,5 @@ namespace BehaviorTreeMainProject
         protected override State Preconditions => preconditions;
         protected override State Effects => effects;
 
-        protected override bool ExecuteActionLogic(float InDeltaTime)
-        {
-            // TODO: Implement action logic for CloseToolML
-            // Access parameters via properties: obj, rob, loc, tool, etc.
-            return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);
-        }
     }
 }
