@@ -1,59 +1,81 @@
 using System.Collections;
+using System.ComponentModel.DataAnnotations;
 using BehaviorTreeMainProject.Services;
 
 public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
 {
     // is this node allowed to have children?
-     public override bool HasChildren => true;
-     public abstract string DebugDisplayName { get; protected set; }
-     public SuccessCriteria successCriteria { get; protected set; }
-     // needed if success criteria is count or percentage
+    public override bool HasChildren => true;
+    // public override string DebugDisplayName { get; protected set; } = "FlowNode";
+    public SuccessCriteria successCriteria { get; protected set; }
+    // needed if success criteria is count or percentage
     protected float successThreshold;
-     // childResults is no longer needed since we use actionGraph for evaluation
-     
-     // Replace simple list with node graph structure
-     protected NodeGraph actionGraph = new();
-     
-     // Property to check if NodeGraph is locked (has been set and cannot be replaced)
-     public bool IsNodeGraphLocked => actionGraph != null;
-     
-     protected BTServicePlanner planner;
-     
-     // Planning service for high-level actions
-     public BTServiceBase PlanningService { get; protected set; }
+    // childResults is no longer needed since we use actionGraph for evaluation
+
+    // Replace simple list with node graph structure
+    protected NodeGraph actionGraph = new();
+
+    // Property to check if NodeGraph is locked (has been set and cannot be replaced)
+    public bool IsNodeGraphLocked => actionGraph != null;
+
+    protected BTServicePlanner planner;
+    int maxCount = 0;
+    int currentCount = 0;
+
+    // Planning service for high-level actions
+    public BTServiceBase PlanningService { get; protected set; }
     private readonly IBehaviorTree owningTree;
-    
+
     // Node name property
     public FastName NodeName { get; protected set; }
-        
+
     public abstract IEnumerator<IBTNode> GetEnumerator();
-    
+
     // Explicit implementation for non-generic IEnumerable
     IEnumerator IEnumerable.GetEnumerator()
     {
         return GetEnumerator();
     }
 
-   
+
 
     public BTFlowNodeBase(FastName nodeName, SuccessCriteria criteria = SuccessCriteria.ALL, float threshold = 1.0f)
     {
         this.NodeName = nodeName;
+        this.DebugDisplayName = nodeName.ToString();
         this.successCriteria = criteria;
         this.successThreshold = threshold;
     }
-/// <summary>
-/// Evaluates the ALL success criteria - fails immediately if any action fails
-/// </summary>
-/// <returns>True if all actions succeeded, false if any action failed</returns>
+    /// <summary>
+    /// Evaluates the ALL success criteria - continues ticking remaining children even if first child failed
+    /// </summary>
+    /// <returns>True if all actions succeeded, false if any action failed</returns>
     protected bool EvaluateAllSuccessCriteria()
     {
         var actionNodes = actionGraph.GetAllActionNodes();
         if (actionNodes.Count == 0) return false;
-        
-        // For ALL criteria, check if any action has failed - if so, fail immediately
+
+        // Check if all actions have succeeded
+        var succeededActions = actionNodes.Where(node => node.LastStatus == EBTNodeResult.Succeeded).ToList();
         var failedActions = actionNodes.Where(node => node.LastStatus == EBTNodeResult.failed).ToList();
-        if (failedActions.Any())
+        var inProgressActions = actionNodes.Where(node => node.LastStatus != EBTNodeResult.Succeeded && node.LastStatus != EBTNodeResult.failed).ToList();
+
+        LoggingService.LogInfo($"🔍 FlowNode: ALL criteria check - Total: {actionNodes.Count}, Succeeded: {succeededActions.Count}, InProgress: {inProgressActions.Count}, Failed: {failedActions.Count}");
+
+        // If some actions are still in progress, we can't make a final decision yet - continue ticking
+        if (inProgressActions.Any())
+        {
+            LoggingService.LogInfo($"🔍 FlowNode: ALL criteria - {inProgressActions.Count} actions still in progress, waiting for completion");
+            return false;
+        }
+
+        // All actions have completed, now evaluate final result
+        if (succeededActions.Count == actionNodes.Count)
+        {
+            LoggingService.LogSuccess($"✅ FlowNode: ALL success criteria met - all {actionNodes.Count} actions succeeded");
+            return true;
+        }
+        else if (failedActions.Any())
         {
             LoggingService.LogWarning($"❌ FlowNode: ALL success criteria failed - {failedActions.Count} actions failed:");
             foreach (var failedAction in failedActions)
@@ -62,36 +84,16 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
             }
             return false;
         }
-        
-        // Check if all actions have succeeded
-        var succeededActions = actionNodes.Where(node => node.LastStatus == EBTNodeResult.Succeeded).ToList();
-        var inProgressActions = actionNodes.Where(node => node.LastStatus != EBTNodeResult.Succeeded && node.LastStatus != EBTNodeResult.failed).ToList();
-        
-        LoggingService.LogInfo($"🔍 FlowNode: ALL criteria check - Total: {actionNodes.Count}, Succeeded: {succeededActions.Count}, InProgress: {inProgressActions.Count}, Failed: {failedActions.Count}");
-        
-        // If all actions have succeeded, return true
-        if (succeededActions.Count == actionNodes.Count)
-        {
-            LoggingService.LogSuccess($"✅ FlowNode: ALL success criteria met - all {actionNodes.Count} actions succeeded");
-            return true;
-        }
-        
-        // If some actions are still in progress, we can't make a final decision yet
-        if (inProgressActions.Any())
-        {
-            LoggingService.LogInfo($"🔍 FlowNode: ALL criteria - {inProgressActions.Count} actions still in progress, waiting for completion");
-            return false;
-        }
-        
+
         // This should not happen, but just in case
         LoggingService.LogWarning($"⚠️ FlowNode: ALL criteria - unexpected state, returning false");
         return false;
     }
 
-/// <summary>
-/// this function evaluates the success criteria to see if a flow node is successful or not
-/// </summary>
-/// <returns></returns>
+    /// <summary>
+    /// this function evaluates the success criteria to see if a flow node is successful or not
+    /// </summary>
+    /// <returns></returns>
     protected bool EvaluateSuccessCriteria()
     {
         // For ALL criteria, use the specialized function that fails immediately on any failure
@@ -99,24 +101,24 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
         {
             return EvaluateAllSuccessCriteria();
         }
-        
+
         var actionNodes = actionGraph.GetAllActionNodes();
         if (actionNodes.Count == 0) return false;
-        
+
         int successCount = actionNodes.Count(node => node.LastStatus == EBTNodeResult.Succeeded);
         int failedCount = actionNodes.Count(node => node.LastStatus == EBTNodeResult.failed);
         int totalCount = actionNodes.Count;
         int inProgressCount = totalCount - successCount - failedCount;
-        
+
         LoggingService.LogInfo($"🔍 FlowNode: Success criteria evaluation - Total: {totalCount}, Succeeded: {successCount}, Failed: {failedCount}, InProgress: {inProgressCount}");
-        
+
         // If any actions are still in progress, we can't make a final decision yet
         if (inProgressCount > 0)
         {
             LoggingService.LogInfo($"🔍 FlowNode: {inProgressCount} actions still in progress, cannot evaluate final success yet");
             return false;
         }
-        
+
         // All actions have completed (either succeeded or failed), now evaluate based on criteria
         return successCriteria switch
         {
@@ -137,9 +139,9 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
     public NodeGraph CreateNodeGraphFromActions(List<GenericBTAction> actionNodes)
     {
         var graph = new NodeGraph();
-        
+
         Console.WriteLine($"🔧 CreateNodeGraphFromActions: Input actionNodes count: {actionNodes?.Count ?? 0}");
-        
+
         if (actionNodes == null || actionNodes.Count == 0)
         {
             Console.WriteLine("🔧 CreateNodeGraphFromActions: No action nodes provided, returning empty graph");
@@ -160,12 +162,12 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
         {
             var currentAction = actionNodes[i];
             var nextAction = actionNodes[i + 1];
-            
+
             Console.WriteLine($"🔧 CreateNodeGraphFromActions: Creating relation {currentAction.InstanceName.ToString()} → {nextAction.InstanceName.ToString()}");
-            
+
             // Add order relation (sequential execution)
             graph.AddOrderRelation(currentAction, nextAction);
-            
+
             // Add temporal constraint (MEETS - next action starts when current ends)
             graph.AddTemporalConstraint(currentAction, nextAction, TemporalConstraint.MEETS);
         }
@@ -195,7 +197,7 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
     protected NodeGraph CreateNodeGraphFromActions(List<GenericBTAction> actionNodes, bool useOrderRelations, TemporalConstraint defaultTemporalConstraint)
     {
         var graph = new NodeGraph();
-        
+
         if (actionNodes == null || actionNodes.Count == 1)
             return graph;
 
@@ -210,13 +212,13 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
         {
             var currentAction = actionNodes[i];
             var nextAction = actionNodes[i + 1];
-            
+
             // Add order relation if requested
             if (useOrderRelations)
             {
                 graph.AddOrderRelation(currentAction, nextAction);
             }
-            
+
             // Add temporal constraint
             graph.AddTemporalConstraint(currentAction, nextAction, defaultTemporalConstraint);
         }
@@ -230,18 +232,18 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
     /// <param name="graph">The NodeGraph to use</param>
     public void SetActionGraph(NodeGraph graph)
     {
-        LoggingService.LogInfo($"🔧 BTFlowNodeBase: SetActionGraph called - New NodeGraph HashCode: {graph?.GetHashCode()}");
+        LoggingService.LogInfo($"🔧 BTFlowNodeBase: SetActionGraph called for {DebugDisplayName} - New NodeGraph HashCode: {graph?.GetHashCode()}");
         LoggingService.LogInfo($"🔧 BTFlowNodeBase: New NodeGraph has {graph?.GetAllActionNodes().Count ?? 0} actions");
-        
+
         // Prevent NodeGraph replacement once it's been set, UNLESS the new graph has actions and current is empty
         if (actionGraph != null)
         {
             int currentActionCount = actionGraph.GetAllActionNodes().Count;
             int newActionCount = graph?.GetAllActionNodes().Count ?? 0;
-            
+
             LoggingService.LogInfo($"🔧 BTFlowNodeBase: Current NodeGraph has {currentActionCount} actions");
             LoggingService.LogInfo($"🔧 BTFlowNodeBase: New NodeGraph has {newActionCount} actions");
-            
+
             // Allow replacement if current graph is empty and new graph has actions
             if (currentActionCount == 0 && newActionCount > 0)
             {
@@ -250,7 +252,7 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
                 actionGraph = graph;
                 return;
             }
-            
+
             // Prevent replacement if current graph has actions (to preserve completion statuses)
             if (currentActionCount > 0)
             {
@@ -259,11 +261,15 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
                 return; // Don't replace the existing NodeGraph
             }
         }
-        
+        else
+        {
+            LoggingService.LogInfo($"🔧 BTFlowNodeBase: No existing NodeGraph, setting initial NodeGraph");
+        }
+
         LoggingService.LogInfo($"🔧 BTFlowNodeBase: Setting initial NodeGraph (HashCode: {graph?.GetHashCode()})");
         actionGraph = graph;
     }
-    
+
     /// <summary>
     /// Clears the action graph (for reset scenarios)
     /// </summary>
@@ -275,7 +281,7 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
             actionGraph = null;
         }
     }
-    
+
     /// <summary>
     /// Force sets the action graph (bypasses the lock - use with caution)
     /// </summary>
@@ -286,7 +292,7 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
         LoggingService.LogWarning($"⚠️ BTFlowNodeBase: Previous HashCode: {actionGraph?.GetHashCode()}, New HashCode: {graph?.GetHashCode()}");
         actionGraph = graph;
     }
-    
+
     /// <summary>
     /// Gets the action graph for this flow node
     /// </summary>
@@ -295,21 +301,34 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
     {
         return actionGraph;
     }
-    
+
     /// <summary>
     /// Set the planning service for this flow node
     /// </summary>
     /// <param name="service">The planning service to use</param>
     public void SetPlanningService(BTServiceBase service)
     {
+        LoggingService.LogInfo($"🔧 BTFlowNodeBase: SetPlanningService called for {DebugDisplayName} with service {service.GetType().Name}");
         PlanningService = service;
-        
+
+        // If this is a BTServicePlanner, set the bidirectional reference
+        if (service is BTServicePlanner plannerService)
+        {
+            LoggingService.LogInfo($"🔧 BTFlowNodeBase: Setting bidirectional reference with planning service {service.GetType().Name}");
+            plannerService.SetOwningFlowNode(this);
+            LoggingService.LogInfo($"🔧 BTFlowNodeBase: Bidirectional reference set - {DebugDisplayName} ↔ {service.GetType().Name}");
+        }
+        else
+        {
+            LoggingService.LogWarning($"⚠️ BTFlowNodeBase: Service {service.GetType().Name} is not a BTServicePlanner, cannot set bidirectional reference");
+        }
+
         // Add the planning service to the general services list so it gets ticked
         AddService(service, false); // false = not always on
-        
-        Console.WriteLine($"🔧 BTFlowNodeBase: Set planning service {service.GetType().Name} and added to services list");
+
+        LoggingService.LogInfo($"🔧 BTFlowNodeBase: Added planning service {service.GetType().Name} to services list for {DebugDisplayName}");
     }
-    
+
     /// <summary>
     /// Get the node name as a string
     /// </summary>
@@ -317,5 +336,30 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
     public string GetNodeName()
     {
         return NodeName?.ToString() ?? "Unnamed";
+    }
+
+    public void SetMaxCount(int count)
+    {
+        maxCount = count;
+    }
+
+    public void IncrementCurrentCount()
+    {
+        currentCount++;
+    }
+
+    public void ResetCurrentCount()
+    {
+        currentCount = 0;
+    }
+
+    public int GetCurrentCount()
+    {
+        return currentCount;
+    }
+
+    public int GetMaxCount()
+    {
+        return maxCount;
     }
 }

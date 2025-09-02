@@ -7,14 +7,19 @@ public abstract class BTDecoratorBase : IBTDecorator
     public IBehaviorTree OwningTree { get;  protected set;}
 
     public Blackboard<FastName> LinkedBlackboard => OwningTree.LinkedBlackboard;
-
-    public abstract bool CanpostProcessTickresult { get; }
+    public GenericBTAction AttachedAction { get; protected set; }
+    public BTFlowNode_Dynamic AttachedNode { get; protected set; }
+    public abstract bool CanPostProcessTickResult { get; }
+    public abstract EBTNodeResult PostProcessTickResult(EBTNodeResult InResult);
+  
     public bool bIsInverted { get; protected set; } = false;
     protected bool? bLastResult;
     protected BTDecoratorBase(bool bInIsInverted = false)
     {
         this.bIsInverted = bInIsInverted;
     }
+
+
 
     // public virtual EBTNodeResult PostProcessTickresult(EBTNodeResult InResult)
     // {
@@ -28,8 +33,8 @@ public abstract class BTDecoratorBase : IBTDecorator
 
     public bool Tick(float InDeltaTime)
     {
-        this.bLastResult = OnEvaluate(InDeltaTime);
-        return bIsInverted ? !bLastResult.Value : bLastResult.Value;
+        return OnEvaluate(InDeltaTime);
+        
     }
     protected abstract bool OnEvaluate(float InDeltaTime);
 }

@@ -28,13 +28,27 @@ public class Blackboard<T> : IDisposable where T : class
     Dictionary<FastName, Element>   ElementValues =    new ();
     Dictionary<FastName, Location>   LocationValues =    new ();
     Dictionary<FastName, Agent>   AgentValues =    new ();
-    Dictionary<FastName, Predicate> PredicateValues = new();
+    private Dictionary<FastName, Predicate> PredicateValues = new();
     Dictionary<FastName, GenericBTAction> ActionValues = new();
      Dictionary<FastName, State> StateValues = new();
     Dictionary<FastName, NodeGraph> NodeGraphValues = new();
+    Dictionary<FastName, BTFlowNode_Dynamic> InjectedSubtreesValues = new();
    
     private readonly IDriver _driver;
     private readonly Neo4jService _graphService;
+
+    /// <summary>
+    /// Controls whether the system is in planning phase (true) or execution phase (false)
+    /// During planning phase, HL actions only generate NodeGraphs without executing ML actions
+    /// </summary>
+    public bool PlanningPhase { get; set; } = true;
+    public int LowestCost { get; set; } = 0;
+
+    /// <summary>
+    /// Array to track when each cassette has generated and inserted its subtree
+    /// Index 0 = cassette1, Index 1 = cassette2, Index 2 = cassette3, Index 3 = cassette4
+    /// </summary>
+    public bool[] CassetteSubtreeCompleted { get; set; } = new bool[4] { false, false, false, false };
 
     public Blackboard(string uri, string user, string password)
     {
@@ -528,56 +542,56 @@ public List<GenericBTAction> GetAllActionInstances()
 
     public void SetPredicateSync(FastName key, Predicate predicate)
     {
-        LoggingService.LogInfo($"🔧 BLACKBOARD_SYNC: SetPredicateSync called with key: {key}");
-        LoggingService.LogInfo($"🔧 BLACKBOARD_SYNC: Predicate type: {predicate.GetType().Name}");
-        LoggingService.LogInfo($"🔧 BLACKBOARD_SYNC: Predicate.PredicateName: {predicate.PredicateName}");
-        LoggingService.LogInfo($"🔧 BLACKBOARD_SYNC: Predicate.isNegated: {predicate.isNegated}");
+        // NEW: Clear, prominent logging for predicate additions
+        LoggingService.LogInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        LoggingService.LogInfo($"➕ PREDICATE_ADDED: Adding predicate to blackboard");
+        LoggingService.LogInfo($"   Key: {key}");
+        LoggingService.LogInfo($"   Type: {predicate.GetType().Name}");
+        LoggingService.LogInfo($"   PredicateName: {predicate.PredicateName}");
+        LoggingService.LogInfo($"   isNegated: {predicate.isNegated}");
+        LoggingService.LogInfo($"   Current total predicates: {PredicateValues.Count}");
+        LoggingService.LogInfo("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         
-        // Check current state
-        LoggingService.LogInfo($"🔧 BLACKBOARD_SYNC: Current PredicateValues count: {PredicateValues.Count}");
-        
+        // NEW: Clean up conflicting atAgent predicates when updating location
+        if (predicate.GetPredicateType() == "atAgent" && !predicate.isNegated)
+        {
+            CleanupConflictingAtAgentPredicates(predicate);
+        }
         // Check if a predicate with the same key already exists
         if (PredicateValues.ContainsKey(key))
         {
             var existingPredicate = PredicateValues[key];
-            LoggingService.LogWarning($"🔧 BLACKBOARD_SYNC: WARNING - Predicate with key '{key}' already exists in blackboard!");
-            LoggingService.LogInfo($"🔧 BLACKBOARD_SYNC: Found existing predicate with same key: {existingPredicate.GetType().Name}");
-            LoggingService.LogInfo($"🔧 BLACKBOARD_SYNC: Old isNegated value: {existingPredicate.isNegated}");
-            LoggingService.LogInfo($"🔧 BLACKBOARD_SYNC: New isNegated value: {predicate.isNegated}");
-            
+            LoggingService.LogWarning($"⚠️ PREDICATE_UPDATE: Key '{key}' already exists - updating negation");
+            LoggingService.LogInfo($"   Old isNegated: {existingPredicate.isNegated} → New isNegated: {predicate.isNegated}");
+
             // Update the isNegated property of the existing predicate
             existingPredicate.isNegated = predicate.isNegated;
-            
-            LoggingService.LogSuccess($"🔧 BLACKBOARD_SYNC: Updated existing predicate negation: {key} -> isNegated: {predicate.isNegated}");
+
+
+            LoggingService.LogSuccess($"✅ PREDICATE_UPDATE: Successfully updated negation for key: {key}");
             return;
         }
 
         // Check for identical predicate (different key but same content)
         string newPredicateStr = BlackboardExtensions.FormatPredicate(predicate);
-        LoggingService.LogInfo($"🔧 BLACKBOARD_SYNC: Formatted predicate string: {newPredicateStr}");
-        
         if (PredicateValues.Values.Any(p => BlackboardExtensions.FormatPredicate(p) == newPredicateStr))
         {
-            LoggingService.LogWarning($"🔧 BLACKBOARD_SYNC: Identical predicate already exists: {newPredicateStr}");
+            LoggingService.LogWarning($"⚠️ PREDICATE_DUPLICATE: Identical predicate content already exists: {newPredicateStr}");
             return;
         }
 
-        // Directly store the predicate in the dictionary
-        LoggingService.LogInfo($"🔧 BLACKBOARD_SYNC: Storing predicate directly in PredicateValues with key: {key}");
+        // Store the predicate in the dictionary
         PredicateValues[key] = predicate;
         
         // Verify the predicate was actually added
-        LoggingService.LogInfo($"🔧 BLACKBOARD_SYNC: PredicateValues count after storing: {PredicateValues.Count}");
         var foundInDict = PredicateValues.ContainsKey(key);
-        LoggingService.LogInfo($"🔧 BLACKBOARD_SYNC: Key {key} found in PredicateValues: {foundInDict}");
-        
         if (!foundInDict)
         {
-            LoggingService.LogError($"🔧 BLACKBOARD_SYNC ERROR: Predicate with key {key} was not added to PredicateValues!");
+            LoggingService.LogError($"❌ PREDICATE_ERROR: Failed to add predicate with key {key}!");
         }
         else
         {
-            LoggingService.LogSuccess($"🔧 BLACKBOARD_SYNC: Successfully stored predicate with key: {key}");
+            LoggingService.LogSuccess($"✅ PREDICATE_ADDED: Successfully stored predicate with key: {key} (Total: {PredicateValues.Count})");
         }
     }
 
@@ -694,6 +708,40 @@ public List<GenericBTAction> GetAllActionInstances()
     {
         return NodeGraphValues.Values.ToList();
     }
+
+    // Get and Set methods for Injected Subtrees
+    public BTFlowNode_Dynamic GetInjectedSubtree(FastName key)
+    {
+        if (!InjectedSubtreesValues.ContainsKey(key))
+        {
+            throw new ArgumentException($"Could not find injected subtree for key: {key}");
+        }
+        return InjectedSubtreesValues[key];
+    }
+
+    public void SetInjectedSubtree(FastName key, BTFlowNode_Dynamic value)
+    {
+        InjectedSubtreesValues[key] = value;
+        Console.WriteLine($"Successfully added injected subtree to Blackboard with key: {key}");
+    }
+
+    /// <summary>
+    /// Gets all injected subtrees from the blackboard
+    /// </summary>
+    /// <returns>List of all injected subtrees</returns>
+    public List<BTFlowNode_Dynamic> GetAllInjectedSubtrees()
+    {
+        return InjectedSubtreesValues.Values.ToList();
+    }
+
+    /// <summary>
+    /// Clears all injected subtrees from the blackboard
+    /// </summary>
+    public void ClearInjectedSubtrees()
+    {
+        InjectedSubtreesValues.Clear();
+        Console.WriteLine("Cleared all injected subtrees from Blackboard");
+    }
      public List<Predicate> GetAllPredicates()
     {
         return PredicateValues.Values.ToList();
@@ -705,15 +753,63 @@ public List<GenericBTAction> GetAllActionInstances()
     /// <returns>List of all predicates where isNegated is false</returns>
     public List<Predicate> GetTruePredicates()
     {
-        return PredicateValues.Values
-            .Where(p => !p.isNegated)
-            .ToList();
-    }
+        var truePredicates = new List<Predicate>();
 
-    public IDriver GetDriver()
-    {
-        if (_driver == null)
-            throw new InvalidOperationException("Neo4j driver not initialized");
-        return _driver;
+        foreach (var predicate in PredicateValues.Values)
+        {
+            if (!predicate.isNegated)
+            {
+                truePredicates.Add(predicate);
+            }
+        }
+
+        return truePredicates;
     }
+    private void CleanupConflictingAtAgentPredicates(Predicate newLocationPredicate)
+{
+    try
+    {
+        // Extract robot and location from the new predicate
+        var newLocationStr = newLocationPredicate.GetParameterValues();
+        if (newLocationStr.Count < 2) return;
+
+        string robotName = newLocationStr[0];
+        string newLocation = newLocationStr[1];
+
+        LoggingService.LogInfo($"🧹 CLEANUP: Cleaning up ALL atAgent predicates for robot {robotName}");
+
+        // Find ALL blackboard keys that contain "atAgent" for this robot
+        var keysToRemove = new List<FastName>();
+        
+        foreach (var kvp in PredicateValues)
+        {
+            string keyName = kvp.Key.ToString();
+            
+            // Check if this key contains "atAgent" and the robot name
+            if (keyName.Contains("atAgent") && keyName.Contains(robotName))
+            {
+                keysToRemove.Add(kvp.Key);
+                LoggingService.LogInfo($"   🗑️ Marking for removal: {keyName}");
+            }
+        }
+
+        // Remove ALL conflicting atAgent predicates
+        foreach (var key in keysToRemove)
+        {
+            PredicateValues.Remove(key);
+            LoggingService.LogInfo($"   ✅ Removed: {key}");
+        }
+
+        LoggingService.LogSuccess($"�� CLEANUP: Removed {keysToRemove.Count} atAgent predicates for robot {robotName}");
+        LoggingService.LogInfo($"   📍 New location will be: {robotName} at {newLocation}");
+    }
+    catch (Exception ex)
+    {
+        LoggingService.LogError($"❌ CLEANUP: Error during cleanup: {ex.Message}");
+    }
+}
+
+
+
+  
 }

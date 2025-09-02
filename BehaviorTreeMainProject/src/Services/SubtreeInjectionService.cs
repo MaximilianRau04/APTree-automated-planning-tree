@@ -26,6 +26,8 @@ namespace BehaviorTreeMainProject
         
         // Track generated problem files for debugging
         private readonly List<string> generatedProblemFiles;
+        
+
 
         // Logging system
         private static readonly string LogFilePath = "SubtreeInjectionService_Debug.log";
@@ -104,6 +106,42 @@ namespace BehaviorTreeMainProject
                     Console.WriteLine($"❌ Failed to clear log file: {ex.Message}");
                 }
             }
+        }
+        public void resetAfterSuccessFullExecution()
+        {
+            // reset the pending action
+            //pendingAction = null;
+            // reset the parameter instances
+           // parameterInstances.Clear();
+
+            // Reset the DynamicPlanningComplete flag on blackboard
+            if (LinkedBlackboard != null)
+            {
+                LogMessage($"🔄 SubtreeInjectionService: Resetting CassetteSubtreeCompleted flags on blackboard");
+
+                // Loop through the array and set each item to false
+                if (LinkedBlackboard.CassetteSubtreeCompleted != null)
+                {
+                    for (int i = 0; i < LinkedBlackboard.CassetteSubtreeCompleted.Length; i++)
+                    {
+                        LinkedBlackboard.CassetteSubtreeCompleted[i] = false;
+                        LogMessage($"🔄 SubtreeInjectionService: Set cassette{i + 1} subtree completion flag to false");
+                    }
+                    LogMessage($"✅ SubtreeInjectionService: Successfully reset all {LinkedBlackboard.CassetteSubtreeCompleted.Length} cassette subtree completion flags");
+                }
+                else
+                {
+                    LogMessage($"⚠️ SubtreeInjectionService: CassetteSubtreeCompleted array is null, cannot reset flags");
+                }
+            }
+            else
+            {
+                LogMessage($"⚠️ SubtreeInjectionService: LinkedBlackboard is null, cannot reset CassetteSubtreeCompleted flags");
+            }
+
+            // NEW: Clear NodeGraphs for all existing subtrees except successful ones
+            ClearNodeGraphsForExistingSubtrees();
+                    
         }
 
         /// <summary>
@@ -554,15 +592,7 @@ namespace BehaviorTreeMainProject
             throw new ArgumentException($"Configuration '{configName}' not found");
         }
 
-        /// <summary>
-        /// Create a subtree using a registered configuration
-        /// </summary>
-        public BTFlowNode_Dynamic CreateSubtree(string configName, string instanceName, Dictionary<string, object> customParameters = null)
-        {
-            var config = GetConfiguration(configName);
-            return CreateSubtree(config, instanceName, customParameters);
-        }
-
+       
         /// <summary>
         /// Create a subtree using a configuration
         /// </summary>
@@ -597,6 +627,27 @@ namespace BehaviorTreeMainProject
                     LogMessage($"💾 SubtreeInjectionService: Cached subtree for '{cacheKey}'");
                 }
 
+                // Add the DynamicPlanningComplete decorator to the flow node
+                subtree.AddDecorator(new BTDecorator_DynamicPlanningComplete());
+                LogMessage($"🔧 SubtreeInjectionService: Added DynamicPlanningComplete decorator to flow node '{subtree.DebugDisplayName}'");
+                // add the lowestcost decorator
+                subtree.AddDecorator(new BTDecorator_LowestCostExecution(subtree as BTFlowNode_Dynamic));
+                LogMessage($"🔧 SubtreeInjectionService: Added LowestCostExecution decorator to flow node '{subtree.DebugDisplayName}'");
+                // DEBUG: Check if the decorator is actually in the list
+                var decoratorCount = subtree.GetType().GetField("Decorators", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(subtree) as System.Collections.Generic.List<object>;
+                if (decoratorCount != null)
+                {
+                    LogMessage($"🔍 DEBUG: SubtreeInjectionService: Decorators list has {decoratorCount.Count} decorators");
+                    foreach (var decorator in decoratorCount)
+                    {
+                        LogMessage($"🔍 DEBUG: SubtreeInjectionService: Found decorator: {decorator.GetType().Name}");
+                    }
+                }
+                else
+                {
+                    LogMessage($"⚠️ DEBUG: SubtreeInjectionService: Could not access Decorators list for subtree '{subtree.DebugDisplayName}'");
+                }
+
                 LogMessage($"✅ SubtreeInjectionService: Created subtree successfully");
                 return subtree;
             }
@@ -612,12 +663,43 @@ namespace BehaviorTreeMainProject
         /// </summary>
         public void InjectSubtreeIntoAction(GenericBTAction action, string configName, string instanceName, Dictionary<string, object> customParameters = null)
         {
-            var subtree = CreateSubtree(configName, instanceName, customParameters);
+            var config = GetConfiguration(configName);
+            var subtree = CreateSubtree(config, instanceName, customParameters);
             action.SetAsHighLevelAction(subtree, subtree.PlanningService);
             LogMessage($"✅ SubtreeInjectionService: Injected subtree '{configName}' into action '{action.InstanceName.ToString()}'");
+            
+            // NOTE: Subtrees are now added to blackboard after successful planning, not during injection
+            
+            // Set the corresponding cassette subtree completion flag
+            SetCassetteSubtreeCompletedFlag(action);
         }
 
         
+
+        /// <summary>
+        /// Set the corresponding cassette subtree completion flag based on the action instance name
+        /// </summary>
+        private void SetCassetteSubtreeCompletedFlag(GenericBTAction action)
+        {
+            if (LinkedBlackboard == null)
+            {
+                LogMessage($"⚠️ Error: SubtreeInjectionService: LinkedBlackboard is null, cannot set cassette flag");
+                return;
+            }
+
+            // Find which cassette flow node contains this action by traversing the tree
+            int cassetteIndex = FindCassetteIndexForAction(action);
+            
+            if (cassetteIndex >= 0 && cassetteIndex < LinkedBlackboard.CassetteSubtreeCompleted.Length)
+            {
+                LinkedBlackboard.CassetteSubtreeCompleted[cassetteIndex] = true;
+                LogMessage($"✅ SubtreeInjectionService: Set cassette{cassetteIndex + 1} subtree completion flag to true");
+            }
+            else
+            {
+                LogMessage($"⚠️ SubtreeInjectionService: Could not determine cassette index for action '{action.InstanceName.ToString()}'");
+            }
+        }
 
         /// <summary>
         /// Remove subtree from an action
@@ -638,6 +720,15 @@ namespace BehaviorTreeMainProject
         }
 
         /// <summary>
+        /// Clear the injected subtrees tracking from blackboard
+        /// </summary>
+        public void ClearInjectedSubtreesTracking()
+        {
+            LinkedBlackboard.ClearInjectedSubtrees();
+            LogMessage("🧹 SubtreeInjectionService: Cleared injected subtrees tracking from blackboard");
+        }
+
+        /// <summary>
         /// Get cache statistics
         /// </summary>
         public (int cachedSubtrees, int configurations, int plannerMappings) GetStatistics()
@@ -654,32 +745,62 @@ namespace BehaviorTreeMainProject
         }
 
         /// <summary>
-        /// Find the action this service is attached to
+        /// Clear NodeGraphs for all existing subtrees except successful ones
         /// </summary>
-        private GenericBTAction FindAttachedAction()
+        private void ClearNodeGraphsForExistingSubtrees()
         {
-            // The service is attached to a specific action, so we need to find that action
-            // We can do this by searching through the tree and finding the action that has this service
-            if (OwningTree?.RootNode == null)
+            try
             {
-                LogMessage($"🔍 SubtreeInjectionService: No root node found");
-                return null;
+                var allInjectedSubtrees = LinkedBlackboard.GetAllInjectedSubtrees();
+                LogMessage($"🔄 SubtreeInjectionService: Starting NodeGraph cleanup for {allInjectedSubtrees.Count} injected subtrees");
+                
+                foreach (var subtree in allInjectedSubtrees)
+                {
+                    if (subtree == null) continue;
+                    
+                    // Check if this subtree was successful
+                    bool isSuccessful = subtree.LastStatus == EBTNodeResult.Succeeded;
+                    
+                    if (isSuccessful)
+                    {
+                        LogMessage($"✅ SubtreeInjectionService: Skipping successful subtree '{subtree.DebugDisplayName}' - keeping NodeGraph");
+                        continue;
+                    }
+
+                    // Clear the NodeGraph for non-successful subtrees
+                    // allow subtree to re-plan next round
+                     subtree.ResetForNextRound(); // clears planningCompleted, tickCount, actionGraph
+                     if (subtree.PlanningService is BTServicePlanner p)
+                        {
+                          p.ResetPlanningService(); // or p.ResetPlanningService();
+                        }
+                    // var actionGraph = subtree.GetActionGraph();
+                    // if (actionGraph != null)
+                    // {
+                    //     LogMessage($"🧹 SubtreeInjectionService: Clearing NodeGraph for subtree '{subtree.DebugDisplayName}' (status: {subtree.LastStatus})");
+                    //     actionGraph.Reset();
+                    // }
+                    // else
+                    // {
+                    //     LogMessage($"⚠️ SubtreeInjectionService: No ActionGraph found for subtree '{subtree.DebugDisplayName}'");
+                    // }
+                }
+                
+                // NEW: Clear all injected subtrees from blackboard to start fresh
+                // This ensures only currently active subtrees are tracked
+                LogMessage($"🧹 SubtreeInjectionService: Clearing all injected subtrees from blackboard to start fresh");
+                LinkedBlackboard.ClearInjectedSubtrees();
+                LogMessage($"✅ SubtreeInjectionService: Cleared {allInjectedSubtrees.Count} injected subtrees from blackboard");
+                
+                LogMessage($"✅ SubtreeInjectionService: Completed NodeGraph cleanup");
             }
-            
-            LogMessage($"🔍 SubtreeInjectionService: Searching for attached action in tree with root: {OwningTree.RootNode.GetType().Name}");
-            var foundAction = FindActionWithService(OwningTree.RootNode);
-            
-            if (foundAction != null)
+            catch (Exception ex)
             {
-                LogMessage($"🔍 SubtreeInjectionService: Found attached action: {foundAction.actionType}");
+                LogMessage($"❌ SubtreeInjectionService: Error during NodeGraph cleanup: {ex.Message}");
             }
-            else
-            {
-                LogMessage($"🔍 SubtreeInjectionService: No attached action found");
-            }
-            
-            return foundAction;
         }
+
+       
         
         /// <summary>
         /// Recursively find the action that has this service attached to it
@@ -969,6 +1090,134 @@ namespace BehaviorTreeMainProject
             subtreeTree.RootNode = dynamicFlowNode;
 
             return dynamicFlowNode;
+        }
+
+        /// <summary>
+        /// Find which cassette flow node contains the given action by traversing the tree structure
+        /// </summary>
+        /// <param name="action">The action to find the cassette for</param>
+        /// <returns>The cassette index (0-3) or -1 if not found</returns>
+        private int FindCassetteIndexForAction(GenericBTAction action)
+        {
+            if (OwningTree?.RootNode == null)
+            {
+                LogMessage($"⚠️ SubtreeInjectionService: Cannot traverse tree - OwningTree or RootNode is null");
+                return -1;
+            }
+
+            LogMessage($"🔍 SubtreeInjectionService: Searching for action '{action.InstanceName.ToString()}' in tree structure");
+            
+            // Start traversal from the root node
+            var cassetteIndex = TraverseTreeForAction(OwningTree.RootNode, action);
+            
+            if (cassetteIndex >= 0)
+            {
+                LogMessage($"🔍 SubtreeInjectionService: Found action '{action.InstanceName.ToString()}' in cassette{cassetteIndex + 1}");
+            }
+            else
+            {
+                LogMessage($"⚠️ SubtreeInjectionService: Action '{action.InstanceName.ToString()}' not found in any cassette");
+            }
+            
+            return cassetteIndex;
+        }
+
+        /// <summary>
+        /// Recursively traverse the tree to find which cassette contains the given action
+        /// </summary>
+        /// <param name="node">Current node to check</param>
+        /// <param name="targetAction">The action we're looking for</param>
+        /// <returns>The cassette index (0-3) or -1 if not found</returns>
+        private int TraverseTreeForAction(IBTNode node, GenericBTAction targetAction)
+        {
+            if (node == null) return -1;
+
+            // Check if this is a cassette flow node
+            if (node is BTFlowNode_Dynamic flowNode)
+            {
+                var nodeName = flowNode.GetNodeName().ToLower();
+                if (nodeName.StartsWith("cassette"))
+                {
+                    // Extract cassette number from name (e.g., "cassette1" -> 0, "cassette2" -> 1, etc.)
+                    if (int.TryParse(nodeName.Substring("cassette".Length), out int cassetteNumber))
+                    {
+                        int cassetteIndex = cassetteNumber - 1; // Convert to 0-based index
+                        
+                        LogMessage($"🔍 SubtreeInjectionService: Checking cassette{cassetteNumber} (index {cassetteIndex}) for action '{targetAction.InstanceName.ToString()}'");
+                        
+                        // Check if this cassette contains the target action
+                        if (ContainsAction(flowNode, targetAction))
+                        {
+                            LogMessage($"✅ SubtreeInjectionService: Found action '{targetAction.InstanceName.ToString()}' in cassette{cassetteNumber}");
+                            return cassetteIndex;
+                        }
+                    }
+                }
+            }
+
+            // If this node has children, recursively check them
+            if (node.HasChildren)
+            {
+                // For composite flow nodes, check their children
+                if (node is BTFlowNode_Composite compositeNode)
+                {
+                    var children = compositeNode.GetChildren();
+                    foreach (var child in children)
+                    {
+                        var result = TraverseTreeForAction(child, targetAction);
+                        if (result >= 0) return result;
+                    }
+                }
+                // For dynamic flow nodes, check their action graph
+                else if (node is BTFlowNode_Dynamic dynamicNode)
+                {
+                    var actionGraph = dynamicNode.GetActionGraph();
+                    if (actionGraph != null)
+                    {
+                        var actionNodes = actionGraph.GetAllActionNodes();
+                        foreach (var actionNode in actionNodes)
+                        {
+                            if (actionNode == targetAction)
+                            {
+                                // Find the cassette index for this dynamic node
+                                var nodeName = dynamicNode.GetNodeName().ToLower();
+                                if (nodeName.StartsWith("cassette"))
+                                {
+                                    if (int.TryParse(nodeName.Substring("cassette".Length), out int cassetteNumber))
+                                    {
+                                        return cassetteNumber - 1; // Convert to 0-based index
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return -1;
+        }
+
+        /// <summary>
+        /// Check if a flow node contains the given action
+        /// </summary>
+        /// <param name="flowNode">The flow node to check</param>
+        /// <param name="targetAction">The action to look for</param>
+        /// <returns>True if the flow node contains the action</returns>
+        private bool ContainsAction(BTFlowNode_Dynamic flowNode, GenericBTAction targetAction)
+        {
+            var actionGraph = flowNode.GetActionGraph();
+            if (actionGraph != null)
+            {
+                var actionNodes = actionGraph.GetAllActionNodes();
+                foreach (var actionNode in actionNodes)
+                {
+                    if (actionNode == targetAction)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
     }
 }

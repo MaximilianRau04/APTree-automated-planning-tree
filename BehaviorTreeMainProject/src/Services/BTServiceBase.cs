@@ -2,9 +2,10 @@ public abstract class BTServiceBase
 {
     
     public IBehaviorTree OwningTree { get; protected set; }
+    public BTFlowNodeBase AttachedNode { get; protected set; }
 
-protected BTServiceBase(IBehaviorTree InOwningTree) 
-      
+protected BTServiceBase(IBehaviorTree InOwningTree)
+
     {
         this.OwningTree = InOwningTree;
     }

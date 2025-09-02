@@ -18,11 +18,15 @@ namespace BehaviorTreeMainProject
         private List<BTServicePlanner> allPlanners = new List<BTServicePlanner>();
         private DateTime testStartTime;
         private DateTime testEndTime;
+        private IBTNode rootNode; // Store root node for monitoring
         
         public async Task RunFullTreeTest()
         {
             // Initialize logging service
             LoggingService.Initialize("FullTreeTest", enableConsole: true, enableFile: true);
+            
+            // Initialize execution flow logger
+            ExecutionFlowLogger.Initialize("FullTreeTest", enableConsole: true, enableFile: true);
             
             testStartTime = DateTime.Now;
             
@@ -79,6 +83,9 @@ namespace BehaviorTreeMainProject
                 
                 // Close logging service
                 LoggingService.Close();
+                
+                // Close execution flow logger
+                ExecutionFlowLogger.Close();
             }
             catch (Exception ex)
             {
@@ -90,6 +97,9 @@ namespace BehaviorTreeMainProject
                 
                 // Close logging service
                 LoggingService.Close();
+                
+                // Close execution flow logger
+                ExecutionFlowLogger.Close();
                 
                 throw;
             }
@@ -381,24 +391,38 @@ namespace BehaviorTreeMainProject
                 LoggingService.LogSuccess("✅ Created behavior tree instance");
 
                 // Create root composite flow node
-                var rootNode = new BTFlowNode_Composite(new FastName("RootComposite"), behaviorTree);
+                this.rootNode = new BTFlowNode_Composite(new FastName("RootComposite"), behaviorTree);
+                //var rootNode = new BTFlowNode_CostBasedComposite(new FastName("RootComposite"), behaviorTree);
+                
+                // Ensure we start in planning phase
+                blackboard.PlanningPhase = true;
+                // Initialize cassette subtree completion flags to false
+                blackboard.CassetteSubtreeCompleted = new bool[4] { false, false, false, false };
+                LoggingService.LogInfo("🔧 Starting in PLANNING PHASE - all HL actions will generate NodeGraphs first");
+                LoggingService.LogInfo("🔧 Cassette subtree completion flags initialized to false");
                 LoggingService.LogSuccess("✅ Created root composite flow node");
 
                 // Create four cassette flow nodes (removed the 5th FF one)
-                var cassette1Node = new BTFlowNode_Dynamic(new FastName("cassette1"), behaviorTree);
-                var cassette2Node = new BTFlowNode_Dynamic(new FastName("cassette2"), behaviorTree);
-                var cassette3Node = new BTFlowNode_Dynamic(new FastName("cassette3"), behaviorTree);
-                var cassette4Node = new BTFlowNode_Dynamic(new FastName("cassette4"), behaviorTree);
+                var cassette1Node = new BTFlowNode_Dynamic(new FastName("cassette1"), behaviorTree, SuccessCriteria.ALL, 1.0f, true);  // Add LowestCost decorator
+                var cassette2Node = new BTFlowNode_Dynamic(new FastName("cassette2"), behaviorTree, SuccessCriteria.ALL, 1.0f, false);
+                var cassette3Node = new BTFlowNode_Dynamic(new FastName("cassette3"), behaviorTree, SuccessCriteria.ALL, 1.0f, false);
+                var cassette4Node = new BTFlowNode_Dynamic(new FastName("cassette4"), behaviorTree, SuccessCriteria.ALL, 1.0f, false);
 
                 LoggingService.LogSuccess("✅ Created four cassette flow nodes");
 
                 // Add cassette nodes to the root composite node
-                rootNode.AddChild(cassette1Node);
-                rootNode.AddChild(cassette2Node);
-                rootNode.AddChild(cassette3Node);
-                rootNode.AddChild(cassette4Node);
+                ((BTFlowNode_Composite)rootNode).AddChild(cassette1Node);
+                ((BTFlowNode_Composite)rootNode).AddChild(cassette2Node);
+                ((BTFlowNode_Composite)rootNode).AddChild(cassette3Node);
+                ((BTFlowNode_Composite)rootNode).AddChild(cassette4Node);
 
                 LoggingService.LogSuccess("✅ Added all cassette nodes to root composite node");
+
+                // Add planning phase management service to the root composite node
+                ((BTFlowNode_Composite)rootNode).AddPlanningPhaseService();
+                LoggingService.LogSuccess("✅ Added planning phase management service to root composite node");
+                
+                
 
                 // Set the root node
                 behaviorTree.RootNode = rootNode;
@@ -458,7 +482,7 @@ namespace BehaviorTreeMainProject
 
                 // Display tree structure
                 LoggingService.LogInfo("\n📋 BEHAVIOR TREE STRUCTURE:");
-                LoggingService.LogInfo($"Root: BTFlowNode_Composite ({rootNode.GetNodeName()})");
+                LoggingService.LogInfo($"Root: BTFlowNode_Composite ({((BTFlowNode_Composite)rootNode).GetNodeName()})");
                 LoggingService.LogInfo($"├── BTFlowNode_Dynamic ({cassette1Node.GetNodeName()}) - PDDL Planner");
                 LoggingService.LogInfo($"├── BTFlowNode_Dynamic ({cassette2Node.GetNodeName()}) - PDDL Planner");
                 LoggingService.LogInfo($"├── BTFlowNode_Dynamic ({cassette3Node.GetNodeName()}) - PDDL Planner");
@@ -523,6 +547,10 @@ namespace BehaviorTreeMainProject
                             LoggingService.LogInfo($"   Child {i + 1}: {child.GetType().Name} - {child.DebugDisplayName}");
                         }
                     }
+                }
+                else
+                {
+                    LoggingService.LogError($"❌ Root node is not a BTFlowNode_Composite. Actual type: {behaviorTree.RootNode?.GetType().Name ?? "null"}");
                 }
 
                 LoggingService.LogSuccess("✅ Behavior tree structure test completed!");
@@ -655,6 +683,28 @@ namespace BehaviorTreeMainProject
                     var pendingCount = allPlanners.Count(p => !p.HasCompleted && !p.IsExecuting);
                     
                     LoggingService.LogInfo($"📊 Progress: {completedCount}/{allPlanners.Count} completed, {executingCount} executing, {pendingCount} pending");
+                    
+                                         // Planning phase monitoring
+                     if (rootNode is BTFlowNode_Composite compositeNode)
+                     {
+                         var planningComplete = compositeNode.AreAllPlanningServicesComplete();
+                         LoggingService.LogInfo($"\n📋 PLANNING PHASE STATUS:");
+                         LoggingService.LogInfo($"   Planning Complete: {planningComplete}");
+                         
+                         var children = compositeNode.GetChildren();
+                         LoggingService.LogInfo("📊 SUBTREE STATUSES:");
+                         for (int i = 0; i < children.Count; i++)
+                         {
+                             var child = children[i];
+                             if (child is BTFlowNode_Dynamic dynamicNode)
+                             {
+                                 var hasPlanningService = dynamicNode.PlanningService != null;
+                                 var planningServiceType = hasPlanningService ? dynamicNode.PlanningService.GetType().Name : "None";
+                                 LoggingService.LogInfo($"   {dynamicNode.GetNodeName()}: PlanningService={planningServiceType}");
+                             }
+                         }
+                     }
+                    
                     LoggingService.LogInfo("");
                     
                     foreach (var planner in allPlanners)
@@ -757,14 +807,14 @@ namespace BehaviorTreeMainProject
             LoggingService.LogSubsection("🌳 TRACKING SUBTREE STATUS FOR HL ACTIONS");
             LoggingService.LogInfo("=".PadRight(60, '='));
             
-            try
-            {
-                var rootNode = behaviorTree.RootNode as BTFlowNode_Composite;
-                if (rootNode == null)
-                {
-                    LoggingService.LogError("❌ Root node is not a composite flow node");
-                    return;
-                }
+                         try
+             {
+                 var rootNode = behaviorTree.RootNode as BTFlowNode_Composite;
+                 if (rootNode == null)
+                 {
+                     LoggingService.LogError("❌ Root node is not a BTFlowNode_Composite");
+                     return;
+                 }
 
                 var children = rootNode.GetChildren();
                 LoggingService.LogInfo($"🔍 Tracking subtrees for {children.Count} flow nodes...\n");
@@ -1063,7 +1113,7 @@ namespace BehaviorTreeMainProject
             
             try
             {
-                int maxTicks = 100; // Maximum number of ticks to prevent infinite loops
+                int maxTicks = 200; // Maximum number of ticks to prevent infinite loops
                 int tickCount = 0;
                 
                 // Dictionary to track action status changes

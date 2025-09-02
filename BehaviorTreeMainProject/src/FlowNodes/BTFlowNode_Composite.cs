@@ -1,32 +1,53 @@
 using System.Collections;
 using BehaviorTreeMainProject.Services;
+using System.Linq;
+
+/// <summary>
+/// Defines when a composite node should stop trying to achieve its success criteria
+/// </summary>
+public enum CompositeTerminationPolicy
+{
+    StopOnFirstFailure,         // Stop immediately when any child fails
+    StopWhenCriteriaImpossible, // Stop when success criteria can no longer be met
+    NeverStop,                  // Keep trying indefinitely (useful for services)
+    StopAfterMaxAttempts        // Stop after N attempts/passes
+}
 
 public class BTFlowNode_Composite : BTFlowNodeBase
 {
-    public override string DebugDisplayName { get; protected set; } = "CompositeFlow";
-    
+
+
     // List to store flow nodes (since NodeGraph is designed for action nodes)
+    public override string DebugDisplayName { get; protected set; } = "CompositeFlowNode";
     private List<IBTNode> flowNodes = new List<IBTNode>();
+
     
-    // State tracking for subtree execution - only execute one child at a time
+    // Track the current child being executed for sequential execution
     private int currentChildIndex = 0;
-    private bool isExecutingSubtree = false;
+
+    // Termination policy configuration
+    public CompositeTerminationPolicy TerminationPolicy { get; set; } = CompositeTerminationPolicy.NeverStop;
+    public int MaxAttempts { get; set; } = 3;           // For StopAfterMaxAttempts policy
+    private int currentAttempt = 0;                     // Track current attempt number
     
     public BTFlowNode_Composite(
         FastName nodeName,
         IBehaviorTree owningTree,
         SuccessCriteria successCriteria = SuccessCriteria.ALL,
-        float threshold = 1.0f)
+        float threshold = 1.0f,
+        CompositeTerminationPolicy terminationPolicy = CompositeTerminationPolicy.NeverStop)
         : base(nodeName, successCriteria, threshold)
     {
         this.OwningTree = owningTree;
+        this.TerminationPolicy = terminationPolicy;
         DebugDisplayName = $"CompositeFlow({nodeName.ToString()})";
+        LoggingService.LogInfo($"🔧 CompositeFlow: Created with SuccessCriteria: {successCriteria}, TerminationPolicy: {terminationPolicy}");
     }
     
     /// <summary>
     /// Add a child node (can be any IBTNode, including other flow nodes)
     /// </summary>
-    public IBTNode AddChild(IBTNode childNode)
+    public override IBTNode AddChild(IBTNode childNode)
     {
         childNode.SetOwiningTree(OwningTree);
         
@@ -98,7 +119,7 @@ public class BTFlowNode_Composite : BTFlowNodeBase
     
     /// <summary>
     /// Execute the composite flow node logic
-    /// This executes one child subtree at a time until completion
+    /// This executes child subtrees sequentially, one per tick
     /// </summary>
     protected override bool OnTick_NodeLogic(float inDeltaTime)
     {
@@ -111,85 +132,83 @@ public class BTFlowNode_Composite : BTFlowNodeBase
             return false;
         }
         
-        // If we haven't started executing yet, start with the first child
-        if (!isExecutingSubtree)
-        {
-            currentChildIndex = 0;
-            isExecutingSubtree = true;
-            LoggingService.LogInfo($"🔄 CompositeFlow: Starting subtree execution with {allChildren.Count} children");
-        }
-        
-        // Execute only the current child until it completes
+        // Execute children sequentially - one child per tick
         if (currentChildIndex < allChildren.Count)
         {
             var currentChild = allChildren[currentChildIndex];
             var previousStatus = currentChild.LastStatus;
             
-            LoggingService.LogInfo($"🎯 CompositeFlow: Executing child {currentChildIndex + 1}/{allChildren.Count}: {currentChild.DebugDisplayName}");
+            LoggingService.LogInfo($"🎯 CompositeFlow: Ticking child {currentChildIndex + 1}/{allChildren.Count}: {currentChild.DebugDisplayName}");
             
             // Tick the current child
             currentChild.Tick(inDeltaTime);
             
             LoggingService.LogInfo($"📊 CompositeFlow: Child {currentChild.DebugDisplayName}: {previousStatus} → {currentChild.LastStatus}");
             
-            // Check if current child has finished
-            if (currentChild.HasFinished)
+            // If child completed (Succeeded or failed), move to next child
+            if (currentChild.LastStatus == EBTNodeResult.Succeeded || currentChild.LastStatus == EBTNodeResult.failed)
             {
-                LoggingService.LogInfo($"✅ CompositeFlow: Child {currentChild.DebugDisplayName} completed with status: {currentChild.LastStatus}");
-                
-                // Move to next child
                 currentChildIndex++;
-                
-                // Check if we've completed all children
-                if (currentChildIndex >= allChildren.Count)
-                {
-                    // All children have finished, evaluate success criteria
-                    bool success = EvaluateCompositeSuccessCriteria();
-                    LoggingService.LogInfo($"🎯 CompositeFlow: All children completed, success criteria evaluation: {success}");
-                    
-                    if (success)
-                    {
-                        LastStatus = EBTNodeResult.Succeeded;
-                        LoggingService.LogSuccess($"🏆 CompositeFlow: Subtree execution completed successfully");
-                    }
-                    else
-                    {
-                        LastStatus = EBTNodeResult.failed;
-                        LoggingService.LogWarning($"❌ CompositeFlow: Subtree execution failed");
-                    }
-                    
-                    // Reset execution state
-                    isExecutingSubtree = false;
-                    return false; // We're done
-                }
-                else
-                {
-                    LoggingService.LogInfo($"🔄 CompositeFlow: Moving to next child ({currentChildIndex + 1}/{allChildren.Count})");
-                }
             }
-            else
-            {
-                LoggingService.LogInfo($"⏳ CompositeFlow: Child {currentChild.DebugDisplayName} still running, continuing execution");
-            }
+            
+            // Continue ticking until all children are processed
+            LastStatus = EBTNodeResult.InProgress;
+            return true;
         }
         
-        // Still executing
-        LastStatus = EBTNodeResult.InProgress;
-        return true; // Continue ticking
+        // All children have been processed once in this pass
+        // If any child is still running (neither succeeded nor failed), keep the composite running
+        bool anyRunning = allChildren.Any(node => node.LastStatus != EBTNodeResult.Succeeded && node.LastStatus != EBTNodeResult.failed);
+        if (anyRunning)
+        {
+            currentChildIndex = 0; // wrap to first child for the next pass
+            LastStatus = EBTNodeResult.InProgress;
+            LoggingService.LogInfo($"⏳ CompositeFlow: Some children still running, continuing next pass");
+            return true;
+        }
+
+        // All children finished (succeeded or failed) - evaluate using success criteria and termination policy
+        currentAttempt++;
+        
+        // First check if we've achieved success criteria
+        bool criteriaAchieved = EvaluateSuccessCriteria(allChildren);
+        if (criteriaAchieved)
+        {
+            LastStatus = EBTNodeResult.Succeeded;
+            LoggingService.LogSuccess($"✅ CompositeFlow: Success criteria achieved on attempt {currentAttempt}");
+            return true;
+        }
+        
+        // Success not achieved - check termination policy to decide if we should continue
+        bool shouldTerminate = ShouldTerminate(allChildren);
+        if (shouldTerminate)
+        {
+            LastStatus = EBTNodeResult.failed;
+            LoggingService.LogError($"❌ CompositeFlow: Termination policy triggered after {currentAttempt} attempts");
+            return false;
+        }
+        else
+        {
+            // Reset failed children and try again
+            ResetFailedChildren(allChildren);
+            currentChildIndex = 0;
+            LastStatus = EBTNodeResult.InProgress;
+            LoggingService.LogInfo($"🔄 CompositeFlow: Retrying - attempt {currentAttempt}, continuing execution");
+            return true;
+        }
     }
     
     /// <summary>
     /// Evaluate success criteria based on child node results
     /// </summary>
-    private bool EvaluateCompositeSuccessCriteria()
+    private bool EvaluateSuccessCriteria(List<IBTNode> children)
     {
-        var allChildren = GetChildren();
-        if (allChildren.Count == 0) return false;
+        if (children.Count == 0) return false;
         
-        int successCount = allChildren.Count(node => node.LastStatus == EBTNodeResult.Succeeded);
-        int totalCount = allChildren.Count;
+        int successCount = children.Count(node => node.LastStatus == EBTNodeResult.Succeeded);
+        int totalCount = children.Count;
         
-        // Console.WriteLine($"   📊 Composite evaluation: {successCount}/{totalCount} children succeeded");
+        LoggingService.LogInfo($"📊 CompositeFlow: Success evaluation - {successCount}/{totalCount} children succeeded");
         
         return successCriteria switch
         {
@@ -199,6 +218,75 @@ public class BTFlowNode_Composite : BTFlowNodeBase
             SuccessCriteria.PERCENTAGE => successCount >= (totalCount * successThreshold),
             _ => false
         };
+    }
+    
+    /// <summary>
+    /// Determine if execution should terminate based on termination policy
+    /// </summary>
+    private bool ShouldTerminate(List<IBTNode> children)
+    {
+        return TerminationPolicy switch
+        {
+            CompositeTerminationPolicy.StopOnFirstFailure => 
+                children.Any(node => node.LastStatus == EBTNodeResult.failed),
+                
+            CompositeTerminationPolicy.StopWhenCriteriaImpossible => 
+                IsCriteriaImpossible(children),
+                
+            CompositeTerminationPolicy.NeverStop => 
+                false,
+                
+            CompositeTerminationPolicy.StopAfterMaxAttempts => 
+                currentAttempt >= MaxAttempts,
+                
+            _ => true
+        };
+    }
+    
+    /// <summary>
+    /// Check if success criteria can no longer be achieved
+    /// </summary>
+    private bool IsCriteriaImpossible(List<IBTNode> children)
+    {
+        int successCount = children.Count(node => node.LastStatus == EBTNodeResult.Succeeded);
+        int failedCount = children.Count(node => node.LastStatus == EBTNodeResult.failed);
+        int remainingCount = children.Count - successCount - failedCount;
+        int maxPossibleSuccess = successCount + remainingCount;
+        
+        return successCriteria switch
+        {
+            SuccessCriteria.ALL => failedCount > 0, // Any failure makes ALL impossible
+            SuccessCriteria.ANY => maxPossibleSuccess == 0, // No children can succeed
+            SuccessCriteria.COUNT => maxPossibleSuccess < (int)successThreshold,
+            SuccessCriteria.PERCENTAGE => maxPossibleSuccess < (children.Count * successThreshold),
+            _ => false
+        };
+    }
+    
+    /// <summary>
+    /// Reset failed children for retry
+    /// </summary>
+    private void ResetFailedChildren(List<IBTNode> children)
+    {
+        int resetCount = 0;
+        foreach (var child in children)
+        {
+            if (child.LastStatus == EBTNodeResult.failed)
+            {
+                child.Reset();
+                resetCount++;
+                LoggingService.LogInfo($"🔄 CompositeFlow: Reset failed child: {child.DebugDisplayName}");
+            }
+        }
+        LoggingService.LogInfo($"🔄 CompositeFlow: Reset {resetCount} failed children for retry");
+    }
+    
+    /// <summary>
+    /// Legacy method for backward compatibility
+    /// </summary>
+    private bool EvaluateCompositeSuccessCriteria()
+    {
+        return EvaluateSuccessCriteria(GetChildren());
     }
     
     /// <summary>
@@ -217,9 +305,14 @@ public class BTFlowNode_Composite : BTFlowNodeBase
     {
         base.Reset();
         
-        // Reset execution state
+        // Reset the current count for maxCount mechanism
+        ResetCurrentCount();
+        
+        // Reset the current child index for sequential execution
         currentChildIndex = 0;
-        isExecutingSubtree = false;
+        
+        // Reset the attempt counter for termination policy
+        currentAttempt = 0;
         
         // Reset all child nodes
         var allChildren = GetChildren();
@@ -228,6 +321,80 @@ public class BTFlowNode_Composite : BTFlowNodeBase
             childNode.Reset();
         }
         
-        LoggingService.LogInfo($"🔄 CompositeFlow: Reset execution state and all {allChildren.Count} children");
+        LoggingService.LogInfo($"🔄 CompositeFlow: Reset execution state, child index, attempt counter, and all {allChildren.Count} children");
+    }
+    
+    /// <summary>
+    /// Configure termination policy with common settings
+    /// </summary>
+    public void ConfigureTerminationPolicy(CompositeTerminationPolicy policy, int maxAttempts = 3)
+    {
+        TerminationPolicy = policy;
+        MaxAttempts = maxAttempts;
+        LoggingService.LogInfo($"🔧 CompositeFlow: Configured termination policy: {policy} (max attempts: {maxAttempts})");
+    }
+
+    /// <summary>
+    /// Add the planning phase management service to this composite node
+    /// </summary>
+    public void AddPlanningPhaseService()
+    {
+        var planningPhaseService = new BTService_PlanningPhaseManager(OwningTree, this);
+        AddService(planningPhaseService, false); // false = general service (runs during planning)
+        LoggingService.LogInfo($"🔧 CompositeFlow: Added PlanningPhaseManager service to {DebugDisplayName}");
+    }
+    
+   
+   
+
+    /// <summary>
+    /// Set the maximum number of ticks before failing when success criteria is not met
+    /// </summary>
+    /// <param name="maxTicks">Maximum number of ticks before failing</param>
+    public void SetMaxTicks(int maxTicks)
+    {
+        SetMaxCount(maxTicks);
+        LoggingService.LogInfo($"🔧 CompositeFlow: Set max ticks to {maxTicks} for {DebugDisplayName}");
+    }
+
+    /// <summary>
+    /// Checks if all planning services in child nodes have completed successfully
+    /// </summary>
+    /// <returns>True if all planning is complete, false otherwise</returns>
+    public bool AreAllPlanningServicesComplete()
+    {
+        var children = GetChildren();
+        
+        foreach (var child in children)
+        {
+            if (child is BTFlowNode_Dynamic dynamicNode)
+            {
+                // Check if this dynamic node has a planning service
+                if (dynamicNode.PlanningService is BTServicePlanner plannerService)
+                {
+                    // Check if planning has generated a NodeGraph
+                    if (!plannerService.HasGeneratedNodeGraph())
+                    {
+                        LoggingService.LogInfo($"⏳ Planning still in progress for {dynamicNode.GetNodeName()}");
+                        return false; // Still planning
+                    }
+                }
+                else
+                {
+                    LoggingService.LogWarning($"⚠️ Dynamic node {dynamicNode.GetNodeName()} has no planning service");
+                    return false; // No planning service means not ready
+                }
+            }
+            else if (child is BTFlowNode_Composite childCompositeNode)
+            {
+                // Recursively check composite nodes
+                if (!childCompositeNode.AreAllPlanningServicesComplete())
+                {
+                    return false; // Child composite still planning
+                }
+            }
+        }
+        
+        return true; // All planning complete
     }
 }

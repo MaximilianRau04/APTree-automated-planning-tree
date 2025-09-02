@@ -4,7 +4,8 @@ public interface IBTDecorator
     // which tree does this node belong to
     IBehaviorTree OwningTree { get; }
     Blackboard<FastName> LinkedBlackboard{ get; }
-  //  bool CanpostProcessTickresult { get; }
+    bool CanPostProcessTickResult { get; }
+    EBTNodeResult PostProcessTickResult(EBTNodeResult InResult);
 
      void SetOwiningTree(IBehaviorTree InOwningtree);
     // it returns a bool that will let us know if we can continue running

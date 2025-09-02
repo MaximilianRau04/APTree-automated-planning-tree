@@ -43,15 +43,6 @@ namespace BehaviorTreeMainProject.Services.AIPlanning
             {
                 planningStartTime = DateTime.Now;
                 planningStarted = true;
-                
-                // Track planning service start
-                LoggingService.TrackPlanningService(
-                    "CallPDDLPlanner", 
-                    "PDDL", 
-                    planningStartTime, 
-                    false, 
-                    0
-                );
             }
             
             return base.Tick(InDeltaTime);
@@ -97,16 +88,6 @@ namespace BehaviorTreeMainProject.Services.AIPlanning
                 LoggingService.LogError($"❌ CallPDDLPlanner: Error generating NodeGraph: {ex.Message}");
                 success = false;
             }
-
-            // Track planning service completion
-            LoggingService.TrackPlanningService(
-                "CallPDDLPlanner", 
-                "PDDL", 
-                planningStartTime, 
-                success, 
-                actionsGenerated,
-                endTime
-            );
 
             return success ? nodeGraph : null;
         }

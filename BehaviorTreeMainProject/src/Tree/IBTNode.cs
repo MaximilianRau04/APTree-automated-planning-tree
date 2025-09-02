@@ -4,6 +4,11 @@ public interface IBTNode
     Agent? self { get; }
     // which tree does this node belong to
     IBehaviorTree OwningTree { get; }
+    
+    // NEW: Reference to parent node for bidirectional access
+    IBTNode? ParentNode { get;  }
+    void SetParentNode(IBTNode parent);
+    
     Blackboard<FastName> LinkedBlackboard { get; }  //= new();
     // what is the current state of this node
     EBTNodeResult LastStatus{ get; }

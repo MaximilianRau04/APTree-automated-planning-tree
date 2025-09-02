@@ -117,12 +117,7 @@ def create_plan():
                 }
             }), 400
         
-        # Debug: Print current working directory and file paths
-        print(f"🔍 DEBUG: Current working directory: {os.getcwd()}")
-        print(f"🔍 DEBUG: Domain file path: {domain_file_path}")
-        print(f"🔍 DEBUG: Domain file absolute path: {os.path.abspath(domain_file_path)}")
-        print(f"🔍 DEBUG: Domain file exists: {os.path.exists(domain_file_path)}")
-        print(f"🔍 DEBUG: Domain file directory exists: {os.path.exists(os.path.dirname(domain_file_path))}")
+      
         
         # Check if domain and problem files exist
         if not os.path.exists(domain_file_path):
@@ -279,33 +274,50 @@ def call_ff(domain_file, problem_file, timeout_seconds):
         original_domain_name = domain_filename
         original_problem_name = problem_filename
          
-        # Copy the PDDL files to the Docker container's Plannerinputs directory with original names
+        # Copy the PDDL files to the Docker container's root directory with original names
+        # Construct full absolute paths by combining base directory with filenames
+        base_directory = "/mnt/c/Users/sherk/Documents/BehaviorTreeMainProject/BehaviorTreeMainProject/python_service/Plannerinputs"
+        
         copy_domain_cmd = [
-            'docker', 'cp', domain_file, f'stupefied_hellman:/Plannerinputs/{original_domain_name}'
+            'docker', 'cp', f'{base_directory}/{original_domain_name}', f'stupefied_hellman:/root/{original_domain_name}'
         ]
         copy_problem_cmd = [
-            'docker', 'cp', problem_file, f'stupefied_hellman:/Plannerinputs/{original_problem_name}'
+            'docker', 'cp', f'{base_directory}/{original_problem_name}', f'stupefied_hellman:/root/{original_problem_name}'
         ]
+        
+        print(f"🔍 DEBUG: Base directory: {base_directory}")
+        print(f"🔍 DEBUG: Domain filename: {original_domain_name}")
+        print(f"🔍 DEBUG: Problem filename: {original_problem_name}")
+        print(f"🔍 DEBUG: Full domain path: {base_directory}/{original_domain_name}")
+        print(f"🔍 DEBUG: Full problem path: {base_directory}/{original_problem_name}")
         
         print(f"Copying domain file: {' '.join(copy_domain_cmd)}")
         copy_domain_result = subprocess.run(copy_domain_cmd, capture_output=True, text=True, timeout=30)
         if copy_domain_result.returncode != 0:
             print(f"⚠️ Warning: Failed to copy domain file: {copy_domain_result.stderr}")
-        
+        else:
+            print(f"✅ Domain file copied successfully to /root/{original_domain_name}")
+
         print(f"Copying problem file: {' '.join(copy_problem_cmd)}")
         copy_problem_result = subprocess.run(copy_problem_cmd, capture_output=True, text=True, timeout=30)
         if copy_problem_result.returncode != 0:
             print(f"⚠️ Warning: Failed to copy problem file: {copy_problem_result.stderr}")
-         
-       
-        
+        else:
+            print(f"✅ Problem file copied successfully to /root/{original_problem_name}")
+
+        # VERIFICATION: Check what files exist in /root directory
+        print(f"🔍 VERIFICATION: Checking files in /root directory...")
+        ls_root_cmd = ['docker', 'exec', 'stupefied_hellman', 'ls', '-la', '/root/']
+        ls_root_result = subprocess.run(ls_root_cmd, capture_output=True, text=True, timeout=30)
+        print(f"Files in /root directory:")
+        print(ls_root_result.stdout)
         
         # Execute the FF planning command in the Docker container
         # Use planutils run ff which is more reliable than just ff
         ff_cmd = [
             'docker', 'exec', 'stupefied_hellman',
             'bash', '-c',
-            f'planutils activate && cd /Plannerinputs && cp * .. && cd / && planutils run ff {original_domain_name} {original_problem_name}'
+            f'planutils activate && planutils run ff {original_domain_name} {original_problem_name}'
         ]
         
         print(f"Calling FF with command: {' '.join(ff_cmd)}")

@@ -42,18 +42,22 @@ public abstract class Predicate
         
         
     }
+    public string GetPredicateType()
+    {
+        return PredicateType.ToString();
+    }
 
     public Dictionary<string, object> GetAllProperties()
     {
         var properties = new Dictionary<string, object>();
         //get all properties of the predicate
         var propertyInfos = this.GetType().GetProperties();
-        
+
         foreach (var prop in propertyInfos)
         {
             properties[prop.Name] = prop.GetValue(this);
         }
-        
+
         return properties;
     }
 

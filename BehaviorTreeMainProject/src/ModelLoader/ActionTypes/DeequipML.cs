@@ -19,6 +19,7 @@ namespace BehaviorTreeMainProject
         // Preconditions and Effects as State objects
         private State preconditions;
         private State effects;
+        public int cost = 50;
 
         public DeequipML(string actionType, string instanceName, Blackboard<FastName> blackboard, Robot client, Tool too, Equipposition ep)
             : base(actionType, instanceName, blackboard)

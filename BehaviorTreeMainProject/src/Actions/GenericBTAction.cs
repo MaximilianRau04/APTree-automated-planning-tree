@@ -11,6 +11,7 @@ public abstract class GenericBTAction : BTActionNodeBase
 {
     public readonly FastName actionType;
     private readonly Blackboard<FastName> blackboard;
+    public int cost;
 
     // High-level action support
     public bool IsHighLevelAction { get; protected set; } = false;
@@ -27,7 +28,7 @@ public abstract class GenericBTAction : BTActionNodeBase
     public override string DebugDisplayName
     {
         get => debugDisplayName;
-        protected set => debugDisplayName = value;
+        protected set => debugDisplayName = InstanceName.ToString();
     }
 
     // Constructor for action instances
@@ -51,6 +52,8 @@ public abstract class GenericBTAction : BTActionNodeBase
         
         // Automatically add SubtreeInjectionService to all actions
         InitializeSubtreeInjectionService();
+
+   
         
         LoggingService.LogInfo($"🔧 GenericBTAction: Constructor completed for {instanceName}");
     }
@@ -60,11 +63,19 @@ public abstract class GenericBTAction : BTActionNodeBase
     /// </summary>
     public void SetAsHighLevelAction(BTFlowNode_Dynamic subtree, BTServiceBase planningService)
     {
-        IsHighLevelAction = true;
-        HighLevelSubtree = subtree;
-        PlanningService = planningService;
-        LoggingService.LogInfo($"🔧 GenericBTAction: Set {InstanceName.ToString()} as high-level action with subtree type: {subtree.GetType().Name}");
-        LoggingService.LogInfo($"🔧 GenericBTAction: PlanningService type: {planningService.GetType().Name}");
+       
+            LoggingService.LogInfo($"🧹 GenericBTAction: Cleaning up old subtree before setting new one");
+
+            IsHighLevelAction = true;
+            HighLevelSubtree = subtree;
+            PlanningService = planningService;
+
+            // NEW: Establish bidirectional parent-child relationship
+            subtree.SetParentNode(this);
+            LoggingService.LogInfo($"🔧 GenericBTAction: Set {InstanceName.ToString()} as high-level action with subtree type: {subtree.GetType().Name}");
+            LoggingService.LogInfo($"🔧 GenericBTAction: PlanningService type: {planningService.GetType().Name}");
+            LoggingService.LogInfo($"🔧 GenericBTAction: Established parent-child relationship: {InstanceName.ToString()} ↔ {subtree.DebugDisplayName}");
+        
     }
 
     /// <summary>
@@ -89,6 +100,7 @@ public abstract class GenericBTAction : BTActionNodeBase
     public void applyEffects()
     {
         LoggingService.LogInfo($"🔧 APPLY_EFFECTS: Starting applyEffects() for action: {InstanceName.ToString()}");
+        LoggingService.LogInfo($"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         
         // Apply effects to the blackboard
         if (Effects != null)
@@ -98,16 +110,69 @@ public abstract class GenericBTAction : BTActionNodeBase
             var predicates = GetActionEffects();
             LoggingService.LogInfo($"🔧 APPLY_EFFECTS: Retrieved {predicates.Count} predicates from GetActionEffects()");
             
+            // Log blackboard state before applying effects
+            var blackboardBeforeCount = blackboard.GetAllPredicates().Count;
+            LoggingService.LogInfo($"🔧 APPLY_EFFECTS: Blackboard predicate count BEFORE applying effects: {blackboardBeforeCount}");
+            
             foreach (var predicate in predicates)
             {
-                LoggingService.LogInfo($"🔧 APPLY_EFFECTS: Processing predicate: {predicate.GetType().Name}");
+                LoggingService.LogInfo($"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                LoggingService.LogInfo($"🔧 APPLY_EFFECTS: Processing predicate #{predicates.IndexOf(predicate) + 1} of {predicates.Count}");
+                LoggingService.LogInfo($"🔧 APPLY_EFFECTS: Predicate type: {predicate.GetType().Name}");
                 LoggingService.LogInfo($"🔧 APPLY_EFFECTS: Predicate.PredicateName (unique key): {predicate.PredicateName}");
                 LoggingService.LogInfo($"🔧 APPLY_EFFECTS: Predicate.isNegated: {predicate.isNegated}");
+                
+                // Log predicate parameters if available
+                try
+                {
+                    var parameters = predicate.GetParameterValues();
+                    if (parameters != null && parameters.Count > 0)
+                    {
+                        LoggingService.LogInfo($"🔧 APPLY_EFFECTS: Predicate parameters: {string.Join(", ", parameters)}");
+                    }
+                    else
+                    {
+                        LoggingService.LogInfo($"🔧 APPLY_EFFECTS: Predicate has no parameters");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LoggingService.LogWarning($"🔧 APPLY_EFFECTS: Could not extract predicate parameters: {ex.Message}");
+                }
+                
+                // Check if predicate already exists in blackboard (we'll check after setting)
+                LoggingService.LogInfo($"🔧 APPLY_EFFECTS: About to set predicate in blackboard");
                 
                 // PredicateName already contains the unique key generated in the constructor
                 LoggingService.LogInfo($"🔧 APPLY_EFFECTS: Calling blackboard.SetPredicateSync with key: {predicate.PredicateName}");
                 blackboard.SetPredicateSync(predicate.PredicateName, predicate);
                 LoggingService.LogSuccess($"🔧 APPLY_EFFECTS: Successfully called SetPredicateSync for predicate: {predicate.PredicateName}");
+                
+                // Verify the predicate was actually set by checking if it's in GetAllPredicates
+                var allPredicates = blackboard.GetAllPredicates();
+                var storedPredicate = allPredicates.FirstOrDefault(p => p.PredicateName == predicate.PredicateName);
+                if (storedPredicate != null)
+                {
+                    LoggingService.LogSuccess($"🔧 APPLY_EFFECTS: ✅ VERIFIED: Predicate stored successfully in blackboard");
+                    LoggingService.LogInfo($"🔧 APPLY_EFFECTS: Stored predicate.isNegated: {storedPredicate.isNegated}");
+                }
+                else
+                {
+                    LoggingService.LogError($"🔧 APPLY_EFFECTS: ❌ ERROR: Predicate was NOT stored in blackboard!");
+                }
+            }
+            
+            // Log blackboard state after applying effects
+            var blackboardAfterCount = blackboard.GetAllPredicates().Count;
+            LoggingService.LogInfo($"🔧 APPLY_EFFECTS: Blackboard predicate count AFTER applying effects: {blackboardAfterCount}");
+            LoggingService.LogInfo($"🔧 APPLY_EFFECTS: Net change in blackboard predicates: {blackboardAfterCount - blackboardBeforeCount}");
+            
+            // Log summary of all predicates in blackboard
+            LoggingService.LogInfo($"🔧 APPLY_EFFECTS: Final blackboard predicate summary:");
+            var finalPredicates = blackboard.GetAllPredicates();
+            foreach (var pred in finalPredicates)
+            {
+                LoggingService.LogInfo($"   📋 {pred.PredicateName}: {pred.GetType().Name} (isNegated: {pred.isNegated})");
             }
         }
         else
@@ -115,11 +180,12 @@ public abstract class GenericBTAction : BTActionNodeBase
             LoggingService.LogWarning($"🔧 APPLY_EFFECTS: Effects collection is null, no effects to apply");
         }
         
+        LoggingService.LogInfo($"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         LoggingService.LogInfo($"🔧 APPLY_EFFECTS: Completed applyEffects() for action: {InstanceName.ToString()}");
     }
 
     /// <summary>
-    /// Override the base OnTick_NodeLogic to handle high-level actions
+    /// Override the base OnTick_NodeLogic to handle high-level actions with planning phase support
     /// </summary>
     protected override bool OnTick_NodeLogic(float InDeltaTime)
     {
@@ -127,6 +193,7 @@ public abstract class GenericBTAction : BTActionNodeBase
         LoggingService.LogInfo($"🔍 GenericBTAction: {InstanceName.ToString()} OnTick_NodeLogic - IsHighLevelAction: {IsHighLevelAction}, HighLevelSubtree: {(HighLevelSubtree != null ? "exists" : "null")}");
         LoggingService.LogInfo($"🔍 GenericBTAction: {InstanceName.ToString()} LastStatus before: {LastStatus}");
         LoggingService.LogInfo($"🔍 GenericBTAction: {InstanceName.ToString()} ActionType: {actionType.ToString()}");
+        LoggingService.LogInfo($"🔍 GenericBTAction: {InstanceName.ToString()} PlanningPhase: {blackboard.PlanningPhase}");
         
         // Check general services
         LoggingService.LogInfo($"🔍 GenericBTAction: {InstanceName.ToString()} GeneralServices count: {GenrealServices?.Count ?? 0}");
@@ -144,69 +211,76 @@ public abstract class GenericBTAction : BTActionNodeBase
             LoggingService.LogInfo($"🔍 GenericBTAction: {InstanceName.ToString()} No GeneralServices found");
         }
 
-        if (IsHighLevelAction && HighLevelSubtree != null)
-        {
-            // Log high-level action execution start to separate file
-            var actionName = this.GetType().Name;
-            var instanceName = InstanceName.ToString();
-            ActionExecutionLogger.Instance.LogActionStarted(actionName, instanceName, $"High-level execution with subtree: {HighLevelSubtree.DebugDisplayName}, DeltaTime: {InDeltaTime:F3}");
-            
-            LoggingService.LogInfo($"🔧 GenericBTAction: {InstanceName.ToString()} is high-level action, delegating to subtree");
-            LoggingService.LogInfo($"🔧 GenericBTAction: {InstanceName.ToString()} Subtree type: {HighLevelSubtree.GetType().Name}");
-            LoggingService.LogInfo($"🔧 GenericBTAction: {InstanceName.ToString()} PlanningService: {(PlanningService != null ? PlanningService.GetType().Name : "null")}");
+       
+            // Execution phase - normal behavior
+            if (IsHighLevelAction && HighLevelSubtree != null)
+            {
+                // Log high-level action execution start to separate file
+                var actionName = this.GetType().Name;
+                var instanceName = InstanceName.ToString();
+                ActionExecutionLogger.Instance.LogActionStarted(actionName, instanceName, $"High-level execution with subtree: {HighLevelSubtree.DebugDisplayName}, DeltaTime: {InDeltaTime:F3}");
+                
+                LoggingService.LogInfo($"🔧 GenericBTAction: {InstanceName.ToString()} is high-level action, delegating to subtree");
+                LoggingService.LogInfo($"🔧 GenericBTAction: {InstanceName.ToString()} Subtree type: {HighLevelSubtree.GetType().Name}");
+                LoggingService.LogInfo($"🔧 GenericBTAction: {InstanceName.ToString()} PlanningService: {(PlanningService != null ? PlanningService.GetType().Name : "null")}");
 
             // Delegate execution to the subtree
-            var subtreeResult = HighLevelSubtree.Tick(InDeltaTime);
+              
+                var subtreeResult = HighLevelSubtree.Tick(InDeltaTime);
 
-            // Propagate subtree status to this action
-            LastStatus = HighLevelSubtree.LastStatus;
+                // Propagate subtree status to this action
+                LastStatus = HighLevelSubtree.LastStatus;
 
-            LoggingService.LogInfo($"📊 GenericBTAction: Subtree result: {subtreeResult}, Status: {LastStatus}");
+                LoggingService.LogInfo($"📊 GenericBTAction: Subtree result: {subtreeResult}, Status: {LastStatus}");
 
-            // Return true to continue ticking if subtree is in progress, false if it failed
-            if (subtreeResult == EBTNodeResult.failed)
-            {
-                // FIXED: Explicitly set LastStatus to failed when subtree fails
-                LastStatus = EBTNodeResult.failed;
+                // Return true to continue ticking if subtree is in progress, false if it failed
+                if (subtreeResult == EBTNodeResult.failed)
+                {
+                    // FIXED: Explicitly set LastStatus to failed when subtree fails
+                    LastStatus = EBTNodeResult.failed;
 
-                // Log high-level action failure
-                ActionExecutionLogger.Instance.LogActionFailed(actionName, instanceName, "Subtree execution failed");
+                    // Log high-level action failure
+                    ActionExecutionLogger.Instance.LogActionFailed(actionName, instanceName, "Subtree execution failed");
 
-                LoggingService.LogWarning($"❌ GenericBTAction: {InstanceName.ToString()} returning false (subtree failed) - LastStatus set to failed");
-                return false;
-            }
-            else if (subtreeResult == EBTNodeResult.Succeeded)
-            {
-                // Log high-level action completion
-                ActionExecutionLogger.Instance.LogActionCompleted(actionName, instanceName, "Subtree execution completed successfully");
+                    LoggingService.LogWarning($"❌ GenericBTAction: {InstanceName.ToString()} returning false (subtree failed) - LastStatus set to failed");
+                    return false;
+                }
+                else if (subtreeResult == EBTNodeResult.Succeeded)
+                {
+                    // Log high-level action completion
+                    ActionExecutionLogger.Instance.LogActionCompleted(actionName, instanceName, "Subtree execution completed successfully");
 
-                LoggingService.LogSuccess($"✅ GenericBTAction: {InstanceName.ToString()} returning true (subtree succeeded)");
-                return true;
+                    // NEW: Reset planning state after successful HL action completion
+                    ResetPlanningStateAfterSuccess();
+                    
+
+                    LoggingService.LogSuccess($"✅ GenericBTAction: {InstanceName.ToString()} returning true (subtree succeeded)");
+                    return true;
+                }
+                else
+                {
+                    // Subtree still in progress
+                    LoggingService.LogSuccess($"✅ GenericBTAction: {InstanceName.ToString()} returning true (subtree in progress)");
+                    return true;
+                }
             }
             else
             {
-                // Subtree still in progress
-                LoggingService.LogSuccess($"✅ GenericBTAction: {InstanceName.ToString()} returning true (subtree in progress)");
-                return true;
-
+                // Log action execution start to separate file
+                var actionName = this.GetType().Name;
+                var instanceName = InstanceName.ToString();
+                ActionExecutionLogger.Instance.LogActionStarted(actionName, instanceName, $"Normal execution, DeltaTime: {InDeltaTime:F3}");
+                
+                LoggingService.LogInfo($"🔧 GenericBTAction: {InstanceName.ToString()} executing normal action logic (not high-level)");
+                LoggingService.LogInfo($"🔧 GenericBTAction: {InstanceName.ToString()} IsHighLevelAction: {IsHighLevelAction}, HighLevelSubtree: {(HighLevelSubtree != null ? "exists" : "null")}");
+                
+                // Execute normal action logic
+                var result = ExecuteActionLogic(InDeltaTime);
+                LoggingService.LogInfo($"📊 GenericBTAction: {InstanceName.ToString()} normal action result: {result}, LastStatus: {LastStatus}");
+                return result;
             }
         }
-        else
-        {
-            // Log action execution start to separate file
-            var actionName = this.GetType().Name;
-            var instanceName = InstanceName.ToString();
-            ActionExecutionLogger.Instance.LogActionStarted(actionName, instanceName, $"Normal execution, DeltaTime: {InDeltaTime:F3}");
-            
-            LoggingService.LogInfo($"🔧 GenericBTAction: {InstanceName.ToString()} executing normal action logic (not high-level)");
-            LoggingService.LogInfo($"🔧 GenericBTAction: {InstanceName.ToString()} IsHighLevelAction: {IsHighLevelAction}, HighLevelSubtree: {(HighLevelSubtree != null ? "exists" : "null")}");
-            
-            // Execute normal action logic
-            var result = ExecuteActionLogic(InDeltaTime);
-            LoggingService.LogInfo($"📊 GenericBTAction: {InstanceName.ToString()} normal action result: {result}, LastStatus: {LastStatus}");
-            return result;
-        }
-    }
+    
 
     /// <summary>
     /// Execute the actual action logic (to be implemented by derived classes)
@@ -230,6 +304,8 @@ public abstract class GenericBTAction : BTActionNodeBase
             // Log successful completion
             ActionExecutionLogger.Instance.LogActionCompleted(actionName, instanceName, "Effects applied successfully");
             
+            
+
             return SetStatusAndCalculateReturnvalue(EBTNodeResult.Succeeded);
         }
         catch (Exception ex)
@@ -347,5 +423,35 @@ public abstract class GenericBTAction : BTActionNodeBase
     {
         return LastStatus;
     }
+
+    /// <summary>
+    /// Reset planning state after successful HL action completion to force fresh planning on next cycle
+    /// </summary>
+    private void ResetPlanningStateAfterSuccess()
+    {
+        try
+        {
+            LoggingService.LogInfo($"🔄 GenericBTAction: Starting planning state reset after successful HL action completion: {InstanceName.ToString()}");
+            
+            // Get the SubtreeInjectionService from this action
+            
+            if (SubtreeInjectionService != null)
+            {
+                LoggingService.LogInfo($"🔄 GenericBTAction: Found SubtreeInjectionService, calling reset for {InstanceName.ToString()}");
+                SubtreeInjectionService.resetAfterSuccessFullExecution();
+                
+            }
+            else
+            {
+                LoggingService.LogWarning($"⚠️ GenericBTAction: SubtreeInjectionService not found for {InstanceName.ToString()}");
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggingService.LogError($"❌ GenericBTAction: Error during planning state reset: {ex.Message}");
+        }
+    }
+
+   
 }
 
