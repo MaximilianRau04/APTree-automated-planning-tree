@@ -1,5 +1,5 @@
 grammar DynamicBTFlowNode extends CRF {
-
+    
     // Dynamic BTflow node definition - separate production to avoid conflicts
  BTFlowNodeDefinition = "BTFlowNode" Name "{" SuccessDefinition "}";
 

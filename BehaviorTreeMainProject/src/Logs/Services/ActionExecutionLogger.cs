@@ -1,17 +1,17 @@
 using System;
 using System.IO;
 using System.Text;
+using BehaviorTreeMainProject.Log;
 
-namespace BehaviorTreeMainProject.Services
+namespace BehaviorTreeMainProject.Log.Services
 {
     /// <summary>
     /// Service to track the order of ML action node execution in a separate log file
     /// </summary>
-    public class ActionExecutionLogger
+    public class ActionExecutionLogger : BaseLogger
     {
         private static ActionExecutionLogger instance;
         private static readonly object lockObject = new object();
-        private readonly string logFilePath;
         private int executionCounter = 0;
         private readonly DateTime startTime;
 
@@ -37,16 +37,8 @@ namespace BehaviorTreeMainProject.Services
         {
             startTime = DateTime.Now;
             
-            // Create logs directory if it doesn't exist
-            string logsDirectory = Path.Combine(Directory.GetCurrentDirectory(), "logs");
-            if (!Directory.Exists(logsDirectory))
-            {
-                Directory.CreateDirectory(logsDirectory);
-            }
-
-            // Create log file with timestamp
-            string timestamp = startTime.ToString("yyyy-MM-dd_HH-mm-ss");
-            logFilePath = Path.Combine(logsDirectory, $"action_execution_order_{timestamp}.log");
+            // Initialize the base logger
+            base.Initialize("ActionExecution", true, true);
             
             // Write header to log file
             WriteToLog("=== ML Action Execution Order Log ===");
@@ -120,16 +112,7 @@ namespace BehaviorTreeMainProject.Services
         /// </summary>
         private void WriteToLog(string message)
         {
-            try
-            {
-                File.AppendAllText(logFilePath, message + Environment.NewLine);
-            }
-            catch (Exception ex)
-            {
-                // Fallback to console if file writing fails
-                Console.WriteLine($"ActionExecutionLogger Error: {ex.Message}");
-                Console.WriteLine($"Failed to write: {message}");
-            }
+            base.WriteLog(message);
         }
 
         /// <summary>
@@ -137,7 +120,7 @@ namespace BehaviorTreeMainProject.Services
         /// </summary>
         public string GetLogFilePath()
         {
-            return logFilePath;
+            return base.GetLogFilePath();
         }
 
         /// <summary>
@@ -156,10 +139,7 @@ namespace BehaviorTreeMainProject.Services
             lock (lockObject)
             {
                 executionCounter = 0;
-                if (File.Exists(logFilePath))
-                {
-                    File.Delete(logFilePath);
-                }
+                base.Clear();
                 
                 // Recreate header
                 WriteToLog("=== ML Action Execution Order Log (CLEARED) ===");

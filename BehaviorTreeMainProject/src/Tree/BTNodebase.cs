@@ -1,5 +1,6 @@
 using System.Reflection.PortableExecutable;
 using BehaviorTreeMainProject.Services;
+using BehaviorTreeMainProject.Log.Services;
 
 public abstract class BTNodeBase : IBTNode
 {
@@ -182,8 +183,14 @@ public bool HasFinished => (LastStatus == EBTNodeResult.Succeeded || LastStatus 
         if (childNode is GenericBTAction action)
         {
             action.SetTreeForSubtreeInjectionService(OwningTree);
+            LinkedBlackboard.SetActionInstance(action.InstanceName, action);
             LoggingService.LogInfo($"🔧 BTNodeBase: Set tree for SubtreeInjectionService of {childNode.DebugDisplayName}");
             
+        }
+        else if (childNode is BTFlowNodeBase flowNode)
+        {
+            LinkedBlackboard.SetFlowNodeInstance(flowNode.InstanceName, flowNode);
+            LoggingService.LogInfo($"🔧 BTNodeBase: Set tree for all services of {childNode.DebugDisplayName}");
         }
         
         LoggingService.LogInfo($"🔧 BTNodeBase: AddChild completed for {childNode.DebugDisplayName}");

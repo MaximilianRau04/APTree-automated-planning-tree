@@ -1,30 +1,45 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Text;
 using System.Linq; // Added for OrderByDescending
+using BehaviorTreeMainProject.Log;
 
-namespace BehaviorTreeMainProject.Services
+namespace BehaviorTreeMainProject.Log.Services
 {
     /// <summary>
     /// Dedicated logger for tracking execution flow of nodes, services, and decorators
     /// Provides a clean, focused view of what's being ticked during behavior tree execution
     /// </summary>
-    public static class ExecutionFlowLogger
+    public class ExecutionFlowLogger : BaseLogger
     {
-        private static string logFilePath;
-        private static bool enableConsole;
-        private static bool enableFile;
-        private static StreamWriter fileWriter;
-        private static readonly object logLock = new object();
-        private static int tickCounter = 0;
-        private static DateTime sessionStartTime;
-        private static bool isInitialized = false;
+        private static ExecutionFlowLogger instance;
+        private static readonly object lockObject = new object();
+        private int tickCounter = 0;
+        private DateTime sessionStartTime;
 
         // Statistics tracking
-        private static Dictionary<string, int> nodeTickCounts = new Dictionary<string, int>();
-        private static Dictionary<string, int> serviceTickCounts = new Dictionary<string, int>();
-        private static Dictionary<string, int> decoratorTickCounts = new Dictionary<string, int>();
+        private Dictionary<string, int> nodeTickCounts = new Dictionary<string, int>();
+        private Dictionary<string, int> serviceTickCounts = new Dictionary<string, int>();
+        private Dictionary<string, int> decoratorTickCounts = new Dictionary<string, int>();
+
+        public static ExecutionFlowLogger Instance
+        {
+            get
+            {
+                if (instance == null)
+                {
+                    lock (lockObject)
+                    {
+                        if (instance == null)
+                        {
+                            instance = new ExecutionFlowLogger();
+                        }
+                    }
+                }
+                return instance;
+            }
+        }
+
+        private ExecutionFlowLogger() { }
 
         /// <summary>
         /// Initialize the execution flow logger
@@ -34,40 +49,20 @@ namespace BehaviorTreeMainProject.Services
         /// <param name="enableFile">Whether to write to file</param>
         public static void Initialize(string serviceName, bool enableConsole = true, bool enableFile = true)
         {
-            if (isInitialized) return;
+            var logger = Instance;
+            logger.InitializeInternal(serviceName, enableConsole, enableFile);
+        }
 
+        private void InitializeInternal(string serviceName, bool enableConsole, bool enableFile)
+        {
             sessionStartTime = DateTime.Now;
-            ExecutionFlowLogger.enableConsole = enableConsole;
-            ExecutionFlowLogger.enableFile = enableFile;
-
-            if (enableFile)
-            {
-                // Create logs directory if it doesn't exist
-                string logsDirectory = Path.Combine(Directory.GetCurrentDirectory(), "logs");
-                if (!Directory.Exists(logsDirectory))
-                {
-                    Directory.CreateDirectory(logsDirectory);
-                }
-
-                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                logFilePath = Path.Combine(logsDirectory, $"ExecutionFlow_{serviceName}_{timestamp}.log");
-                
-                try
-                {
-                    fileWriter = new StreamWriter(logFilePath, false, Encoding.UTF8);
-                    fileWriter.AutoFlush = true;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"❌ Failed to create execution flow log file: {ex.Message}");
-                    enableFile = false;
-                }
-            }
-
-            isInitialized = true;
+            // Use compact timestamp format for execution flow logs
+            var logFilePath = LogConfiguration.GetCompactLogFilePath($"ExecutionFlow_{serviceName}");
+            base.Initialize(serviceName, enableConsole, enableFile);
+            
             LogHeader($"🚀 EXECUTION FLOW LOGGER INITIALIZED - {serviceName}");
             LogHeader($"📅 Session started: {sessionStartTime:yyyy-MM-dd HH:mm:ss.fff}");
-            LogHeader($"📁 Log file: {(enableFile ? logFilePath : "Console only")}");
+            LogHeader($"📁 Log file: {(enableFile ? base.GetLogFilePath() : "Console only")}");
             LogHeader("=".PadRight(80, '='));
         }
 
@@ -79,6 +74,11 @@ namespace BehaviorTreeMainProject.Services
         /// <param name="tickPhase">Current tick phase</param>
         /// <param name="status">Current status</param>
         public static void LogNodeTick(string nodeName, string nodeType, string tickPhase, string status)
+        {
+            Instance.LogNodeTickInternal(nodeName, nodeType, tickPhase, status);
+        }
+
+        private void LogNodeTickInternal(string nodeName, string nodeType, string tickPhase, string status)
         {
             tickCounter++;
             var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
@@ -97,6 +97,11 @@ namespace BehaviorTreeMainProject.Services
         /// <param name="result">Service tick result</param>
         public static void LogServiceTick(string serviceName, string serviceType, string nodeName, string result)
         {
+            Instance.LogServiceTickInternal(serviceName, serviceType, nodeName, result);
+        }
+
+        private void LogServiceTickInternal(string serviceName, string serviceType, string nodeName, string result)
+        {
             var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
             var message = $"🔧 SERVICE | {timestamp} | {serviceName} ({serviceType}) | OWNER: {nodeName} | RESULT: {result}";
             
@@ -113,6 +118,11 @@ namespace BehaviorTreeMainProject.Services
         /// <param name="result">Decorator evaluation result</param>
         public static void LogDecoratorTick(string decoratorName, string decoratorType, string nodeName, string result)
         {
+            Instance.LogDecoratorTickInternal(decoratorName, decoratorType, nodeName, result);
+        }
+
+        private void LogDecoratorTickInternal(string decoratorName, string decoratorType, string nodeName, string result)
+        {
             var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
             var message = $"🎭 DECORATOR | {timestamp} | {decoratorName} ({decoratorType}) | OWNER: {nodeName} | RESULT: {result}";
             
@@ -128,6 +138,11 @@ namespace BehaviorTreeMainProject.Services
         /// <param name="toPhase">New phase</param>
         public static void LogPhaseTransition(string nodeName, string fromPhase, string toPhase)
         {
+            Instance.LogPhaseTransitionInternal(nodeName, fromPhase, toPhase);
+        }
+
+        private void LogPhaseTransitionInternal(string nodeName, string fromPhase, string toPhase)
+        {
             var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
             var message = $"🔄 PHASE TRANSITION | {timestamp} | {nodeName} | {fromPhase} → {toPhase}";
             
@@ -140,6 +155,11 @@ namespace BehaviorTreeMainProject.Services
         /// <param name="eventType">Type of planning event</param>
         /// <param name="details">Additional details</param>
         public static void LogPlanningEvent(string eventType, string details = "")
+        {
+            Instance.LogPlanningEventInternal(eventType, details);
+        }
+
+        private void LogPlanningEventInternal(string eventType, string details = "")
         {
             var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
             var message = $"📋 PLANNING | {timestamp} | {eventType}";
@@ -158,6 +178,11 @@ namespace BehaviorTreeMainProject.Services
         /// <param name="details">Additional details</param>
         public static void LogExecutionEvent(string eventType, string details = "")
         {
+            Instance.LogExecutionEventInternal(eventType, details);
+        }
+
+        private void LogExecutionEventInternal(string eventType, string details = "")
+        {
             var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
             var message = $"🚀 EXECUTION | {timestamp} | {eventType}";
             if (!string.IsNullOrEmpty(details))
@@ -173,7 +198,12 @@ namespace BehaviorTreeMainProject.Services
         /// </summary>
         public static void LogSeparator()
         {
-            WriteLog("-".PadRight(80, '-'));
+            Instance.LogSeparatorInternal();
+        }
+
+        private void LogSeparatorInternal()
+        {
+            WriteSeparator();
         }
 
         /// <summary>
@@ -181,6 +211,11 @@ namespace BehaviorTreeMainProject.Services
         /// </summary>
         /// <param name="header">Header text</param>
         public static void LogHeader(string header)
+        {
+            Instance.LogHeaderInternal(header);
+        }
+
+        private void LogHeaderInternal(string header)
         {
             WriteLog($"\n{header}");
         }
@@ -190,25 +225,30 @@ namespace BehaviorTreeMainProject.Services
         /// </summary>
         public static void LogStatistics()
         {
+            Instance.LogStatisticsInternal();
+        }
+
+        private void LogStatisticsInternal()
+        {
             var sessionDuration = DateTime.Now - sessionStartTime;
             
-            LogHeader("📊 EXECUTION FLOW STATISTICS");
-            LogHeader($"⏱️ Session Duration: {sessionDuration:hh\\:mm\\:ss\\.fff}");
-            LogHeader($"🔄 Total Ticks: {tickCounter}");
+            LogHeaderInternal("📊 EXECUTION FLOW STATISTICS");
+            LogHeaderInternal($"⏱️ Session Duration: {sessionDuration:hh\\:mm\\:ss\\.fff}");
+            LogHeaderInternal($"🔄 Total Ticks: {tickCounter}");
             
-            LogHeader("📈 NODE TICK COUNTS:");
+            LogHeaderInternal("📈 NODE TICK COUNTS:");
             foreach (var kvp in nodeTickCounts.OrderByDescending(x => x.Value))
             {
                 WriteLog($"   {kvp.Key}: {kvp.Value} ticks");
             }
             
-            LogHeader("🔧 SERVICE TICK COUNTS:");
+            LogHeaderInternal("🔧 SERVICE TICK COUNTS:");
             foreach (var kvp in serviceTickCounts.OrderByDescending(x => x.Value))
             {
                 WriteLog($"   {kvp.Key}: {kvp.Value} ticks");
             }
             
-            LogHeader("🎭 DECORATOR TICK COUNTS:");
+            LogHeaderInternal("🎭 DECORATOR TICK COUNTS:");
             foreach (var kvp in decoratorTickCounts.OrderByDescending(x => x.Value))
             {
                 WriteLog($"   {kvp.Key}: {kvp.Value} ticks");
@@ -220,19 +260,14 @@ namespace BehaviorTreeMainProject.Services
         /// </summary>
         public static void Close()
         {
-            if (!isInitialized) return;
+            Instance.CloseInternal();
+        }
 
-            LogStatistics();
-            LogHeader("🏁 EXECUTION FLOW LOGGER CLOSED");
-            
-            if (fileWriter != null)
-            {
-                fileWriter.Close();
-                fileWriter.Dispose();
-                fileWriter = null;
-            }
-            
-            isInitialized = false;
+        private void CloseInternal()
+        {
+            LogStatisticsInternal();
+            LogHeaderInternal("🏁 EXECUTION FLOW LOGGER CLOSED");
+            base.Close();
         }
 
         /// <summary>
@@ -241,7 +276,12 @@ namespace BehaviorTreeMainProject.Services
         /// <returns>Path to the log file</returns>
         public static string GetLogFilePath()
         {
-            return logFilePath;
+            return Instance.GetLogFilePathInternal();
+        }
+
+        private string GetLogFilePathInternal()
+        {
+            return base.GetLogFilePath();
         }
 
         /// <summary>
@@ -249,6 +289,11 @@ namespace BehaviorTreeMainProject.Services
         /// </summary>
         /// <returns>Current tick count</returns>
         public static int GetTickCount()
+        {
+            return Instance.GetTickCountInternal();
+        }
+
+        private int GetTickCountInternal()
         {
             return tickCounter;
         }
@@ -258,17 +303,12 @@ namespace BehaviorTreeMainProject.Services
         /// </summary>
         public static void ClearLog()
         {
-            if (fileWriter != null)
-            {
-                fileWriter.Close();
-                fileWriter.Dispose();
-            }
-            
-            if (enableFile && !string.IsNullOrEmpty(logFilePath))
-            {
-                fileWriter = new StreamWriter(logFilePath, false, Encoding.UTF8);
-                fileWriter.AutoFlush = true;
-            }
+            Instance.ClearLogInternal();
+        }
+
+        private void ClearLogInternal()
+        {
+            base.Clear();
             
             tickCounter = 0;
             nodeTickCounts.Clear();
@@ -279,37 +319,26 @@ namespace BehaviorTreeMainProject.Services
 
         #region Private Methods
 
-        private static void WriteLog(string message)
+        private void WriteLog(string message)
         {
-            lock (logLock)
-            {
-                if (enableConsole)
-                {
-                    Console.WriteLine(message);
-                }
-                
-                if (enableFile && fileWriter != null)
-                {
-                    fileWriter.WriteLine(message);
-                }
-            }
+            base.WriteLog(message);
         }
 
-        private static void TrackNodeTick(string nodeName)
+        private void TrackNodeTick(string nodeName)
         {
             if (!nodeTickCounts.ContainsKey(nodeName))
                 nodeTickCounts[nodeName] = 0;
             nodeTickCounts[nodeName]++;
         }
 
-        private static void TrackServiceTick(string serviceName)
+        private void TrackServiceTick(string serviceName)
         {
             if (!serviceTickCounts.ContainsKey(serviceName))
                 serviceTickCounts[serviceName] = 0;
             serviceTickCounts[serviceName]++;
         }
 
-        private static void TrackDecoratorTick(string decoratorName)
+        private void TrackDecoratorTick(string decoratorName)
         {
             if (!decoratorTickCounts.ContainsKey(decoratorName))
                 decoratorTickCounts[decoratorName] = 0;

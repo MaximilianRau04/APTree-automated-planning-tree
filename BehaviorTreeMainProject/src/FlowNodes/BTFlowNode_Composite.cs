@@ -1,6 +1,7 @@
 using System.Collections;
 using BehaviorTreeMainProject.Services;
 using System.Linq;
+using BehaviorTreeMainProject.Log.Services;
 
 /// <summary>
 /// Defines when a composite node should stop trying to achieve its success criteria
@@ -59,19 +60,21 @@ public class BTFlowNode_Composite : BTFlowNodeBase
         {
             action.SetTreeForSubtreeInjectionService(OwningTree);
         }
-        
+
         // Store flow nodes in a separate list since NodeGraph is designed for action nodes
         // We'll use the actionGraph from the base class for action nodes and a separate list for flow nodes
         if (childNode is GenericBTAction actionNode)
         {
             actionGraph.AddNode(actionNode);
+            LinkedBlackboard.SetActionInstance(actionNode.InstanceName, actionNode);
             // Console.WriteLine($"✅ Added action node: {childNode.DebugDisplayName} to composite flow node actionGraph");
         }
-        else
+        else if (childNode is BTFlowNodeBase flowNode)
         {
             // For flow nodes, we'll store them in a separate list for now
             // In the future, we could extend NodeGraph to handle flow nodes
             flowNodes.Add(childNode);
+            LinkedBlackboard.SetFlowNodeInstance(flowNode.InstanceName, flowNode);
             // Console.WriteLine($"✅ Added flow node: {childNode.DebugDisplayName} to composite flow node flowNodes list");
         }
         

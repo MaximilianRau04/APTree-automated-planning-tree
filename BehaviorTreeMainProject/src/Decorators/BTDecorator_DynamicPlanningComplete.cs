@@ -1,4 +1,5 @@
 using BehaviorTreeMainProject.Services;
+using BehaviorTreeMainProject.Log.Services;
 
 /// <summary>
 /// Decorator that ensures dynamic planning is completed before allowing node execution.
@@ -6,15 +7,15 @@ using BehaviorTreeMainProject.Services;
 /// </summary>
 public class BTDecorator_DynamicPlanningComplete : BTDecoratorBase
 {
-     public override bool CanPostProcessTickResult => true;
+    public override bool CanPostProcessTickResult => true;
     public override EBTNodeResult PostProcessTickResult(EBTNodeResult InResult) => InResult;
     public BTDecorator_DynamicPlanningComplete() : base(false)
     {
 
     }
-    
 
-    
+
+
     protected override bool OnEvaluate(float InDeltaTime)
     {
         // Check if LinkedBlackboard is available
@@ -24,7 +25,7 @@ public class BTDecorator_DynamicPlanningComplete : BTDecoratorBase
             ExecutionFlowLogger.LogDecoratorTick("DynamicPlanningComplete", "LinkedBlackboard", "Null", "ALLOW_NULL");
             return true; // Allow execution when blackboard is not available
         }
-        
+        SetFlagForSuccessfulCassetteNodes();
         // Check if all cassettes have completed their subtree injection
         if (LinkedBlackboard.CassetteSubtreeCompleted == null)
         {
@@ -32,7 +33,7 @@ public class BTDecorator_DynamicPlanningComplete : BTDecoratorBase
             ExecutionFlowLogger.LogDecoratorTick("DynamicPlanningComplete", "CassetteSubtreeCompleted", "Null", "ALLOW_NULL");
             return true; // Allow execution when array is not available
         }
-        
+
         // Check if all cassettes have completed subtree injection
         bool allCassettesCompleted = true;
         foreach (bool completed in LinkedBlackboard.CassetteSubtreeCompleted)
@@ -43,7 +44,7 @@ public class BTDecorator_DynamicPlanningComplete : BTDecoratorBase
                 break;
             }
         }
-        
+
         if (!allCassettesCompleted)
         {
             // Log which cassettes are still pending
@@ -55,7 +56,7 @@ public class BTDecorator_DynamicPlanningComplete : BTDecoratorBase
                     pendingCassettes.Add(i + 1); // +1 for human-readable cassette numbers
                 }
             }
-            
+
             LoggingService.LogInfo($"⏳ DynamicPlanningCompleteDecorator: Waiting for cassettes {string.Join(", ", pendingCassettes)} to complete subtree injection");
             ExecutionFlowLogger.LogDecoratorTick("DynamicPlanningComplete", "CassetteSubtreeCompleted", "Pending", "BLOCK_FOR_RE_EVAL");
             return false; // Block execution until all cassettes complete
@@ -66,5 +67,60 @@ public class BTDecorator_DynamicPlanningComplete : BTDecoratorBase
             ExecutionFlowLogger.LogDecoratorTick("DynamicPlanningComplete", "CassetteSubtreeCompleted", "Complete", "ALLOW");
             return true; // Allow execution when all cassettes are complete
         }
+    }
+
+    /// <summary>
+    /// Gets the specific cassette flow nodes by name (cassette1, cassette2, cassette3, cassette4)
+    /// Returns null for cassettes that don't exist
+    /// </summary>
+    /// <returns>Dictionary with cassette names as keys and flow nodes as values</returns>
+    public void SetFlagForSuccessfulCassetteNodes()
+    {
+        
+        if (LinkedBlackboard == null)
+        {
+            LoggingService.LogWarning("⚠️ SetFlagForSuccessfulCassetteNodes: LinkedBlackboard is null");
+            
+        }
+        
+        var cassetteNames = new[] { "cassette1", "cassette2", "cassette3", "cassette4" };
+        
+        foreach (var cassetteName in cassetteNames)
+        {
+            try
+            {
+                var cassetteNode = LinkedBlackboard.GetFlowNode(new FastName(cassetteName)) as BTFlowNode_Dynamic;
+                
+                if (cassetteNode != null)
+                {
+                    // Check if the cassette node status is successful
+                    if (cassetteNode.LastStatus == EBTNodeResult.Succeeded)
+                    {
+                        // Get the cassette index (cassette1=0, cassette2=1, cassette3=2, cassette4=3)
+                        int cassetteIndex = Array.IndexOf(cassetteNames, cassetteName);
+                        
+                        // Set the corresponding flag on blackboard to true
+                        LinkedBlackboard.CassetteSubtreeCompleted[cassetteIndex] = true;
+                        
+                        LoggingService.LogSuccess($"✅ Cassette {cassetteName} is successful - set flag[{cassetteIndex}] to true");
+                    }
+                    else
+                    {
+                        LoggingService.LogInfo($"ℹ️ Cassette {cassetteName} status is {cassetteNode.LastStatus} - no action taken");
+                    }
+                }
+                else
+                {
+                    LoggingService.LogInfo($"ℹ️ Cassette flow node not found: {cassetteName}");
+                }
+            }
+            catch (Exception ex)
+            {
+                LoggingService.LogWarning($"⚠️ Error checking cassette {cassetteName}: {ex.Message}");
+            }
+        }
+        
+        LoggingService.LogInfo($"📊 SetFlagForSuccessfulCassetteNodes: Found /4 cassette flow nodes");
+        
     }
 }

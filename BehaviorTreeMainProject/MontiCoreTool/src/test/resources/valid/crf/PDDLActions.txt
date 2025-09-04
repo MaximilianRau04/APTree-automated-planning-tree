@@ -59,7 +59,6 @@ ParameterInstance: firstposition {fp1}
 ParameterInstance: vacuumGripper {vg1}
 
 // Predicate definition
-
 predicate isAt {
     myObject - Element,
     location - Location
@@ -331,7 +330,7 @@ Action nailingHL {
 
 // Action instances
 
-ActionInstance: pickUp(pickedObject : b1, rob : r1, loc : fp1)
+ActionInstance: pickUpHL(Object : lp1, grabpos: fp1, client : r1)
 ActionInstance: grab(obj : b2, grabPos : fp2, client : r1)
 ActionInstance: place(obj : b3, placePos : fp3, client : r1)
 

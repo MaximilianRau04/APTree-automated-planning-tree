@@ -149,7 +149,12 @@ task generateCSharpActionTypes(type: JavaExec) {
 }
 
 
-
+task runBehaviorTreeParser(type: JavaExec) {
+    dependsOn 'compileJava'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'BehaviorTreeParserTest'
+    workingDir = projectDir
+}
 
 
 

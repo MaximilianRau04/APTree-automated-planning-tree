@@ -4,6 +4,7 @@ using PlanningDataStructures;
 using AIPlanning;
 using System.Collections.Generic;
 using BehaviorTreeMainProject.Services;
+using BehaviorTreeMainProject.Log.Services;
 
 /// <summary>
 /// Base class for all planning services with enhanced tracking capabilities.
@@ -107,6 +108,9 @@ public abstract class BTServicePlanner : BTServiceBase
         StartTime = DateTime.Now;
         IsExecuting = true;
         
+        // Track planning service start for execution summary
+        ExecutionSummaryLogger.TrackPlanningService(GetType().Name, planningRequest.PlanningType, StartTime, false, 0);
+        
         LoggingService.LogInfo($"🚀 {GetType().Name}: Starting planning process at {StartTime:HH:mm:ss.fff}");
         
         try
@@ -122,6 +126,10 @@ public abstract class BTServicePlanner : BTServiceBase
                 WasSuccessful = false;
                 HasPlanGenerated = false;
                 LastError = result.Error;
+                
+                // Track planning service failure for execution summary
+                ExecutionSummaryLogger.TrackPlanningService(GetType().Name, planningRequest.PlanningType, StartTime, false, 0, EndTime);
+                
                 LoggingService.LogError($"⚠️ {GetType().Name}: Planning failed at {EndTime:HH:mm:ss.fff} - {result.Error}");
                 LoggingService.LogInfo($"⏱️ {GetType().Name}: Execution time: {EndTime - StartTime:hh\\:mm\\:ss\\.fff}");
                 LoggingService.LogInfo($"📋 {GetType().Name}: Planning Status - Completed: {HasCompleted}, Successful: {WasSuccessful}, Plan Generated: {HasPlanGenerated}");
@@ -140,6 +148,10 @@ public abstract class BTServicePlanner : BTServiceBase
                 WasSuccessful = false;
                 HasPlanGenerated = false;
                 LastError = "Failed to generate NodeGraph from planner result";
+                
+                // Track planning service failure for execution summary
+                ExecutionSummaryLogger.TrackPlanningService(GetType().Name, planningRequest.PlanningType, StartTime, false, 0, EndTime);
+                
                 LoggingService.LogError($"⚠️ {GetType().Name}: Failed to generate NodeGraph at {EndTime:HH:mm:ss.fff}");
                 LoggingService.LogInfo($"⏱️ {GetType().Name}: Execution time: {EndTime - StartTime:hh\\:mm\\:ss\\.fff}");
                 LoggingService.LogInfo($"📋 {GetType().Name}: Planning Status - Completed: {HasCompleted}, Successful: {WasSuccessful}, Plan Generated: {HasPlanGenerated}");
@@ -165,6 +177,9 @@ public abstract class BTServicePlanner : BTServiceBase
                     OwningFlowNode.AddChild(action);
                 }
                 LoggingService.LogSuccess($"✅ BTServicePlanner: Completed service setup for {allActions.Count} actions");
+                
+                // Track the final action count after all actions are set up
+                ExecutionSummaryLogger.TrackNodeFinalCount("GenericBTAction", allActions.Count);
             }
             else
             {
@@ -193,6 +208,10 @@ public abstract class BTServicePlanner : BTServiceBase
             HasPlanGenerated = true;
             LastError = null;
             
+            // Track planning service completion for execution summary
+            var actionsGenerated = generatedNodeGraph?.GetAllActionNodes().Count ?? 0;
+            ExecutionSummaryLogger.TrackPlanningService(GetType().Name, planningRequest.PlanningType, StartTime, true, actionsGenerated, EndTime);
+            
             LoggingService.LogSuccess($"✅ {GetType().Name}: Planning process completed successfully at {EndTime:HH:mm:ss.fff}");
             LoggingService.LogInfo($"⏱️ {GetType().Name}: Total execution time: {EndTime - StartTime:hh\\:mm\\:ss\\.fff}");
             LoggingService.LogInfo($"📊 {GetType().Name}: Generated {generatedNodeGraph.GetAllActionNodes().Count} actions");
@@ -208,6 +227,10 @@ public abstract class BTServicePlanner : BTServiceBase
             WasSuccessful = false;
             HasPlanGenerated = false;
             LastError = ex.Message;
+            
+            // Track planning service failure for execution summary
+            ExecutionSummaryLogger.TrackPlanningService(GetType().Name, planningRequest.PlanningType, StartTime, false, 0, EndTime);
+            
             LoggingService.LogError($"❌ {GetType().Name}: Error during planning process at {EndTime:HH:mm:ss.fff}: {ex.Message}");
             LoggingService.LogInfo($"⏱️ {GetType().Name}: Execution time: {EndTime - StartTime:hh\\:mm\\:ss\\.fff}");
             LoggingService.LogInfo($"📋 {GetType().Name}: Planning Status - Completed: {HasCompleted}, Successful: {WasSuccessful}, Plan Generated: {HasPlanGenerated}");

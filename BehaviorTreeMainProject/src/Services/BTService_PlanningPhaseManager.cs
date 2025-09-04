@@ -1,4 +1,5 @@
 using BehaviorTreeMainProject.Services;
+using BehaviorTreeMainProject.Log.Services;
 
 /// <summary>
 /// Service that manages the transition from planning phase to execution phase.
@@ -43,6 +44,10 @@ public class BTService_PlanningPhaseManager : BTServiceBase
             LoggingService.LogSuccess("🎉 All planning completed! Switching to execution phase...");
             ExecutionFlowLogger.LogPlanningEvent("PHASE_COMPLETE", "All planning services finished");
             LinkedBlackboard.PlanningPhase = false;
+            
+            // Track planning phase transition for execution summary
+            ExecutionSummaryLogger.TrackPlanningPhaseTransition(false);
+            
             LoggingService.LogWarning("🚨 WARNING: PlanningPhase has been set to FALSE - dynamic planning phase manager can now start checking!");
             ExecutionFlowLogger.LogExecutionEvent("PHASE_START", "ML actions can now execute");
             LoggingService.LogSuccess("✅ Switched to execution phase - ML actions can now execute");
@@ -55,22 +60,7 @@ public class BTService_PlanningPhaseManager : BTServiceBase
         }
     }
     
-    /// <summary>
-    /// Reset the cassette subtree completion flags for the next iterative planning cycle
-    /// This is called when flow nodes complete and need to be reset for next rounds
-    /// </summary>
-    public void ResetCassetteSubtreeFlagsForNextCycle()
-    {
-        LoggingService.LogInfo("🔄 Resetting cassette subtree completion flags for next iterative planning cycle...");
-        if (LinkedBlackboard.CassetteSubtreeCompleted != null)
-        {
-            for (int i = 0; i < LinkedBlackboard.CassetteSubtreeCompleted.Length; i++)
-            {
-                LinkedBlackboard.CassetteSubtreeCompleted[i] = false;
-            }
-        }
-        ExecutionFlowLogger.LogPlanningEvent("CASSETTE_FLAGS_RESET", "Cassette subtree flags reset for next cycle");
-    }
+   
     
     private bool AreAllPlanningServicesComplete()
     {

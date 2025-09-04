@@ -1,6 +1,6 @@
-using BehaviorTreeMainProject.Services;
+using BehaviorTreeMainProject.Log.Services;
 
-namespace BehaviorTreeMainProject.Examples
+namespace BehaviorTreeMainProject.Log.Examples
 {
     /// <summary>
     /// Example demonstrating how to use the ExecutionFlowLogger

@@ -1,6 +1,7 @@
 using BehaviorTreeMainProject.Services;
 using System.Collections.Generic;
 using System.Linq;
+using BehaviorTreeMainProject.Log.Services;
 
 /// <summary>
 /// Decorator that ensures only the executable node with the lowest cost is allowed to execute.
@@ -67,7 +68,7 @@ public class BTDecorator_LowestCostExecution : BTDecoratorBase
             // Process each injected subtree
             foreach (var subtree in injectedSubtrees)
             {
-                var subtreeName = subtree.NodeName.ToString();
+                var subtreeName = subtree.InstanceName.ToString();
                 var actionGraph = subtree.GetActionGraph();
                 
                 if (actionGraph != null)

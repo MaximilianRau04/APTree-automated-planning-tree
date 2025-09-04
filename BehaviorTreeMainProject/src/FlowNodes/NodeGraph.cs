@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BehaviorTreeMainProject.Services;
 using System;
+using BehaviorTreeMainProject.Log.Services;
 
 /// <summary>
 /// Represents a node in the behavior tree graph with order and temporal constraints

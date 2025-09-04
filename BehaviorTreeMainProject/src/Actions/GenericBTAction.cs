@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using BehaviorTreeMainProject.Services;
 using BehaviorTreeMainProject;
+using BehaviorTreeMainProject.Log.Services;
 
 
 // Generic action class that will be created by the factory
@@ -56,6 +57,9 @@ public abstract class GenericBTAction : BTActionNodeBase
    
         
         LoggingService.LogInfo($"🔧 GenericBTAction: Constructor completed for {instanceName}");
+        
+        // Track action node creation for execution summary
+        ExecutionSummaryLogger.TrackNodeCreation("GenericBTAction");
     }
 
     /// <summary>

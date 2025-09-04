@@ -4,6 +4,7 @@ using System.Linq;
 using PlanningDataStructures;
 using AIPlanning;
 using BehaviorTreeMainProject.Services;
+using BehaviorTreeMainProject.Log.Services;
 
 public class CallGOAPPlanner : BTServicePlanner
 {

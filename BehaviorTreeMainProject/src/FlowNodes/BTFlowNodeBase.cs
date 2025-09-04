@@ -1,6 +1,7 @@
 using System.Collections;
 using System.ComponentModel.DataAnnotations;
 using BehaviorTreeMainProject.Services;
+using BehaviorTreeMainProject.Log.Services;
 
 public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
 {
@@ -27,7 +28,7 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
     private readonly IBehaviorTree owningTree;
 
     // Node name property
-    public FastName NodeName { get; protected set; }
+    public FastName InstanceName { get; protected set; }
 
     public abstract IEnumerator<IBTNode> GetEnumerator();
 
@@ -41,7 +42,7 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
 
     public BTFlowNodeBase(FastName nodeName, SuccessCriteria criteria = SuccessCriteria.ALL, float threshold = 1.0f)
     {
-        this.NodeName = nodeName;
+        this.InstanceName = nodeName;
         this.DebugDisplayName = nodeName.ToString();
         this.successCriteria = criteria;
         this.successThreshold = threshold;
@@ -120,7 +121,7 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
         }
 
         // All actions have completed (either succeeded or failed), now evaluate based on criteria
-        return successCriteria switch
+        var result = successCriteria switch
         {
             SuccessCriteria.ALL => successCount == totalCount, // All must succeed, any failure means overall failure
             SuccessCriteria.ANY => successCount > 0, // At least one must succeed
@@ -128,6 +129,11 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
             SuccessCriteria.PERCENTAGE => successCount >= (totalCount * successThreshold), // Must have at least threshold percentage of successes
             _ => false
         };
+        
+        // Track flow node execution for execution summary
+        ExecutionSummaryLogger.TrackFlowNode(DebugDisplayName, GetType().Name, result);
+        
+        return result;
     }
 
     /// <summary>
@@ -268,6 +274,8 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
 
         LoggingService.LogInfo($"🔧 BTFlowNodeBase: Setting initial NodeGraph (HashCode: {graph?.GetHashCode()})");
         actionGraph = graph;
+        
+        // Note: Action node final count is now tracked in BTServicePlanner after all actions are set up
     }
 
     /// <summary>
@@ -335,7 +343,7 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
     /// <returns>The node name as a string</returns>
     public string GetNodeName()
     {
-        return NodeName?.ToString() ?? "Unnamed";
+        return InstanceName?.ToString() ?? "Unnamed";
     }
 
     public void SetMaxCount(int count)

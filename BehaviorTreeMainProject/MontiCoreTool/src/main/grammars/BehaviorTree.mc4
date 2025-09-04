@@ -3,28 +3,24 @@
 grammar BehaviorTree extends de.monticore.MCBasics {
 
 BehaviorTree = "BehaviorTree" Name "{"
-        Blackboard
         RootNode "}";
+
 //rootnode definition
-RootNode = "BTFlowNode" "RootNode" "{" (BTFlowNode | BTActionNode)*"}";
-// Blackboard definition
-Blackboard =  "Blackboard" Name "{"  Variable*  "}";
-// Variable declarations
-Variable =  type:VariableType name:Name ";";
+RootNode = "BTFlowNode" "RootNode" "{" (Service | Decorator | BTFlowNode | BTActionNode)* "}";
+
+// Service definition
+Service = "Service" Name;
+// Decorator definition
+Decorator = "Decorator" Name;
+
 // Node types
 BTNodeBase = BTFlowNode | BTActionNode;
-/** A BTFlowNode represents a flow control node */
-symbol BTFlowNode = Decorator? "BTFlowNode" Name "{" (BTFlowNode | BTActionNode )* "}";
-/** A BTActionNode represents an action node */
-symbol BTActionNode =  Decorator? "BTActionNode" Name "{"
-        Parameter (";" Parameter)* ";"
-    "}";
-// Parameters and types
-Parameter = type:VariableType name:Name;
-VariableType = ("Object");
-//Decorator and service definition
-Decorator = "decorator" Name;
 
+// Flow nodes 
+symbol BTFlowNode =  "BTFlowNode" Name "{" (Service | Decorator | BTFlowNode | BTActionNode)* "}";
+
+//action nodes
+symbol BTActionNode = "BTActionNode" Name "{" (Decorator| Service)* "}" ;
 
 // tokens definition
  token LETTER = 'a'..'z' | 'A'..'Z';
@@ -40,7 +36,4 @@ Decorator = "decorator" Name;
   token BOOLEAN_VALUE = "true" | "false";
   
   token Name = PDDL_START (PDDL_CHAR)*; 
-
-  
-
 }

@@ -399,6 +399,9 @@ namespace BehaviorTreeMainProject
         /// </summary>
         private string GeneratePDDLProblemContent(string actionType, string initialPredicates, string goalPredicates)
         {
+            actionType = actionType.ToLower();
+            initialPredicates = initialPredicates.ToLower();
+           goalPredicates= goalPredicates.ToLower();
             // Get relevant objects based on action type
             var objects = GetRelevantObjects(actionType);
             
@@ -535,7 +538,7 @@ namespace BehaviorTreeMainProject
                           ffConfig.PlannerParameters["problemFile"] = "Plannerinputs/bigproblem.pddl";
             ffConfig.PlannerParameters["plannerPath"] = "ff";  // FF planner command for Docker
             ffConfig.PlannerParameters["timeoutSeconds"] = 30;
-            ffConfig.PlannerParameters["maxPlanLength"] = 10;
+            ffConfig.PlannerParameters["maxPlanLength"] = 20;
             ffConfig.PlannerParameters["executionMode"] = CallPDDLPlanner.ParallelExecutionMode.Sequential;
             subtreeConfigurations["FF_Default"] = ffConfig;
 
@@ -545,7 +548,7 @@ namespace BehaviorTreeMainProject
                 enhspConfig.PlannerParameters["problemFile"] = "Plannerinputs/problemC1.pddl";
             enhspConfig.PlannerParameters["plannerPath"] = "/home/shermin/ENHSP-Public/enhsp.jar";
             enhspConfig.PlannerParameters["timeoutSeconds"] = 30;
-            enhspConfig.PlannerParameters["maxPlanLength"] = 10;
+            enhspConfig.PlannerParameters["maxPlanLength"] = 40;
             enhspConfig.PlannerParameters["executionMode"] = CallPDDLPlanner.ParallelExecutionMode.Sequential;
             subtreeConfigurations["ENHSP_Default"] = enhspConfig;
 

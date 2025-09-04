@@ -10,7 +10,7 @@ ParameterPropertyList = ParameterProperty (("," ParameterProperty)*)?;
 ParameterProperty = Name ":" BasicType;
 
 // Parameter instance definition
-ParameterInstanceDef = "ParameterInstance" ":" Name "{" ParameterInstanceValues "}";
+ParameterInstanceDef = "ParameterInstance" ":" Name "{" ParameterInstanceValues "}" ;
 ParameterInstanceValues = ParameterInstanceValue (("," ParameterInstanceValue)*)?;
 ParameterInstanceValue = Value;
 Value = Name | INTEGER_VALUE | DOUBLE_VALUE | STRING_VALUE | "true" | "false";

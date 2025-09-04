@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using ModelLoader.PredicateTypes;
 using BehaviorTreeMainProject.Services;
+using BehaviorTreeMainProject.Log.Services;
 
 public class FactoryPredicate
 {

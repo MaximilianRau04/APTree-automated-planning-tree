@@ -5,6 +5,7 @@ using Neo4j.Driver;
 using System.Linq;
 using System.Reflection;
 using BehaviorTreeMainProject.Services;
+using BehaviorTreeMainProject.Log.Services;
 
 
 //we need to fix the query so that the parent types are also added to the graph
@@ -30,6 +31,7 @@ public class Blackboard<T> : IDisposable where T : class
     Dictionary<FastName, Agent>   AgentValues =    new ();
     private Dictionary<FastName, Predicate> PredicateValues = new();
     Dictionary<FastName, GenericBTAction> ActionValues = new();
+    Dictionary<FastName, IBTNode> FlowNodeValues = new();
      Dictionary<FastName, State> StateValues = new();
     Dictionary<FastName, NodeGraph> NodeGraphValues = new();
     Dictionary<FastName, BTFlowNode_Dynamic> InjectedSubtreesValues = new();
@@ -102,7 +104,27 @@ public class Blackboard<T> : IDisposable where T : class
         return BoolValues[key];
     }
 
-   
+    public IBTNode GetFlowNode(FastName key)
+    {
+        if (!FlowNodeValues.ContainsKey(key))
+        {
+            throw new System.ArgumentException($"could not find a value for {key} this key");
+        }
+        return FlowNodeValues[key];
+    }
+    public List<IBTNode> GetAllFlowNodes()
+    {
+        return FlowNodeValues.Values.ToList();
+    }
+    public void SetFlowNodeInstance(FastName key, BTFlowNodeBase value)
+    {
+        if (!FlowNodeValues.ContainsKey(key))
+        {
+            FlowNodeValues[key] = value;
+            // Log new flow node instance created
+            BlackboardTrackingLogger.LogNewInstance(key.ToString(), value.GetType().Name, "Blackboard", $"Flow node instance: {value.GetType().Name}");
+        }
+    }
 
     public Element GetElement(FastName key)
     {
@@ -179,18 +201,27 @@ public class Blackboard<T> : IDisposable where T : class
         // Ensure the element's NameKey matches its instance ID
         value.NameKey = key;  // This ensures the element keeps its instance ID
         Console.WriteLine($"Successfully added {value.GetType().Name} to Blackboard with key: {key}");
+        
+        // Log new element instance created
+        BlackboardTrackingLogger.LogNewInstance(key.ToString(), value.GetType().Name, "Blackboard", $"Element instance: {value.GetType().Name}");
     }
 
     public void SetLocation(FastName key, Location value)
     {
         LocationValues[key] = value;
         value.NameKey = key;  // Set the instance ID
+        
+        // Log new location instance created
+        BlackboardTrackingLogger.LogNewInstance(key.ToString(), value.GetType().Name, "Blackboard", $"Location instance: {value.GetType().Name}");
     }
 
     public void SetAgent(FastName key, Agent value)
     {
         AgentValues[key] = value;
         value.NameKey = key;  // Set the instance ID
+        
+        // Log new agent instance created
+        BlackboardTrackingLogger.LogNewInstance(key.ToString(), value.GetType().Name, "Blackboard", $"Agent instance: {value.GetType().Name}");
     }
 
     
@@ -210,6 +241,8 @@ public class Blackboard<T> : IDisposable where T : class
     if (!AvailableEntityTypes.Contains(key))
     {
         AvailableEntityTypes.Add(key);
+        // Log new entity type added
+        BlackboardTrackingLogger.LogNewType(key.ToString(), "Entity", $"Entity type: {elementType.GetType().Name}");
     }
     AvailableEntityTypes.Add(key);
 }
@@ -223,6 +256,8 @@ public void RegisterEntityType(FastName typeName)
     if (!AvailableEntityTypes.Contains(typeName))
     {
         AvailableEntityTypes.Add(typeName);
+        // Log new entity type registered
+        BlackboardTrackingLogger.LogNewType(typeName.ToString(), "Entity", "Registered entity type");
     }
 }
 
@@ -254,6 +289,8 @@ public void RegisterPredicateType(FastName typeName)
     if (!AvailablePredicateTypes.Contains(typeName))
     {
         AvailablePredicateTypes.Add(typeName);
+        // Log new predicate type registered
+        BlackboardTrackingLogger.LogNewType(typeName.ToString(), "Predicate", "Registered predicate type");
     }
 }
 
@@ -285,6 +322,8 @@ public void RegisterActionType(FastName typeName)
     if (!AvailableActionTypes.Contains(typeName))
     {
         AvailableActionTypes.Add(typeName);
+        // Log new action type registered
+        BlackboardTrackingLogger.LogNewType(typeName.ToString(), "Action", "Registered action type");
     }
 }
 
@@ -316,39 +355,62 @@ public void SetPredicateType(FastName key, Predicate predicateType)
         throw new ArgumentException($"Type {predicateType.GetType().Name} is not a Predicate type");
     }
 
-    if (!AvailablePredicateTypes.Contains(key))
-    {
-        AvailablePredicateTypes.Add(key);
-    }
-    AvailablePredicateTypes.Add(key);
-}
-
-// Action type methods
-public void SetActionType(FastName key, GenericBTAction actionType)
-{
-    if (!typeof(GenericBTAction).IsAssignableFrom(actionType.GetType()))
-    {
-        throw new ArgumentException($"Type {actionType.GetType().Name} is not an Action type");
-    }
-
-    if (!AvailableActionTypes.Contains(key))
-    {
-        AvailableActionTypes.Add(key);
-    }
-    AvailableActionTypes.Add(key);
+    // Check if this is a new predicate type (based on the actual type, not the key)
+    var predicateTypeName = predicateType.GetType().Name;
+    var typeKey = new FastName(predicateTypeName);
     
-    // Store the action instance
-    ActionValues[key] = actionType;
+    if (!AvailablePredicateTypes.Contains(typeKey))
+    {
+        AvailablePredicateTypes.Add(typeKey);
+        // Log new predicate type added (only for the actual type name, not instance key)
+        BlackboardTrackingLogger.LogNewType(predicateTypeName, "Predicate", "Registered predicate type");
+    }
 }
 
-public BTActionNodeBase GetAction(FastName key)
+    // Action type methods
+    public void SetActionType(FastName key, GenericBTAction actionType)
+    {
+        if (!typeof(GenericBTAction).IsAssignableFrom(actionType.GetType()))
+        {
+            throw new ArgumentException($"Type {actionType.GetType().Name} is not an Action type");
+        }
+
+        // Check if this is a new action type (based on the actual type, not the key)
+        var actionTypeName = actionType.GetType().Name;
+        var typeKey = new FastName(actionTypeName);
+
+        if (!AvailableActionTypes.Contains(typeKey))
+        {
+            AvailableActionTypes.Add(typeKey);
+            // Log new action type added (only for the actual type name, not instance key)
+            BlackboardTrackingLogger.LogNewType(actionTypeName, "Action", "Registered action type");
+        }
+
+        // // Store the action instance
+        // ActionValues[key] = actionType;
+
+        // // Log new action instance created
+        // BlackboardTrackingLogger.LogNewInstance(key.ToString(), actionTypeName, "Blackboard", $"Action instance: {actionTypeName}");
+    }
+
+public void SetActionInstance(FastName key, GenericBTAction actionInstance)
 {
     if (!ActionValues.ContainsKey(key))
     {
-        throw new ArgumentException($"Could not find action for {key}");
+        ActionValues[key] = actionInstance;
+        // Log new action instance created
+        BlackboardTrackingLogger.LogNewInstance(key.ToString(), actionInstance.GetType().Name, "Blackboard", $"Action instance: {actionInstance.GetType().Name}");
     }
-    return ActionValues[key];
 }
+
+public BTActionNodeBase GetAction(FastName key)
+    {
+        if (!ActionValues.ContainsKey(key))
+        {
+            throw new ArgumentException($"Could not find action for {key}");
+        }
+        return ActionValues[key];
+    }
 
 /// <summary>
 /// Gets all action instances from the blackboard
@@ -565,8 +627,11 @@ public List<GenericBTAction> GetAllActionInstances()
             LoggingService.LogInfo($"   Old isNegated: {existingPredicate.isNegated} → New isNegated: {predicate.isNegated}");
 
             // Update the isNegated property of the existing predicate
+            var oldNegationValue = existingPredicate.isNegated;
             existingPredicate.isNegated = predicate.isNegated;
 
+            // Log predicate negation change
+            BlackboardTrackingLogger.LogPredicateNegation(key.ToString(), oldNegationValue, predicate.isNegated, "Blackboard", "Updated existing predicate negation");
 
             LoggingService.LogSuccess($"✅ PREDICATE_UPDATE: Successfully updated negation for key: {key}");
             return;
@@ -582,6 +647,9 @@ public List<GenericBTAction> GetAllActionInstances()
 
         // Store the predicate in the dictionary
         PredicateValues[key] = predicate;
+        
+        // Log new predicate instance created
+        BlackboardTrackingLogger.LogNewInstance(key.ToString(), predicate.GetType().Name, "Blackboard", $"Predicate instance: {predicate.PredicateName}");
         
         // Verify the predicate was actually added
         var foundInDict = PredicateValues.ContainsKey(key);
@@ -601,6 +669,9 @@ public List<GenericBTAction> GetAllActionInstances()
     public void Dispose()
     {
         _graphService?.Dispose();
+        
+        // Close the blackboard tracking logger
+        BlackboardTrackingLogger.Close();
     }
     
     public async Task<bool> TestNeo4jConnection()
@@ -623,18 +694,27 @@ public List<GenericBTAction> GetAllActionInstances()
     {
         LayerValues[key] = value;
         value.NameKey = key;  // Set the instance ID
+        
+        // Log new layer instance created
+        BlackboardTrackingLogger.LogNewInstance(key.ToString(), value.GetType().Name, "Blackboard", $"Layer instance: {value.GetType().Name}");
     }
 
     public void SetModule(FastName key, Module value)
     {
         ModuleValues[key] = value;
         value.NameKey = key;  // Set the instance ID
+        
+        // Log new module instance created
+        BlackboardTrackingLogger.LogNewInstance(key.ToString(), value.GetType().Name, "Blackboard", $"Module instance: {value.GetType().Name}");
     }
 
     public void SetTool(FastName key, Tool value)
     {
         ToolValues[key] = value;
         value.NameKey = key;  // Set the instance ID
+        
+        // Log new tool instance created
+        BlackboardTrackingLogger.LogNewInstance(key.ToString(), value.GetType().Name, "Blackboard", $"Tool instance: {value.GetType().Name}");
     }
 
     public Layer GetLayer(FastName key)
@@ -679,6 +759,8 @@ public List<GenericBTAction> GetAllActionInstances()
         if (!StateValues.ContainsKey(key))
         {
             StateValues[key] = value;
+            // Log new state instance created
+            BlackboardTrackingLogger.LogNewInstance(key.ToString(), value.GetType().Name, "Blackboard", $"State instance: {value.GetType().Name}");
         }
         StateValues[key] = value;
         Console.WriteLine($"Successfully added State to Blackboard with key: {key}");
@@ -698,6 +780,9 @@ public List<GenericBTAction> GetAllActionInstances()
     {
         NodeGraphValues[key] = value;
         Console.WriteLine($"Successfully added NodeGraph to Blackboard with key: {key}");
+        
+        // Log new node graph instance created
+        BlackboardTrackingLogger.LogNewInstance(key.ToString(), value.GetType().Name, "Blackboard", $"NodeGraph instance: {value.GetType().Name}");
     }
 
     /// <summary>
@@ -723,6 +808,9 @@ public List<GenericBTAction> GetAllActionInstances()
     {
         InjectedSubtreesValues[key] = value;
         Console.WriteLine($"Successfully added injected subtree to Blackboard with key: {key}");
+        
+        // Log new injected subtree instance created
+        BlackboardTrackingLogger.LogNewInstance(key.ToString(), value.GetType().Name, "Blackboard", $"Injected subtree instance: {value.GetType().Name}");
     }
 
     /// <summary>

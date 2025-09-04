@@ -75,19 +75,7 @@ public class FactoryParameter : Singleton<FactoryParameter>
         return null;
     }
 
-    // Create a Parameter metadata object (for action definitions)
-    public Parameter CreateParameterMetadata(string name, string typeName)
-    {
-        // Dynamically find the parameter type
-        Type parameterType = FindParameterType(typeName);
-        
-        if (parameterType == null)
-        {
-            throw new ArgumentException($"Unknown parameter type: {typeName}");
-        }
-
-        return new Parameter(name, parameterType);
-    }
+    
 }
 
 

@@ -1,15 +1,30 @@
-BehaviorTree myTree {
-    Blackboard myBlackboard {
-        Object player;
-        Object target;
-    }
-    BTFlowNode RootNode {
-        decorator repeat
-        BTFlowNode sequence {
-            BTActionNode moveTo {
-                Object agent;
-                Object location;
+BehaviorTree myTree {     
+        BTFlowNode RootNode {
+            Service planningmanager
+            Decorator evaluatecost
+                
+            BTFlowNode cassette1 {
+                Service callpddlplanner
+
+                BTActionNode pickUpHL_lp1_fp1_r1 {
+                    Service subtreeinjection
+                }
+                    
+                BTActionNode placeHL_lp1_pr1_r1 {
+                    Service subtreeinjection
+                }
             }
+            
+            BTFlowNode cassette2 {
+                Service callpddlplanner 
+                    
+                BTActionNode pickUpHL_lp2_fp9_r1 {
+                    Service subtreeinjection
+                    }
+                    
+                BTActionNode placeHL_lp2_pr2_r1 {
+                    Service subtreeinjection
+                    }
+            }                   
         }
     }
-}
