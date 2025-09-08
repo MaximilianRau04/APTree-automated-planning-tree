@@ -6,6 +6,7 @@ using PlanningDataStructures;
 using AIPlanning;
 using BehaviorTreeMainProject.Services.AIPlanning;
 using ModelLoader.ParameterTypes;
+using BehaviorTreeMainProject.Log.Services;
 
 namespace BehaviorTreeMainProject
 {
@@ -185,7 +186,7 @@ namespace BehaviorTreeMainProject
         /// 3. If HL, inject the subtree
         /// 4. Return true if injection successful, false otherwise
         /// </summary>
-        public override bool Tick(float InDeltaTime)
+        public override bool OnEvaluate(float InDeltaTime)
         {
             LogMessage($"🔍 SubtreeInjectionService: Tick called for service attached to tree: {OwningTree?.GetType().Name}");
             
@@ -480,6 +481,64 @@ namespace BehaviorTreeMainProject
         }
 
         /// <summary>
+        /// Check if an action belongs to cassette1 or cassette2
+        /// </summary>
+        private bool IsCassette1Action(string actionType)
+        {
+            try
+            {
+                // Check both cassette1 and cassette2 flow nodes from blackboard
+                if (LinkedBlackboard != null)
+                {
+                    if (pendingAction != null)
+                    {
+                        string pendingActionName = pendingAction.InstanceName.ToString();
+                        
+                        // Check cassette1
+                        var cassette1Node = LinkedBlackboard.GetFlowNode(new FastName("cassette1")) as BTFlowNode_Dynamic;
+                        if (cassette1Node != null)
+                        {
+                            List<GenericBTAction> cassette1Actions = cassette1Node.GetActionGraph().GetAllActionNodes();
+                            foreach (var action in cassette1Actions)
+                            {
+                                if (action.InstanceName.ToString() == pendingActionName)
+                                {
+                                    LogMessage($"🔧 SubtreeInjectionService: Found action {pendingActionName} in cassette1 flow node");
+                                    return true;
+                                }
+                            }
+                        }
+                        
+                        // Check cassette2
+                        var cassette2Node = LinkedBlackboard.GetFlowNode(new FastName("cassette2")) as BTFlowNode_Dynamic;
+                        if (cassette2Node != null)
+                        {
+                            List<GenericBTAction> cassette2Actions = cassette2Node.GetActionGraph().GetAllActionNodes();
+                            foreach (var action in cassette2Actions)
+                            {
+                                if (action.InstanceName.ToString() == pendingActionName)
+                                {
+                                    LogMessage($"🔧 SubtreeInjectionService: Found action {pendingActionName} in cassette2 flow node");
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    LogMessage($"⚠️ SubtreeInjectionService: LinkedBlackboard is null, cannot check cassette1/cassette2");
+                }
+            }
+            catch (Exception ex)
+            {
+                LogMessage($"⚠️ SubtreeInjectionService: Error checking cassette1/cassette2 action: {ex.Message}");
+            }
+            
+            return false;
+        }
+
+        /// <summary>
         /// Set custom planner mapping for an action type
         /// </summary>
         public void SetPlannerMapping(string actionType, string configName)
@@ -523,6 +582,7 @@ namespace BehaviorTreeMainProject
         {
             FF,
             ENHSP,
+            LAMA_FIRST,
             GOAP,
             StateChart
         }
@@ -551,6 +611,16 @@ namespace BehaviorTreeMainProject
             enhspConfig.PlannerParameters["maxPlanLength"] = 40;
             enhspConfig.PlannerParameters["executionMode"] = CallPDDLPlanner.ParallelExecutionMode.Sequential;
             subtreeConfigurations["ENHSP_Default"] = enhspConfig;
+
+            // LAMA-FIRST Planner Configuration
+            var lamaFirstConfig = new SubtreeConfiguration("LAMA_FIRST_Default", PlannerType.LAMA_FIRST, SuccessCriteria.ALL);
+            lamaFirstConfig.PlannerParameters["domainFile"] = "Plannerinputs/DomainML.pddl";
+            lamaFirstConfig.PlannerParameters["problemFile"] = "Plannerinputs/problemC1.pddl";
+            lamaFirstConfig.PlannerParameters["plannerPath"] = "lama-first";  // LAMA-FIRST planner command for Docker
+            lamaFirstConfig.PlannerParameters["timeoutSeconds"] = 30;
+            lamaFirstConfig.PlannerParameters["maxPlanLength"] = 20;
+            lamaFirstConfig.PlannerParameters["executionMode"] = CallPDDLPlanner.ParallelExecutionMode.Sequential;
+            subtreeConfigurations["LAMA_FIRST_Default"] = lamaFirstConfig;
 
             // GOAP Planner Configuration
             var goapConfig = new SubtreeConfiguration("GOAP_Default", PlannerType.GOAP, SuccessCriteria.ALL);
@@ -618,6 +688,7 @@ namespace BehaviorTreeMainProject
                 {
                     PlannerType.FF => CreateFFSubtree(config, instanceName, customParameters),
                     PlannerType.ENHSP => CreateENHSPSubtree(config, instanceName, customParameters),
+                    PlannerType.LAMA_FIRST => CreateLamaFirstSubtree(config, instanceName, customParameters),
                     PlannerType.GOAP => CreateGOAPSubtree(config, instanceName, customParameters),
                     PlannerType.StateChart => CreateStateChartSubtree(config, instanceName, customParameters),
                     _ => throw new ArgumentException($"Unsupported planner type: {config.PlannerType}")
@@ -671,6 +742,9 @@ namespace BehaviorTreeMainProject
             action.SetAsHighLevelAction(subtree, subtree.PlanningService);
             LogMessage($"✅ SubtreeInjectionService: Injected subtree '{configName}' into action '{action.InstanceName.ToString()}'");
             
+            // Track subtree injection
+            BehaviorTreeComponentLogger.TrackSubtreeInjection($"{configName}_{instanceName}");
+            
             // NOTE: Subtrees are now added to blackboard after successful planning, not during injection
             
             // Set the corresponding cassette subtree completion flag
@@ -711,6 +785,9 @@ namespace BehaviorTreeMainProject
         {
             action.RemoveSubtree();
             LogMessage($"✅ SubtreeInjectionService: Removed subtree from action '{action.InstanceName.ToString()}'");
+            
+            // Track action deletion
+            BehaviorTreeComponentLogger.TrackActionDeletion("SubtreeRemoval", 1, $"Removed subtree from action: {action.InstanceName.ToString()}");
         }
 
         /// <summary>
@@ -727,8 +804,15 @@ namespace BehaviorTreeMainProject
         /// </summary>
         public void ClearInjectedSubtreesTracking()
         {
+            var currentCount = LinkedBlackboard.GetAllInjectedSubtrees().Count;
             LinkedBlackboard.ClearInjectedSubtrees();
             LogMessage("🧹 SubtreeInjectionService: Cleared injected subtrees tracking from blackboard");
+            
+            // Track subtree clearing
+            if (currentCount > 0)
+            {
+                BehaviorTreeComponentLogger.TrackSubtreeClearing(currentCount, "Manual clearing of injected subtrees tracking");
+            }
         }
 
         /// <summary>
@@ -772,21 +856,23 @@ namespace BehaviorTreeMainProject
 
                     // Clear the NodeGraph for non-successful subtrees
                     // allow subtree to re-plan next round
-                     subtree.ResetForNextRound(); // clears planningCompleted, tickCount, actionGraph
-                     if (subtree.PlanningService is BTServicePlanner p)
-                        {
-                          p.ResetPlanningService(); // or p.ResetPlanningService();
-                        }
-                    // var actionGraph = subtree.GetActionGraph();
-                    // if (actionGraph != null)
-                    // {
-                    //     LogMessage($"🧹 SubtreeInjectionService: Clearing NodeGraph for subtree '{subtree.DebugDisplayName}' (status: {subtree.LastStatus})");
-                    //     actionGraph.Reset();
-                    // }
-                    // else
-                    // {
-                    //     LogMessage($"⚠️ SubtreeInjectionService: No ActionGraph found for subtree '{subtree.DebugDisplayName}'");
-                    // }
+                    var actionGraph = subtree.GetActionGraph();
+                    int actionCount = actionGraph?.GetAllActionNodes().Count ?? 0;
+                    
+                    subtree.ResetForNextRound(); // clears planningCompleted, tickCount, actionGraph
+                    if (subtree.PlanningService is BTServicePlanner p)
+                    {
+                        p.ResetPlanningService(); // or p.ResetPlanningService();
+                    }
+                    
+                    // Track NodeGraph reset
+                    if (actionCount > 0)
+                    {
+                        BehaviorTreeComponentLogger.TrackNodeGraphReset("SubtreeReset", actionCount, $"Non-successful subtree: {subtree.DebugDisplayName}");
+                    }
+                    
+                    // Note: NodeGraph clearing is handled by ResetForNextRound() -> ClearActionGraph() -> actionGraph.Clear()
+                    LogMessage($"🧹 SubtreeInjectionService: NodeGraph clearing handled by ResetForNextRound() for subtree '{subtree.DebugDisplayName}' (status: {subtree.LastStatus})");
                 }
                 
                 // NEW: Clear all injected subtrees from blackboard to start fresh
@@ -794,6 +880,9 @@ namespace BehaviorTreeMainProject
                 LogMessage($"🧹 SubtreeInjectionService: Clearing all injected subtrees from blackboard to start fresh");
                 LinkedBlackboard.ClearInjectedSubtrees();
                 LogMessage($"✅ SubtreeInjectionService: Cleared {allInjectedSubtrees.Count} injected subtrees from blackboard");
+                
+                // Track subtree clearing
+                BehaviorTreeComponentLogger.TrackSubtreeClearing(allInjectedSubtrees.Count, "Reset after successful execution");
                 
                 LogMessage($"✅ SubtreeInjectionService: Completed NodeGraph cleanup");
             }
@@ -963,6 +1052,48 @@ namespace BehaviorTreeMainProject
             enhspPlanner.ExecutionMode = (CallPDDLPlanner.ParallelExecutionMode)parameters["executionMode"];
 
             dynamicFlowNode.SetPlanningService(enhspPlanner);
+            subtreeTree.RootNode = dynamicFlowNode;
+
+            return dynamicFlowNode;
+        }
+
+        /// <summary>
+        /// Create LAMA-FIRST subtree
+        /// </summary>
+        private BTFlowNode_Dynamic CreateLamaFirstSubtree(SubtreeConfiguration config, string instanceName, Dictionary<string, object> customParameters)
+        {
+            var subtreeTree = new BTInstance();
+            subtreeTree.Initialise(LinkedBlackboard, $"{config.Name}_Subtree_{instanceName}");
+
+            var dynamicFlowNode = new BTFlowNode_Dynamic(
+                new FastName($"{config.Name}_DynamicFlow_{instanceName}"),
+                subtreeTree,
+                config.SuccessCriteria
+            );
+
+            // Merge default and custom parameters
+            var parameters = MergeParameters(config.PlannerParameters, customParameters);
+            
+            LogMessage($"🔧 SubtreeInjectionService: Creating LAMA-FIRST subtree with parameters:");
+            LogMessage($"   Domain File: {parameters["domainFile"]}");
+            LogMessage($"   Problem File: {parameters["problemFile"]}");
+            LogMessage($"   Planner Path: {parameters["plannerPath"]}");
+            LogMessage($"   Timeout: {parameters["timeoutSeconds"]} seconds");
+            LogMessage($"   Max Plan Length: {parameters["maxPlanLength"]}");
+
+            var pddlRequest = new PDDLPlanningRequest(
+                parameters["domainFile"].ToString(),
+                parameters["problemFile"].ToString(),
+                parameters["plannerPath"].ToString(),
+                "LAMA-FIRST",
+                Convert.ToInt32(parameters["timeoutSeconds"]),
+                Convert.ToInt32(parameters["maxPlanLength"])
+            );
+
+            var lamaFirstPlanner = new CallPDDLPlanner(subtreeTree, pddlRequest);
+            lamaFirstPlanner.ExecutionMode = (CallPDDLPlanner.ParallelExecutionMode)parameters["executionMode"];
+
+            dynamicFlowNode.SetPlanningService(lamaFirstPlanner);
             subtreeTree.RootNode = dynamicFlowNode;
 
             return dynamicFlowNode;

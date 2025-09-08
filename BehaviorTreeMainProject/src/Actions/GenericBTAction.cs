@@ -10,6 +10,7 @@ using BehaviorTreeMainProject.Log.Services;
 // Generic action class that will be created by the factory
 public abstract class GenericBTAction : BTActionNodeBase
 {
+    public override string TypeName => "GenericBTAction";
     public readonly FastName actionType;
     private readonly Blackboard<FastName> blackboard;
     public int cost;
@@ -199,6 +200,8 @@ public abstract class GenericBTAction : BTActionNodeBase
         LoggingService.LogInfo($"🔍 GenericBTAction: {InstanceName.ToString()} ActionType: {actionType.ToString()}");
         LoggingService.LogInfo($"🔍 GenericBTAction: {InstanceName.ToString()} PlanningPhase: {blackboard.PlanningPhase}");
         
+        // Component execution will be tracked by the base class through OnTickReturn
+        
         // Check general services
         LoggingService.LogInfo($"🔍 GenericBTAction: {InstanceName.ToString()} GeneralServices count: {GenrealServices?.Count ?? 0}");
         if (GenrealServices != null && GenrealServices.Count > 0)
@@ -240,13 +243,11 @@ public abstract class GenericBTAction : BTActionNodeBase
                 // Return true to continue ticking if subtree is in progress, false if it failed
                 if (subtreeResult == EBTNodeResult.failed)
                 {
-                    // FIXED: Explicitly set LastStatus to failed when subtree fails
-                    LastStatus = EBTNodeResult.failed;
-
                     // Log high-level action failure
                     ActionExecutionLogger.Instance.LogActionFailed(actionName, instanceName, "Subtree execution failed");
 
-                    LoggingService.LogWarning($"❌ GenericBTAction: {InstanceName.ToString()} returning false (subtree failed) - LastStatus set to failed");
+                    LoggingService.LogWarning($"❌ GenericBTAction: {InstanceName.ToString()} returning false (subtree failed)");
+                    // Let the base class handle failure tracking through OnTickReturn
                     return false;
                 }
                 else if (subtreeResult == EBTNodeResult.Succeeded)

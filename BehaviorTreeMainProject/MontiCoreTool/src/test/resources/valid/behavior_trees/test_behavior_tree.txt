@@ -1,30 +1,29 @@
 BehaviorTree myTree {     
         BTFlowNode RootNode {
-            Service planningmanager
-            Decorator evaluatecost
+            success: ALL,
+            childType: ALLFLOWS,
+            Service planningmanager  
                 
             BTFlowNode cassette1 {
-                Service callpddlplanner
-
-                BTActionNode pickUpHL_lp1_fp1_r1 {
-                    Service subtreeinjection
-                }
-                    
-                BTActionNode placeHL_lp1_pr1_r1 {
-                    Service subtreeinjection
-                }
+                success: ALL,
+                childType: ALLACTIONS,
+                Service callpddlplanner1
             }
-            
             BTFlowNode cassette2 {
-                Service callpddlplanner 
-                    
-                BTActionNode pickUpHL_lp2_fp9_r1 {
-                    Service subtreeinjection
-                    }
-                    
-                BTActionNode placeHL_lp2_pr2_r1 {
-                    Service subtreeinjection
-                    }
-            }                   
+                success: ALL,
+                childType: ALLACTIONS,
+                Service callpddlplanner2
+            }
+            BTFlowNode cassette3 {
+                success: ALL,
+                childType: ALLACTIONS,
+                Service callpddlplanner3
+            }
+            BTFlowNode cassette4 {
+                success: ALL,
+                childType: ALLACTIONS,
+                Service callpddlplanner4
+            }
+                                       
         }
     }

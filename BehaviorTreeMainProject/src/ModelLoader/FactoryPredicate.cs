@@ -24,6 +24,9 @@ public class FactoryPredicate
     // Create a predicate instance by predicate name and parameter mappings
     public Predicate CreatePredicateInstance(string predicateName, List<ParameterMapping> parameterMappings, Blackboard<FastName> blackboard)
     {
+        // Start timing
+        var startTime = DateTime.Now;
+        
         LoggingService.LogInfo($"FACTORY: Creating predicate instance for '{predicateName}'");
         LoggingService.LogInfo($"FACTORY: Parameter mappings: {string.Join(", ", parameterMappings.Select(pm => $"{pm.ParameterName}={pm.ParameterValue}"))}");
         
@@ -157,6 +160,15 @@ public class FactoryPredicate
         }
         
         Console.WriteLine($"✅ FACTORY: Successfully registered predicate with key: {instance.PredicateName}");
+        
+        // Calculate and track timing
+        var endTime = DateTime.Now;
+        var generationTime = endTime - startTime;
+        
+        // Track creation timing for blackboard summary
+        BlackboardSummaryLogger.TrackCreation("PredicateInstances", predicateName, generationTime);
+        
+        Console.WriteLine($"⏱️ FACTORY: Predicate creation took {generationTime.TotalMilliseconds:F2}ms");
         
         return instance;
     }

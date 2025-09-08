@@ -123,6 +123,12 @@ public class Blackboard<T> : IDisposable where T : class
             FlowNodeValues[key] = value;
             // Log new flow node instance created
             BlackboardTrackingLogger.LogNewInstance(key.ToString(), value.GetType().Name, "Blackboard", $"Flow node instance: {value.GetType().Name}");
+            
+            // Track for blackboard summary
+            var startTime = DateTime.Now;
+            // Simulate generation time (since we don't have actual timing)
+            var generationTime = DateTime.Now - startTime;
+            BlackboardSummaryLogger.TrackCreation("ActionInstances", value.GetType().Name, generationTime);
         }
     }
 
@@ -271,13 +277,41 @@ public bool HasEntityType(FastName typeName)
     return AvailableEntityTypes.Contains(typeName);
 }
 
-/// <summary>
-/// Gets all available entity types
-/// </summary>
-/// <returns></returns>
-public List<FastName> GetAllEntityTypes()
+    /// <summary>
+    /// Gets all available entity types
+    /// </summary>
+    /// <returns></returns>
+    public List<FastName> GetAllEntityTypes()
+    {
+        return AvailableEntityTypes.ToList();
+    }
+    public List<Element> GetAllElements()
+    {
+        return ElementValues.Values.ToList();
+    }
+public List<GenericBTAction> GetAllActions()
 {
-    return AvailableEntityTypes.ToList();
+    return ActionValues.Values.ToList();
+}
+public List<Location> GetAllLocations()
+{
+    return LocationValues.Values.ToList();
+}
+public List<Agent> GetAllAgents()
+{
+    return AgentValues.Values.ToList();
+}
+public List<Layer> GetAllLayers()
+{
+    return LayerValues.Values.ToList();
+}
+public List<Module> GetAllModules()
+{
+    return ModuleValues.Values.ToList();
+}
+public List<Tool> GetAllTools()
+{
+    return ToolValues.Values.ToList();
 }
 
 /// <summary>
@@ -400,6 +434,12 @@ public void SetActionInstance(FastName key, GenericBTAction actionInstance)
         ActionValues[key] = actionInstance;
         // Log new action instance created
         BlackboardTrackingLogger.LogNewInstance(key.ToString(), actionInstance.GetType().Name, "Blackboard", $"Action instance: {actionInstance.GetType().Name}");
+        
+        // Track for blackboard summary
+        var startTime = DateTime.Now;
+        // Simulate generation time (since we don't have actual timing)
+        var generationTime = DateTime.Now - startTime;
+        BlackboardSummaryLogger.TrackCreation("ActionInstances", actionInstance.GetType().Name, generationTime);
     }
 }
 
@@ -420,6 +460,7 @@ public List<GenericBTAction> GetAllActionInstances()
 {
     return ActionValues.Values.ToList();
 }
+
 
     // Set methods for predicates
     private void SetPredicateSecondary(FastName key, Predicate predicate)

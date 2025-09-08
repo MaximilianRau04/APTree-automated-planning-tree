@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Linq;
+using BehaviorTreeMainProject.Log.Services;
 
 
 public class FactoryAction : Singleton<FactoryAction>
@@ -14,6 +15,9 @@ public class FactoryAction : Singleton<FactoryAction>
         string actionInstanceDefinition, 
         Blackboard<FastName> blackboard)
     {
+        // Start timing
+        var startTime = DateTime.Now;
+        
         // Parse the action instance definition
         var (actionTypeName, instanceName, parameterValues) = ParseActionInstanceDefinition(actionInstanceDefinition, blackboard);
         
@@ -95,6 +99,16 @@ public class FactoryAction : Singleton<FactoryAction>
             }
             
             Console.WriteLine($"✅ Successfully created action instance: {instance.GetType().Name}");
+            
+            // Calculate and track timing
+            var endTime = DateTime.Now;
+            var generationTime = endTime - startTime;
+            
+            // Track creation timing for blackboard summary
+            BlackboardSummaryLogger.TrackCreation("ActionInstances", actionTypeName, generationTime);
+            
+            Console.WriteLine($"⏱️ FACTORY: Action creation took {generationTime.TotalMilliseconds:F2}ms");
+            
             return instance;
         }
         catch (Exception ex)

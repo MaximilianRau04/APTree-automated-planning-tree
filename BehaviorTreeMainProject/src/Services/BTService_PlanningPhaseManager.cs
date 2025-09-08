@@ -15,7 +15,7 @@ public class BTService_PlanningPhaseManager : BTServiceBase
         AttachedNode = InOwningFlowNode;
     }
 
-    public override bool Tick(float inDeltaTime)
+    public override bool OnEvaluate(float inDeltaTime)
     {
         LoggingService.LogInfo($"🔧 BTService_PlanningPhaseManager.Tick: Starting tick...");
         
@@ -47,6 +47,10 @@ public class BTService_PlanningPhaseManager : BTServiceBase
             
             // Track planning phase transition for execution summary
             ExecutionSummaryLogger.TrackPlanningPhaseTransition(false);
+            
+            // Track final actions remaining at the end of planning phase
+            var finalActionCount = LinkedBlackboard.GetAllActions().Count;
+            BehaviorTreeComponentLogger.TrackFinalActionsRemaining(finalActionCount, "End of planning phase - all planning completed");
             
             LoggingService.LogWarning("🚨 WARNING: PlanningPhase has been set to FALSE - dynamic planning phase manager can now start checking!");
             ExecutionFlowLogger.LogExecutionEvent("PHASE_START", "ML actions can now execute");

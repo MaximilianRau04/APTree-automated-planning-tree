@@ -38,7 +38,7 @@ namespace BehaviorTreeMainProject.Services.AIPlanning
         }
       
 
-        public override bool Tick(float InDeltaTime)
+        public override bool OnEvaluate(float InDeltaTime)
         {
             if (!planningStarted)
             {
@@ -46,7 +46,7 @@ namespace BehaviorTreeMainProject.Services.AIPlanning
                 planningStarted = true;
             }
             
-            return base.Tick(InDeltaTime);
+            return base.OnEvaluate(InDeltaTime);
         }
 
         protected override NodeGraph GenerateNodeGraphFromResult(PlanningResult result)

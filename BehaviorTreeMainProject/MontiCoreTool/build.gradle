@@ -156,6 +156,20 @@ task runBehaviorTreeParser(type: JavaExec) {
     workingDir = projectDir
 }
 
+task runBehaviorTreeGrammarParser(type: JavaExec) {
+    dependsOn 'compileJava'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'BehaviorTreeGrammarParserTest'
+    workingDir = projectDir
+}
+
+task runPDDLPlannerParser(type: JavaExec) {
+    dependsOn 'compileJava'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'PDDLPlannerTest'
+    workingDir = projectDir
+}
+
 
 
 defaultTasks 'build'

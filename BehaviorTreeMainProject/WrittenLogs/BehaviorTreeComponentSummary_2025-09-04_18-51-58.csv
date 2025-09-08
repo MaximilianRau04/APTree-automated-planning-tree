@@ -1,0 +1,11 @@
+Component,Count,Failures,AverageBranchingFactor,CallCount
+BTFlowNode_Dynamic,0,0,0.00,0
+BTFlowNode_Composite,0,0,0.00,0
+GenericBTAction,39,0,0.00,53
+SubtreesInjected,34,0,0.00,34
+DecoratorBTDecorator_DynamicPlanningComplete,8,0,0.00,0
+DecoratorBTDecorator_LowestCostExecution,8,0,0.00,0
+DecoratorBTDecorator_PlanningComplete,12,0,0.00,0
+ServiceCallPDDLPlanner,12,0,0.00,0
+ServiceBTService_PlanningPhaseManager,1,0,0.00,0
+ServiceSubtreeInjectionService,72,0,0.00,0

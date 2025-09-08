@@ -1,12 +1,16 @@
 using System;
 using System.Collections.Generic;
 using ModelLoader.ParameterTypes;
+using BehaviorTreeMainProject.Log.Services;
 
 public class FactoryParameter : Singleton<FactoryParameter>
 {
     // Create a parameter instance by type name and instance name only
     public Entity CreateParameter(string typeName, string instanceName)
     {
+        // Start timing
+        var startTime = DateTime.Now;
+        
         // Dynamically find the parameter type
         Type parameterType = FindParameterType(typeName);
         
@@ -26,6 +30,15 @@ public class FactoryParameter : Singleton<FactoryParameter>
         // Set the name using the NameKey property
         instance.NameKey = new FastName(instanceName);
         instance.ID = instanceName;
+
+        // Calculate and track timing
+        var endTime = DateTime.Now;
+        var generationTime = endTime - startTime;
+        
+        // Track creation timing for blackboard summary
+        BlackboardSummaryLogger.TrackCreation("ParameterInstances", typeName, generationTime);
+        
+        Console.WriteLine($"⏱️ FACTORY: Parameter creation took {generationTime.TotalMilliseconds:F2}ms");
 
         return instance;
     }

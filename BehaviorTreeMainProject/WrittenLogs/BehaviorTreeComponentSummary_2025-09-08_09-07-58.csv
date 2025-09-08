@@ -1,0 +1,17 @@
+Component,Count,Failures,AverageBranchingFactor,CallCount,TotalTicks,SuccessCount,FailureCount,ActionsDeleted,NodeGraphResets,SubtreesCleared
+BTFlowNode_Dynamic,21,68,3.00,0,81,21,34,0,90,20
+BTFlowNode_Composite,1,0,2.50,0,55,1,0,0,90,20
+GenericBTAction,39,0,0.00,53,0,0,0,0,90,20
+SubtreesInjected,34,0,0.00,34,0,0,0,0,90,20
+DecoratorBTDecorator_DynamicPlanningComplete,8,0,0.00,0,0,0,0,0,90,20
+DecoratorBTDecorator_LowestCostExecution,8,0,0.00,0,0,0,0,0,90,20
+DecoratorBTDecorator_PlanningComplete,12,0,0.00,0,0,0,0,0,90,20
+BTDecorator_DynamicPlanningComplete,0,12,0.00,0,2,2,0,0,90,20
+BTDecorator_LowestCostExecution,0,3,0.00,0,2,2,0,0,90,20
+BTDecorator_PlanningComplete,0,4,0.00,0,14,13,1,0,90,20
+ServiceCallPDDLPlanner,12,0,0.00,0,0,0,0,0,90,20
+ServiceBTService_PlanningPhaseManager,1,0,0.00,0,0,0,0,0,90,20
+ServiceSubtreeInjectionService,72,0,0.00,0,0,0,0,0,90,20
+CallPDDLPlanner,0,0,0.00,0,14,14,0,0,90,20
+BTService_PlanningPhaseManager,0,0,0.00,0,55,55,0,0,90,20
+SubtreeInjectionService,0,0,0.00,0,1,1,0,0,90,20

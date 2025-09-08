@@ -1,0 +1,115 @@
+Counter,Timestamp,ActionName,InstanceName,Status,AdditionalInfo,TimeSinceStartMs
+1,2025-09-08 15:05:25.582,PickUpHL,PickUpHL_lp1_fp1_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PickUpHL_lp1_fp1_r1; DeltaTime: 0.100",5.92
+2,2025-09-08 15:05:28.788,PickUpHL,PickUpHL_lp1_fp1_r1,FAILED,"Subtree execution failed",3212.63
+3,2025-09-08 15:05:29.093,PickUpHL,PickUpHL_lp2_fp9_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PickUpHL_lp2_fp9_r1; DeltaTime: 0.100",3516.95
+4,2025-09-08 15:05:32.465,PickUpHL,PickUpHL_lp2_fp9_r1,FAILED,"Subtree execution failed",6889.46
+5,2025-09-08 15:05:32.859,PickUpHL,PickUpHL_lp3_fp17_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PickUpHL_lp3_fp17_r1; DeltaTime: 0.100",7282.85
+6,2025-09-08 15:05:35.683,PickUpHL,PickUpHL_lp3_fp17_r1,FAILED,"Subtree execution failed",10106.93
+7,2025-09-08 15:05:35.956,PickUpHL,PickUpHL_lp4_fp25_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PickUpHL_lp4_fp25_r1; DeltaTime: 0.100",10380.25
+8,2025-09-08 15:05:39.096,TravelML,TravelML_r1_pr2_ep1,STARTED,"Normal execution; DeltaTime: 0.100",13520.48
+9,2025-09-08 15:05:39.098,TravelML,TravelML_r1_pr2_ep1,STARTED,"DeltaTime: 0.100",13522.18
+10,2025-09-08 15:05:39.259,TravelML,TravelML_r1_pr2_ep1,COMPLETED,"Effects applied successfully",13683.23
+11,2025-09-08 15:05:39.646,PickUpHL,PickUpHL_lp4_fp25_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PickUpHL_lp4_fp25_r1; DeltaTime: 0.100",14070.71
+12,2025-09-08 15:05:39.771,EquipeML,EquipeML_r1_vg1_ep1,STARTED,"Normal execution; DeltaTime: 0.100",14195.65
+13,2025-09-08 15:05:39.772,EquipeML,EquipeML_r1_vg1_ep1,STARTED,"DeltaTime: 0.100",14196.39
+14,2025-09-08 15:05:39.852,EquipeML,EquipeML_r1_vg1_ep1,COMPLETED,"Effects applied successfully",14276.54
+15,2025-09-08 15:05:40.138,PickUpHL,PickUpHL_lp4_fp25_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PickUpHL_lp4_fp25_r1; DeltaTime: 0.100",14562.40
+16,2025-09-08 15:05:40.247,InitializeML,InitializeML_r1_vg1,STARTED,"Normal execution; DeltaTime: 0.100",14671.27
+17,2025-09-08 15:05:40.248,InitializeML,InitializeML_r1_vg1,STARTED,"DeltaTime: 0.100",14672.03
+18,2025-09-08 15:05:40.307,InitializeML,InitializeML_r1_vg1,COMPLETED,"Effects applied successfully",14731.06
+19,2025-09-08 15:05:40.712,PickUpHL,PickUpHL_lp4_fp25_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PickUpHL_lp4_fp25_r1; DeltaTime: 0.100",15136.08
+20,2025-09-08 15:05:40.820,TravelML,TravelML_r1_ep1_fp25,STARTED,"Normal execution; DeltaTime: 0.100",15244.69
+21,2025-09-08 15:05:40.826,TravelML,TravelML_r1_ep1_fp25,STARTED,"DeltaTime: 0.100",15250.73
+22,2025-09-08 15:05:40.921,TravelML,TravelML_r1_ep1_fp25,COMPLETED,"Effects applied successfully",15345.50
+23,2025-09-08 15:05:41.360,PickUpHL,PickUpHL_lp4_fp25_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PickUpHL_lp4_fp25_r1; DeltaTime: 0.100",15784.31
+24,2025-09-08 15:05:41.477,PickUpML,PickUpML_lp4_fp25_r1_vg1,STARTED,"Normal execution; DeltaTime: 0.100",15901.71
+25,2025-09-08 15:05:41.478,PickUpML,PickUpML_lp4_fp25_r1_vg1,STARTED,"DeltaTime: 0.100",15902.18
+26,2025-09-08 15:05:41.569,PickUpML,PickUpML_lp4_fp25_r1_vg1,COMPLETED,"Effects applied successfully",15992.93
+27,2025-09-08 15:05:41.588,PickUpHL,PickUpHL_lp4_fp25_r1,COMPLETED,"Subtree execution completed successfully",16012.07
+28,2025-09-08 15:05:42.179,PlaceHL,PlaceHL_lp4_pr4_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PlaceHL_lp4_pr4_r1; DeltaTime: 0.100",16602.88
+29,2025-09-08 15:05:44.886,PlaceHL,PlaceHL_lp4_pr4_r1,FAILED,"Subtree execution failed",19310.26
+30,2025-09-08 15:05:45.349,PickUpHL,PickUpHL_lp1_fp1_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PickUpHL_lp1_fp1_r1; DeltaTime: 0.100",19773.80
+31,2025-09-08 15:05:48.712,PickUpHL,PickUpHL_lp1_fp1_r1,FAILED,"Subtree execution failed",23136.06
+32,2025-09-08 15:05:49.018,PickUpHL,PickUpHL_lp2_fp9_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PickUpHL_lp2_fp9_r1; DeltaTime: 0.100",23442.62
+33,2025-09-08 15:05:52.242,PickUpHL,PickUpHL_lp2_fp9_r1,FAILED,"Subtree execution failed",26666.78
+34,2025-09-08 15:05:52.542,PickUpHL,PickUpHL_lp3_fp17_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PickUpHL_lp3_fp17_r1; DeltaTime: 0.100",26966.36
+35,2025-09-08 15:05:55.577,PickUpHL,PickUpHL_lp3_fp17_r1,FAILED,"Subtree execution failed",30001.65
+36,2025-09-08 15:05:55.931,PlaceHL,PlaceHL_lp4_pr4_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PlaceHL_lp4_pr4_r1; DeltaTime: 0.100",30355.25
+37,2025-09-08 15:05:56.024,TravelML,TravelML_r1_fp25_pr4,STARTED,"Normal execution; DeltaTime: 0.100",30448.47
+38,2025-09-08 15:05:56.027,TravelML,TravelML_r1_fp25_pr4,STARTED,"DeltaTime: 0.100",30451.21
+39,2025-09-08 15:05:56.151,TravelML,TravelML_r1_fp25_pr4,COMPLETED,"Effects applied successfully",30575.24
+40,2025-09-08 15:05:56.548,PlaceHL,PlaceHL_lp4_pr4_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PlaceHL_lp4_pr4_r1; DeltaTime: 0.100",30972.48
+41,2025-09-08 15:05:56.618,PlaceML,PlaceML_lp4_pr4_r1_vg1,STARTED,"Normal execution; DeltaTime: 0.100",31042.58
+42,2025-09-08 15:05:56.619,PlaceML,PlaceML_lp4_pr4_r1_vg1,STARTED,"DeltaTime: 0.100",31043.11
+43,2025-09-08 15:05:56.741,PlaceML,PlaceML_lp4_pr4_r1_vg1,COMPLETED,"Effects applied successfully",31165.15
+44,2025-09-08 15:05:56.764,PlaceHL,PlaceHL_lp4_pr4_r1,COMPLETED,"Subtree execution completed successfully",31188.46
+45,2025-09-08 15:05:57.280,PickUpHL,PickUpHL_lp1_fp1_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PickUpHL_lp1_fp1_r1; DeltaTime: 0.100",31704.21
+46,2025-09-08 15:06:00.076,PickUpHL,PickUpHL_lp1_fp1_r1,FAILED,"Subtree execution failed",34499.83
+47,2025-09-08 15:06:00.375,PickUpHL,PickUpHL_lp2_fp9_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PickUpHL_lp2_fp9_r1; DeltaTime: 0.100",34799.15
+48,2025-09-08 15:06:03.118,PickUpHL,PickUpHL_lp2_fp9_r1,FAILED,"Subtree execution failed",37542.49
+49,2025-09-08 15:06:03.445,PickUpHL,PickUpHL_lp3_fp17_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PickUpHL_lp3_fp17_r1; DeltaTime: 0.100",37869.11
+50,2025-09-08 15:06:06.478,TravelML,TravelML_r1_pr4_fp17,STARTED,"Normal execution; DeltaTime: 0.100",40901.93
+51,2025-09-08 15:06:06.479,TravelML,TravelML_r1_pr4_fp17,STARTED,"DeltaTime: 0.100",40903.11
+52,2025-09-08 15:06:06.544,TravelML,TravelML_r1_pr4_fp17,COMPLETED,"Effects applied successfully",40968.44
+53,2025-09-08 15:06:06.943,PickUpHL,PickUpHL_lp3_fp17_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PickUpHL_lp3_fp17_r1; DeltaTime: 0.100",41367.18
+54,2025-09-08 15:06:07.036,PickUpML,PickUpML_lp3_fp17_r1_vg1,STARTED,"Normal execution; DeltaTime: 0.100",41460.60
+55,2025-09-08 15:06:07.037,PickUpML,PickUpML_lp3_fp17_r1_vg1,STARTED,"DeltaTime: 0.100",41461.35
+56,2025-09-08 15:06:07.125,PickUpML,PickUpML_lp3_fp17_r1_vg1,COMPLETED,"Effects applied successfully",41549.30
+57,2025-09-08 15:06:07.136,PickUpHL,PickUpHL_lp3_fp17_r1,COMPLETED,"Subtree execution completed successfully",41560.69
+58,2025-09-08 15:06:07.458,PlaceHL,PlaceHL_lp3_pr3_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PlaceHL_lp3_pr3_r1; DeltaTime: 0.100",41882.63
+59,2025-09-08 15:06:10.198,PlaceHL,PlaceHL_lp3_pr3_r1,FAILED,"Subtree execution failed",44622.77
+60,2025-09-08 15:06:10.870,PickUpHL,PickUpHL_lp1_fp1_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PickUpHL_lp1_fp1_r1; DeltaTime: 0.100",45294.55
+61,2025-09-08 15:06:13.952,PickUpHL,PickUpHL_lp1_fp1_r1,FAILED,"Subtree execution failed",48376.56
+62,2025-09-08 15:06:14.304,PickUpHL,PickUpHL_lp2_fp9_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PickUpHL_lp2_fp9_r1; DeltaTime: 0.100",48728.63
+63,2025-09-08 15:06:17.197,PickUpHL,PickUpHL_lp2_fp9_r1,FAILED,"Subtree execution failed",51621.61
+64,2025-09-08 15:06:17.520,PlaceHL,PlaceHL_lp3_pr3_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PlaceHL_lp3_pr3_r1; DeltaTime: 0.100",51944.62
+65,2025-09-08 15:06:17.606,TravelML,TravelML_r1_fp17_pr3,STARTED,"Normal execution; DeltaTime: 0.100",52030.60
+66,2025-09-08 15:06:17.607,TravelML,TravelML_r1_fp17_pr3,STARTED,"DeltaTime: 0.100",52031.45
+67,2025-09-08 15:06:17.703,TravelML,TravelML_r1_fp17_pr3,COMPLETED,"Effects applied successfully",52127.72
+68,2025-09-08 15:06:18.126,PlaceHL,PlaceHL_lp3_pr3_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PlaceHL_lp3_pr3_r1; DeltaTime: 0.100",52550.27
+69,2025-09-08 15:06:18.211,PlaceML,PlaceML_lp3_pr3_r1_vg1,STARTED,"Normal execution; DeltaTime: 0.100",52635.11
+70,2025-09-08 15:06:18.216,PlaceML,PlaceML_lp3_pr3_r1_vg1,STARTED,"DeltaTime: 0.100",52640.30
+71,2025-09-08 15:06:18.331,PlaceML,PlaceML_lp3_pr3_r1_vg1,COMPLETED,"Effects applied successfully",52755.07
+72,2025-09-08 15:06:18.343,PlaceHL,PlaceHL_lp3_pr3_r1,COMPLETED,"Subtree execution completed successfully",52766.93
+73,2025-09-08 15:06:19.098,PickUpHL,PickUpHL_lp1_fp1_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PickUpHL_lp1_fp1_r1; DeltaTime: 0.100",53522.78
+74,2025-09-08 15:06:22.019,PickUpHL,PickUpHL_lp1_fp1_r1,FAILED,"Subtree execution failed",56443.33
+75,2025-09-08 15:06:22.314,PickUpHL,PickUpHL_lp2_fp9_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PickUpHL_lp2_fp9_r1; DeltaTime: 0.100",56738.21
+76,2025-09-08 15:06:25.564,TravelML,TravelML_r1_pr3_fp9,STARTED,"Normal execution; DeltaTime: 0.100",59988.31
+77,2025-09-08 15:06:25.566,TravelML,TravelML_r1_pr3_fp9,STARTED,"DeltaTime: 0.100",59990.63
+78,2025-09-08 15:06:25.705,TravelML,TravelML_r1_pr3_fp9,COMPLETED,"Effects applied successfully",60129.02
+79,2025-09-08 15:06:26.080,PickUpHL,PickUpHL_lp2_fp9_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PickUpHL_lp2_fp9_r1; DeltaTime: 0.100",60504.66
+80,2025-09-08 15:06:26.137,PickUpML,PickUpML_lp2_fp9_r1_vg1,STARTED,"Normal execution; DeltaTime: 0.100",60561.63
+81,2025-09-08 15:06:26.138,PickUpML,PickUpML_lp2_fp9_r1_vg1,STARTED,"DeltaTime: 0.100",60562.49
+82,2025-09-08 15:06:26.263,PickUpML,PickUpML_lp2_fp9_r1_vg1,COMPLETED,"Effects applied successfully",60687.81
+83,2025-09-08 15:06:26.272,PickUpHL,PickUpHL_lp2_fp9_r1,COMPLETED,"Subtree execution completed successfully",60696.12
+84,2025-09-08 15:06:26.627,PlaceHL,PlaceHL_lp2_pr2_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PlaceHL_lp2_pr2_r1; DeltaTime: 0.100",61051.19
+85,2025-09-08 15:06:29.352,PlaceHL,PlaceHL_lp2_pr2_r1,FAILED,"Subtree execution failed",63776.07
+86,2025-09-08 15:06:30.129,PickUpHL,PickUpHL_lp1_fp1_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PickUpHL_lp1_fp1_r1; DeltaTime: 0.100",64553.12
+87,2025-09-08 15:06:32.967,PickUpHL,PickUpHL_lp1_fp1_r1,FAILED,"Subtree execution failed",67391.68
+88,2025-09-08 15:06:33.367,PlaceHL,PlaceHL_lp2_pr2_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PlaceHL_lp2_pr2_r1; DeltaTime: 0.100",67791.48
+89,2025-09-08 15:06:33.440,TravelML,TravelML_r1_fp9_pr2,STARTED,"Normal execution; DeltaTime: 0.100",67864.13
+90,2025-09-08 15:06:33.440,TravelML,TravelML_r1_fp9_pr2,STARTED,"DeltaTime: 0.100",67864.73
+91,2025-09-08 15:06:33.502,TravelML,TravelML_r1_fp9_pr2,COMPLETED,"Effects applied successfully",67926.36
+92,2025-09-08 15:06:34.004,PlaceHL,PlaceHL_lp2_pr2_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PlaceHL_lp2_pr2_r1; DeltaTime: 0.100",68428.76
+93,2025-09-08 15:06:34.064,PlaceML,PlaceML_lp2_pr2_r1_vg1,STARTED,"Normal execution; DeltaTime: 0.100",68488.61
+94,2025-09-08 15:06:34.065,PlaceML,PlaceML_lp2_pr2_r1_vg1,STARTED,"DeltaTime: 0.100",68489.30
+95,2025-09-08 15:06:34.193,PlaceML,PlaceML_lp2_pr2_r1_vg1,COMPLETED,"Effects applied successfully",68617.61
+96,2025-09-08 15:06:34.212,PlaceHL,PlaceHL_lp2_pr2_r1,COMPLETED,"Subtree execution completed successfully",68636.01
+97,2025-09-08 15:06:35.020,PickUpHL,PickUpHL_lp1_fp1_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PickUpHL_lp1_fp1_r1; DeltaTime: 0.100",69444.66
+98,2025-09-08 15:06:37.836,TravelML,TravelML_r1_pr2_fp1,STARTED,"Normal execution; DeltaTime: 0.100",72260.06
+99,2025-09-08 15:06:37.836,TravelML,TravelML_r1_pr2_fp1,STARTED,"DeltaTime: 0.100",72260.70
+100,2025-09-08 15:06:37.912,TravelML,TravelML_r1_pr2_fp1,COMPLETED,"Effects applied successfully",72336.43
+101,2025-09-08 15:06:38.338,PickUpHL,PickUpHL_lp1_fp1_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PickUpHL_lp1_fp1_r1; DeltaTime: 0.100",72761.91
+102,2025-09-08 15:06:38.442,PickUpML,PickUpML_lp1_fp1_r1_vg1,STARTED,"Normal execution; DeltaTime: 0.100",72866.10
+103,2025-09-08 15:06:38.443,PickUpML,PickUpML_lp1_fp1_r1_vg1,STARTED,"DeltaTime: 0.100",72867.59
+104,2025-09-08 15:06:38.602,PickUpML,PickUpML_lp1_fp1_r1_vg1,COMPLETED,"Effects applied successfully",73026.07
+105,2025-09-08 15:06:38.620,PickUpHL,PickUpHL_lp1_fp1_r1,COMPLETED,"Subtree execution completed successfully",73044.40
+106,2025-09-08 15:06:39.078,PlaceHL,PlaceHL_lp1_pr1_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PlaceHL_lp1_pr1_r1; DeltaTime: 0.100",73502.62
+107,2025-09-08 15:06:41.868,TravelML,TravelML_r1_fp1_pr1,STARTED,"Normal execution; DeltaTime: 0.100",76292.65
+108,2025-09-08 15:06:41.869,TravelML,TravelML_r1_fp1_pr1,STARTED,"DeltaTime: 0.100",76293.45
+109,2025-09-08 15:06:41.942,TravelML,TravelML_r1_fp1_pr1,COMPLETED,"Effects applied successfully",76366.05
+110,2025-09-08 15:06:42.273,PlaceHL,PlaceHL_lp1_pr1_r1,STARTED,"High-level execution with subtree: FF_Default_DynamicFlow_PlaceHL_lp1_pr1_r1; DeltaTime: 0.100",76697.29
+111,2025-09-08 15:06:42.360,PlaceML,PlaceML_lp1_pr1_r1_vg1,STARTED,"Normal execution; DeltaTime: 0.100",76784.16
+112,2025-09-08 15:06:42.361,PlaceML,PlaceML_lp1_pr1_r1_vg1,STARTED,"DeltaTime: 0.100",76785.12
+113,2025-09-08 15:06:42.445,PlaceML,PlaceML_lp1_pr1_r1_vg1,COMPLETED,"Effects applied successfully",76869.60
+114,2025-09-08 15:06:42.458,PlaceHL,PlaceHL_lp1_pr1_r1,COMPLETED,"Subtree execution completed successfully",76882.77

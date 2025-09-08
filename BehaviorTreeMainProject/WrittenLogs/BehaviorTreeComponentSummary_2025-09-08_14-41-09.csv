@@ -1,0 +1,10 @@
+ComponentType,InstanceCount,TickCount,SuccessCount,FailureCount
+BTDecorator_DynamicPlanningComplete,0,34,22,12
+BTDecorator_LowestCostExecution,0,22,19,3
+BTDecorator_PlanningComplete,0,81,77,4
+BTFlowNode_Composite,0,55,1,0
+BTFlowNode_Dynamic,4,81,21,34
+BTService_PlanningPhaseManager,0,55,55,0
+BTServicePlanner,0,0,0,0
+SubtreeInjectionService,0,53,53,0
+TOTAL,4,381,248,53

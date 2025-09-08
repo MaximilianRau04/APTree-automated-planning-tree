@@ -1,0 +1,29 @@
+BehaviorTree myTree {     
+        BTFlowNode RootNode {
+            success: ALL,
+            childType: ALLFLOW,
+            Service planningmanager  
+                
+            BTFlowNode cassette1 {
+                success: ALL,
+                childType: ALLACTION,
+                Service callpddlplanner1
+            }
+            BTFlowNode cassette2 {
+                success: ALL,
+                childType: ALLACTION,
+                Service callpddlplanner2
+            }
+            BTFlowNode cassette3 {
+                success: ALL,
+                childType: ALLACTION,
+                Service callpddlplanner3
+            }
+            BTFlowNode cassette4 {
+                success: ALL,
+                childType: ALLACTION,
+                Service callpddlplanner4
+            }
+                                       
+        }
+    }

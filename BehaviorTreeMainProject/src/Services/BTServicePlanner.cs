@@ -45,18 +45,43 @@ public abstract class BTServicePlanner : BTServiceBase
 
     // The communicator for external planners
     protected IPlannerCommunicator plannerCommunicator;
-    protected IPlanningRequest planningRequest;
+    public IPlanningRequest planningRequest { get; }
     
     // Execution tracking
     public DateTime StartTime { get; private set; }
-    public DateTime EndTime { get; private set; }
+    public DateTime PlannerEndTime { get; private set; } // Time when external planner finishes
+    public DateTime EndTime { get; private set; } // Time when entire service finishes
     public bool IsExecuting { get; private set; } = false;
     public bool HasCompleted { get; private set; } = false;
     public bool WasSuccessful { get; private set; } = false; // True if planning succeeded and plan was generated
     public bool HasPlanGenerated { get; private set; } = false; // True if NodeGraph was successfully created
     public string LastError { get; private set; } = null; // Last error message if planning failed
-    public TimeSpan ExecutionDuration => HasCompleted ? EndTime - StartTime : TimeSpan.Zero;
+    public TimeSpan PlannerExecutionDuration => HasCompleted ? PlannerEndTime - StartTime : TimeSpan.Zero; // External planner time only
+    public TimeSpan TotalExecutionDuration => HasCompleted ? EndTime - StartTime : TimeSpan.Zero; // Total service time
     public string PlannerName => GetType().Name;
+
+    /// <summary>
+    /// Extract the actual planner type from the planning request
+    /// </summary>
+    public static string GetPlannerTypeFromRequest(IPlanningRequest request)
+    {
+        if (request is PDDLPlanningRequest pddlRequest)
+        {
+            return pddlRequest.PlannerName;
+        }
+        else if (request is GOAPPlanningRequest)
+        {
+            return "GOAP";
+        }
+        else if (request is StateChartPlanningRequest)
+        {
+            return "StateChart";
+        }
+        else
+        {
+            return request.PlanningType;
+        }
+    }
 
     protected BTServicePlanner(IBehaviorTree InOwningTree, IPlannerCommunicator communicator, IPlanningRequest InPlanningRequest)
         : base(InOwningTree)
@@ -79,8 +104,9 @@ public abstract class BTServicePlanner : BTServiceBase
         OwningFlowNode = flowNode;
         LoggingService.LogInfo($"🔧 BTServicePlanner: Bidirectional reference established - {GetType().Name} ↔ {flowNode.DebugDisplayName}");
     }
+   
 
-    public override bool Tick(float InDeltaTime)
+    public override bool OnEvaluate(float InDeltaTime)
     {
         // If planning has already completed (success or failure), don't run again
         if (HasCompleted)
@@ -96,28 +122,32 @@ public abstract class BTServicePlanner : BTServiceBase
                 return false; // Return false to indicate failure
             }
         }
-        
+
         // If already executing, don't start again
         if (IsExecuting)
         {
             LoggingService.LogInfo($"⏳ {GetType().Name}: Planning already in progress, waiting...");
             return true; // Return true to indicate we're still working
         }
-        
+
         // Start execution tracking
         StartTime = DateTime.Now;
         IsExecuting = true;
-        
-        // Track planning service start for execution summary
-        ExecutionSummaryLogger.TrackPlanningService(GetType().Name, planningRequest.PlanningType, StartTime, false, 0);
-        
+
+        // Get planner type for tracking (will be used at the end of execution)
+        var plannerType = GetPlannerTypeFromRequest(planningRequest);
+
         LoggingService.LogInfo($"🚀 {GetType().Name}: Starting planning process at {StartTime:HH:mm:ss.fff}");
-        
+
         try
         {
             // Step 2: Send to external planner via communicator
             var result = Task.Run(async () => await plannerCommunicator.SendPlanningRequestAsync(planningRequest)).Result;
-            
+
+            // Record when external planner finishes
+            PlannerEndTime = DateTime.Now;
+            LoggingService.LogInfo($"⏱️ {GetType().Name}: External planner finished at {PlannerEndTime:HH:mm:ss.fff} (Planner time: {PlannerEndTime - StartTime:hh\\:mm\\:ss\\.fff})");
+
             if (!result.Success)
             {
                 EndTime = DateTime.Now;
@@ -126,20 +156,21 @@ public abstract class BTServicePlanner : BTServiceBase
                 WasSuccessful = false;
                 HasPlanGenerated = false;
                 LastError = result.Error;
-                
+
                 // Track planning service failure for execution summary
-                ExecutionSummaryLogger.TrackPlanningService(GetType().Name, planningRequest.PlanningType, StartTime, false, 0, EndTime);
-                
+                ExecutionSummaryLogger.TrackPlanningService(plannerType, plannerType, StartTime, false, 0, PlannerEndTime, EndTime);
+
                 LoggingService.LogError($"⚠️ {GetType().Name}: Planning failed at {EndTime:HH:mm:ss.fff} - {result.Error}");
-                LoggingService.LogInfo($"⏱️ {GetType().Name}: Execution time: {EndTime - StartTime:hh\\:mm\\:ss\\.fff}");
+                LoggingService.LogInfo($"⏱️ {GetType().Name}: Planner execution time: {PlannerEndTime - StartTime:hh\\:mm\\:ss\\.fff}");
+                LoggingService.LogInfo($"⏱️ {GetType().Name}: Total service time: {EndTime - StartTime:hh\\:mm\\:ss\\.fff}");
                 LoggingService.LogInfo($"📋 {GetType().Name}: Planning Status - Completed: {HasCompleted}, Successful: {WasSuccessful}, Plan Generated: {HasPlanGenerated}");
                 LoggingService.LogWarning($"🔄 {GetType().Name}: Planning failed - this node will fail. No retries will be attempted.");
                 return false;
             }
-            
+
             // Step 3: Generate NodeGraph from planner result (implemented by each planner type)
             generatedNodeGraph = GenerateNodeGraphFromResult(result);
-            
+
             if (generatedNodeGraph == null)
             {
                 EndTime = DateTime.Now;
@@ -148,17 +179,17 @@ public abstract class BTServicePlanner : BTServiceBase
                 WasSuccessful = false;
                 HasPlanGenerated = false;
                 LastError = "Failed to generate NodeGraph from planner result";
-                
+
                 // Track planning service failure for execution summary
-                ExecutionSummaryLogger.TrackPlanningService(GetType().Name, planningRequest.PlanningType, StartTime, false, 0, EndTime);
-                
+                ExecutionSummaryLogger.TrackPlanningService(plannerType, plannerType, StartTime, false, 0, PlannerEndTime, EndTime);
+
                 LoggingService.LogError($"⚠️ {GetType().Name}: Failed to generate NodeGraph at {EndTime:HH:mm:ss.fff}");
                 LoggingService.LogInfo($"⏱️ {GetType().Name}: Execution time: {EndTime - StartTime:hh\\:mm\\:ss\\.fff}");
                 LoggingService.LogInfo($"📋 {GetType().Name}: Planning Status - Completed: {HasCompleted}, Successful: {WasSuccessful}, Plan Generated: {HasPlanGenerated}");
                 LoggingService.LogWarning($"🔄 {GetType().Name}: NodeGraph generation failed - this node will fail. No retries will be attempted.");
                 return false;
             }
-            
+
             // Step 4: Directly assign NodeGraph to owning flow node (if available)
             if (OwningFlowNode != null)
             {
@@ -166,7 +197,7 @@ public abstract class BTServicePlanner : BTServiceBase
                 LoggingService.LogInfo($"🔧 BTServicePlanner: NodeGraph has {generatedNodeGraph.GetAllActionNodes().Count} actions");
                 LoggingService.LogInfo($"🔧 BTServicePlanner: Calling SetActionGraph on {OwningFlowNode.DebugDisplayName}");
                 OwningFlowNode.SetActionGraph(generatedNodeGraph);
-                
+
                 // Set up services for all actions in the NodeGraph
                 LoggingService.LogInfo($"🔧 BTServicePlanner: Setting up services for all actions in NodeGraph...");
                 var allActions = generatedNodeGraph.GetAllActionNodes();
@@ -177,7 +208,7 @@ public abstract class BTServicePlanner : BTServiceBase
                     OwningFlowNode.AddChild(action);
                 }
                 LoggingService.LogSuccess($"✅ BTServicePlanner: Completed service setup for {allActions.Count} actions");
-                
+
                 // Track the final action count after all actions are set up
                 ExecutionSummaryLogger.TrackNodeFinalCount("GenericBTAction", allActions.Count);
             }
@@ -186,12 +217,12 @@ public abstract class BTServicePlanner : BTServiceBase
                 LoggingService.LogWarning($"⚠️ BTServicePlanner: No owning flow node set, cannot directly assign NodeGraph");
                 LoggingService.LogWarning($"⚠️ BTServicePlanner: OwningFlowNode is null - this means the bidirectional reference was not set properly");
             }
-            
+
             // Step 5: Store in blackboard (for backward compatibility and monitoring)
             StoreNodeGraphInBlackboard();
 
             // NEW: Add the subtree to the blackboard's injected subtrees after successful planning
-            if(OwningFlowNode.ParentNode is GenericBTAction parentAction && parentAction.IsHighLevelAction)
+            if (OwningFlowNode.ParentNode is GenericBTAction parentAction && parentAction.IsHighLevelAction)
             {
                 AddSubtreeToBlackboardAfterSuccessfulPlanning();
             }
@@ -199,7 +230,7 @@ public abstract class BTServicePlanner : BTServiceBase
             {
                 LoggingService.LogWarning($"⚠️ BTServicePlanner: OwningFlowNode is not a high-level action, cannot add subtree to blackboard");
             }
-                       
+
             // Complete execution tracking
             EndTime = DateTime.Now;
             IsExecuting = false;
@@ -207,16 +238,21 @@ public abstract class BTServicePlanner : BTServiceBase
             WasSuccessful = true;
             HasPlanGenerated = true;
             LastError = null;
-            
+
             // Track planning service completion for execution summary
             var actionsGenerated = generatedNodeGraph?.GetAllActionNodes().Count ?? 0;
-            ExecutionSummaryLogger.TrackPlanningService(GetType().Name, planningRequest.PlanningType, StartTime, true, actionsGenerated, EndTime);
+            ExecutionSummaryLogger.TrackPlanningService(plannerType, plannerType, StartTime, true, actionsGenerated, PlannerEndTime, EndTime);
             
+            // Track final actions remaining after successful planning
+            var finalActionCount = LinkedBlackboard.GetAllActions().Count;
+            BehaviorTreeComponentLogger.TrackFinalActionsRemaining(finalActionCount, $"After successful {plannerType} planning");
+
             LoggingService.LogSuccess($"✅ {GetType().Name}: Planning process completed successfully at {EndTime:HH:mm:ss.fff}");
-            LoggingService.LogInfo($"⏱️ {GetType().Name}: Total execution time: {EndTime - StartTime:hh\\:mm\\:ss\\.fff}");
+            LoggingService.LogInfo($"⏱️ {GetType().Name}: Planner execution time: {PlannerEndTime - StartTime:hh\\:mm\\:ss\\.fff}");
+            LoggingService.LogInfo($"⏱️ {GetType().Name}: Total service time: {EndTime - StartTime:hh\\:mm\\:ss\\.fff}");
             LoggingService.LogInfo($"📊 {GetType().Name}: Generated {generatedNodeGraph.GetAllActionNodes().Count} actions");
             LoggingService.LogInfo($"📋 {GetType().Name}: Planning Status - Completed: {HasCompleted}, Successful: {WasSuccessful}, Plan Generated: {HasPlanGenerated}");
-            
+
             return true;
         }
         catch (Exception ex)
@@ -227,10 +263,10 @@ public abstract class BTServicePlanner : BTServiceBase
             WasSuccessful = false;
             HasPlanGenerated = false;
             LastError = ex.Message;
-            
+
             // Track planning service failure for execution summary
-            ExecutionSummaryLogger.TrackPlanningService(GetType().Name, planningRequest.PlanningType, StartTime, false, 0, EndTime);
-            
+            ExecutionSummaryLogger.TrackPlanningService(plannerType, plannerType, StartTime, false, 0, EndTime);
+
             LoggingService.LogError($"❌ {GetType().Name}: Error during planning process at {EndTime:HH:mm:ss.fff}: {ex.Message}");
             LoggingService.LogInfo($"⏱️ {GetType().Name}: Execution time: {EndTime - StartTime:hh\\:mm\\:ss\\.fff}");
             LoggingService.LogInfo($"📋 {GetType().Name}: Planning Status - Completed: {HasCompleted}, Successful: {WasSuccessful}, Plan Generated: {HasPlanGenerated}");
@@ -355,7 +391,8 @@ public abstract class BTServicePlanner : BTServiceBase
             ["WasSuccessful"] = WasSuccessful,
             ["HasPlanGenerated"] = HasPlanGenerated,
             ["IsExecuting"] = IsExecuting,
-            ["ExecutionDuration"] = ExecutionDuration,
+            ["PlannerExecutionDuration"] = PlannerExecutionDuration,
+            ["TotalExecutionDuration"] = TotalExecutionDuration,
             ["ActionCount"] = generatedNodeGraph?.GetAllActionNodes().Count ?? 0
         };
         
@@ -389,6 +426,19 @@ public abstract class BTServicePlanner : BTServiceBase
     /// </summary>
     public void ResetPlanningService()
     {
+        // Clear the NodeGraph before setting to null to actually remove actions
+        if (generatedNodeGraph != null)
+        {
+            var actionCount = generatedNodeGraph.GetAllActionNodes().Count;
+            if (actionCount > 0)
+            {
+                BehaviorTreeComponentLogger.TrackNodeGraphReset("PlanningServiceReset", actionCount, "Planning service reset");
+            }
+            
+            // Use Clear() to actually remove actions from the NodeGraph
+            generatedNodeGraph.Clear();
+        }
+        
         generatedNodeGraph = null;
         IsExecuting = false;
         HasCompleted = false;

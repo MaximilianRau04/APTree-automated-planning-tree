@@ -16,6 +16,7 @@ public enum CompositeTerminationPolicy
 
 public class BTFlowNode_Composite : BTFlowNodeBase
 {
+    public override string TypeName => "BTFlowNode_Composite";
 
 
     // List to store flow nodes (since NodeGraph is designed for action nodes)
@@ -42,6 +43,10 @@ public class BTFlowNode_Composite : BTFlowNodeBase
         this.OwningTree = owningTree;
         this.TerminationPolicy = terminationPolicy;
         DebugDisplayName = $"CompositeFlow({nodeName.ToString()})";
+        
+        // Track flow node initialization
+        BehaviorTreeComponentLogger.TrackFlowNodeInitialization(this.GetType().Name);
+        
         LoggingService.LogInfo($"🔧 CompositeFlow: Created with SuccessCriteria: {successCriteria}, TerminationPolicy: {terminationPolicy}");
     }
     
@@ -77,6 +82,10 @@ public class BTFlowNode_Composite : BTFlowNodeBase
             LinkedBlackboard.SetFlowNodeInstance(flowNode.InstanceName, flowNode);
             // Console.WriteLine($"✅ Added flow node: {childNode.DebugDisplayName} to composite flow node flowNodes list");
         }
+        
+        // Track child count for average branching factor calculation
+        var totalChildCount = actionGraph.GetAllActionNodes().Count + flowNodes.Count;
+
         
         return childNode;
     }
@@ -131,8 +140,8 @@ public class BTFlowNode_Composite : BTFlowNodeBase
         // If no children, fail immediately
         if (allChildren.Count == 0)
         {
-            LastStatus = EBTNodeResult.failed;
-            return false;
+            // Let the base class handle failure tracking through OnTickReturn
+            return false; // This will trigger OnTickReturn with failed status
         }
         
         // Execute children sequentially - one child per tick
@@ -186,9 +195,10 @@ public class BTFlowNode_Composite : BTFlowNodeBase
         bool shouldTerminate = ShouldTerminate(allChildren);
         if (shouldTerminate)
         {
-            LastStatus = EBTNodeResult.failed;
             LoggingService.LogError($"❌ CompositeFlow: Termination policy triggered after {currentAttempt} attempts");
-            return false;
+            
+            // Let the base class handle failure tracking through OnTickReturn
+            return false; // This will trigger OnTickReturn with failed status
         }
         else
         {

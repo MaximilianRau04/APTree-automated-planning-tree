@@ -501,6 +501,13 @@ public class NodeGraph
             LoggingService.LogWarning($"   {stackLines[i].Trim()}");
         }
         
+        // Track action deletion when resetting NodeGraph
+        var actionCount = nodes.Count;
+        if (actionCount > 0)
+        {
+            BehaviorTreeComponentLogger.TrackActionDeletion("NodeGraphReset", actionCount, "NodeGraph reset - all actions reset");
+        }
+        
         elapsedTime = 0f;
         foreach (var node in nodes)
         {
@@ -511,6 +518,63 @@ public class NodeGraph
             node.EndTime = 0f;
         }
         LoggingService.LogWarning($"🔄 NodeGraph: Reset completed - all {nodes.Count} nodes reset");
+    }
+
+    /// <summary>
+    /// Clear all actions from the NodeGraph (actually removes them)
+    /// </summary>
+    public void Clear()
+    {
+        LoggingService.LogWarning($"🗑️ NodeGraph: CLEAR called! This will remove all actions from the graph!");
+        LoggingService.LogWarning($"🗑️ NodeGraph: Stack trace for Clear call:");
+        var stackTrace = Environment.StackTrace;
+        var stackLines = stackTrace.Split('\n');
+        for (int i = 0; i < Math.Min(10, stackLines.Length); i++)
+        {
+            LoggingService.LogWarning($"   {stackLines[i].Trim()}");
+        }
+        
+        // Track action deletion when clearing NodeGraph
+        var actionCount = nodes.Count;
+        if (actionCount > 0)
+        {
+            BehaviorTreeComponentLogger.TrackActionDeletion("NodeGraphClear", actionCount, "NodeGraph clear - all actions removed");
+        }
+        
+        // Actually remove all actions from the graph
+        nodes.Clear();
+        nodeMap.Clear();
+        elapsedTime = 0f;
+        
+        LoggingService.LogWarning($"🗑️ NodeGraph: Clear completed - removed {actionCount} actions from graph");
+    }
+
+    /// <summary>
+    /// Remove a specific action from the NodeGraph
+    /// </summary>
+    /// <param name="actionNode">The action to remove</param>
+    /// <returns>True if the action was found and removed, false otherwise</returns>
+    public bool RemoveAction(GenericBTAction actionNode)
+    {
+        if (nodeMap.TryGetValue(actionNode, out var graphNode))
+        {
+            LoggingService.LogInfo($"🗑️ NodeGraph: Removing action {actionNode.InstanceName.ToString()} from graph");
+            
+            // Remove from both collections
+            nodes.Remove(graphNode);
+            nodeMap.Remove(actionNode);
+            
+            // Track action deletion
+            BehaviorTreeComponentLogger.TrackActionDeletion("SingleActionRemoval", 1, $"Removed action: {actionNode.InstanceName.ToString()}");
+            
+            LoggingService.LogInfo($"🗑️ NodeGraph: Successfully removed action {actionNode.InstanceName.ToString()}");
+            return true;
+        }
+        else
+        {
+            LoggingService.LogWarning($"⚠️ NodeGraph: Action {actionNode.InstanceName.ToString()} not found in graph");
+            return false;
+        }
     }
 
     /// <summary>

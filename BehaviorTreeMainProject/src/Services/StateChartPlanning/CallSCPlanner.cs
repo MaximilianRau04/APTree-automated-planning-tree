@@ -30,7 +30,7 @@ public class CallSCPlanner : BTServicePlanner
         this.actionFactory = FactoryAction.Instance;
     }
 
-    public override bool Tick(float InDeltaTime)
+    public override bool OnEvaluate(float InDeltaTime)
     {
         if (!planningStarted)
         {
@@ -47,7 +47,7 @@ public class CallSCPlanner : BTServicePlanner
             );
         }
         
-        return base.Tick(InDeltaTime);
+        return base.OnEvaluate(InDeltaTime);
     }
 
     protected override NodeGraph GenerateNodeGraphFromResult(PlanningResult result)

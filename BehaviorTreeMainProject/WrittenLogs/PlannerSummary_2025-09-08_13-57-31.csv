@@ -1,0 +1,4 @@
+PlannerType,CallCount,SuccessfulCalls,SuccessRate,AveragePlannerTimeMs,AverageServiceTimeMs,AveragePlanSize,TotalPlannerTimeMs,TotalServiceTimeMs
+ENHSP,4,4,100.00%,2364.31,2409.23,2.00,9457.22,9636.91
+FF,20,20,100.00%,2646.13,2705.91,3.20,52922.54,54118.28
+TOTAL,24,24,100.00%,2599.16,2656.47,3.00,62379.76,63755.18

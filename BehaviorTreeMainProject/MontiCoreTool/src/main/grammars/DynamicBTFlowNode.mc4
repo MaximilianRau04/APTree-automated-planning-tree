@@ -1,11 +1,15 @@
 grammar DynamicBTFlowNode extends CRF {
     
     // Dynamic BTflow node definition - separate production to avoid conflicts
- BTFlowNodeDefinition = "BTFlowNode" Name "{" SuccessDefinition "}";
+ BTFlowNodeDefinition = "BTFlowNode" Name "{" SuccessDefinition ChildTypeDefinition (Service | Decorator | NodeGraph | BTFlowNodeDefinition)* "}";
 
     //success criteria definition
-    SuccessDefinition = "success:" SuccessType ";";
-    SuccessType = all:"ALL" | any:"ANY" | count:"COUNT" | percentage:"PERCENTAGE" | signal:"SIGNAL";  
+    SuccessDefinition = "success:" SuccessType ",";
+    SuccessType = all:"ALL" | any:"ANY" | count:"COUNT" | percentage:"PERCENTAGE" | signal:"SIGNAL";
+    
+    //child type definition
+    ChildType = allactions:"ALLACTIONS" | allflow:"ALLFLOW" | allflows:"ALLFLOWS";
+    ChildTypeDefinition = "childType:" ChildType ",";  
 
     // NodeGraph definition - separate top-level production
     NodeGraph = "Nodegraph" Name "{"

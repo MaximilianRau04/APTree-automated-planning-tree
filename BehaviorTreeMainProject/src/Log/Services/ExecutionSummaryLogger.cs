@@ -67,9 +67,9 @@ namespace BehaviorTreeMainProject.Log.Services
             Instance.EndTreeExecutionInternal();
         }
 
-        public static void TrackPlanningService(string serviceName, string plannerType, DateTime startTime, bool success, int actionsGenerated, DateTime? endTime = null)
+        public static void TrackPlanningService(string serviceName, string plannerType, DateTime startTime, bool success, int actionsGenerated, DateTime? plannerEndTime = null, DateTime? serviceEndTime = null)
         {
-            Instance.TrackPlanningServiceInternal(serviceName, plannerType, startTime, success, actionsGenerated, endTime);
+            Instance.TrackPlanningServiceInternal(serviceName, plannerType, startTime, success, actionsGenerated, plannerEndTime, serviceEndTime);
         }
 
         public static void TrackFlowNode(string nodeName, string nodeType, bool success)
@@ -123,7 +123,7 @@ namespace BehaviorTreeMainProject.Log.Services
             Instance.GenerateSummaryInternal();
         }
 
-        public static void Close()
+        public new static void Close()
         {
             Instance.CloseInternal();
         }
@@ -143,7 +143,7 @@ namespace BehaviorTreeMainProject.Log.Services
             WriteLog("Tree execution ended");
         }
 
-        private void TrackPlanningServiceInternal(string serviceName, string plannerType, DateTime startTime, bool success, int actionsGenerated, DateTime? endTime = null)
+        private void TrackPlanningServiceInternal(string serviceName, string plannerType, DateTime startTime, bool success, int actionsGenerated, DateTime? plannerEndTime = null, DateTime? serviceEndTime = null)
         {
             if (!planningServiceMetrics.ContainsKey(serviceName))
             {
@@ -153,7 +153,8 @@ namespace BehaviorTreeMainProject.Log.Services
                     PlannerType = plannerType,
                     TotalCalls = 0,
                     SuccessfulCalls = 0,
-                    TotalTime = TimeSpan.Zero,
+                    TotalPlannerTime = TimeSpan.Zero,
+                    TotalServiceTime = TimeSpan.Zero,
                     TotalActionsGenerated = 0
                 };
             }
@@ -161,10 +162,16 @@ namespace BehaviorTreeMainProject.Log.Services
             var metrics = planningServiceMetrics[serviceName];
             metrics.TotalCalls++;
             
-            if (endTime.HasValue)
+            if (plannerEndTime.HasValue)
             {
-                var duration = endTime.Value - startTime;
-                metrics.TotalTime += duration;
+                var plannerDuration = plannerEndTime.Value - startTime;
+                metrics.TotalPlannerTime += plannerDuration;
+            }
+            
+            if (serviceEndTime.HasValue)
+            {
+                var serviceDuration = serviceEndTime.Value - startTime;
+                metrics.TotalServiceTime += serviceDuration;
                 metrics.TotalActionsGenerated += actionsGenerated;
                 
                 if (success)
@@ -305,8 +312,10 @@ namespace BehaviorTreeMainProject.Log.Services
                 WriteLog($"  Planner Type: {metrics.PlannerType}");
                 WriteLog($"  Total Calls: {metrics.TotalCalls}");
                 WriteLog($"  Successful Calls: {metrics.SuccessfulCalls} ({successRate:F1}%)");
-                WriteLog($"  Total Planning Time: {metrics.TotalTime.TotalMilliseconds:F2}ms");
-                WriteLog($"  Average Planning Time: {(metrics.TotalCalls > 0 ? metrics.TotalTime.TotalMilliseconds / metrics.TotalCalls : 0):F2}ms");
+                WriteLog($"  Total Planner Time: {metrics.TotalPlannerTime.TotalMilliseconds:F2}ms");
+                WriteLog($"  Total Service Time: {metrics.TotalServiceTime.TotalMilliseconds:F2}ms");
+                WriteLog($"  Average Planner Time: {(metrics.TotalCalls > 0 ? metrics.TotalPlannerTime.TotalMilliseconds / metrics.TotalCalls : 0):F2}ms");
+                WriteLog($"  Average Service Time: {(metrics.TotalCalls > 0 ? metrics.TotalServiceTime.TotalMilliseconds / metrics.TotalCalls : 0):F2}ms");
                 WriteLog($"  Total Actions Generated: {metrics.TotalActionsGenerated}");
                 WriteLog("");
             }
@@ -424,7 +433,8 @@ namespace BehaviorTreeMainProject.Log.Services
             public string PlannerType { get; set; }
             public int TotalCalls { get; set; }
             public int SuccessfulCalls { get; set; }
-            public TimeSpan TotalTime { get; set; }
+            public TimeSpan TotalPlannerTime { get; set; } // External planner time only
+            public TimeSpan TotalServiceTime { get; set; } // Total service time including NodeGraph generation
             public int TotalActionsGenerated { get; set; }
         }
 

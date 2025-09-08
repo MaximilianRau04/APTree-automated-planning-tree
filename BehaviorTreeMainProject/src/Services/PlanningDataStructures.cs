@@ -20,14 +20,7 @@ namespace PlanningDataStructures
         public int TimeoutSeconds { get; set; } = 30;
         public int MaxPlanLength { get; set; } = 20;
         
-        public PDDLPlanningRequest(string InDomainFile, string InProblemFile, string InPlannerPath, int InTimeoutSeconds = 30, int InMaxPlanLength = 20)
-        {
-            DomainFile = InDomainFile;
-            ProblemFile = InProblemFile;
-            PlannerPath = InPlannerPath;
-            TimeoutSeconds = InTimeoutSeconds;
-            MaxPlanLength = InMaxPlanLength;
-        }
+       
         
         // New constructor with planner selection
         public PDDLPlanningRequest(string InDomainFile, string InProblemFile, string InPlannerPath, string InPlannerName, int InTimeoutSeconds = 30, int InMaxPlanLength = 20)

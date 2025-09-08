@@ -7,6 +7,7 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
 {
     // is this node allowed to have children?
     public override bool HasChildren => true;
+  
     // public override string DebugDisplayName { get; protected set; } = "FlowNode";
     public SuccessCriteria successCriteria { get; protected set; }
     // needed if success criteria is count or percentage
@@ -19,12 +20,11 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
     // Property to check if NodeGraph is locked (has been set and cannot be replaced)
     public bool IsNodeGraphLocked => actionGraph != null;
 
-    protected BTServicePlanner planner;
     int maxCount = 0;
     int currentCount = 0;
 
     // Planning service for high-level actions
-    public BTServiceBase PlanningService { get; protected set; }
+    public BTServicePlanner PlanningService { get; protected set; }
     private readonly IBehaviorTree owningTree;
 
     // Node name property
@@ -241,6 +241,8 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
         LoggingService.LogInfo($"🔧 BTFlowNodeBase: SetActionGraph called for {DebugDisplayName} - New NodeGraph HashCode: {graph?.GetHashCode()}");
         LoggingService.LogInfo($"🔧 BTFlowNodeBase: New NodeGraph has {graph?.GetAllActionNodes().Count ?? 0} actions");
 
+        // Simplified tracking - child count tracking removed
+
         // Prevent NodeGraph replacement once it's been set, UNLESS the new graph has actions and current is empty
         if (actionGraph != null)
         {
@@ -285,7 +287,10 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
     {
         if (actionGraph != null)
         {
-            LoggingService.LogWarning($"🔄 BTFlowNodeBase: Clearing action graph (HashCode: {actionGraph.GetHashCode()})");
+            LoggingService.LogWarning($"🔄 BTFlowNodeBase: Clearing action graph (HashCode: {actionGraph.GetHashCode()}) for {DebugDisplayName}");
+            
+            // Use the new Clear() method to actually remove actions from the NodeGraph
+            actionGraph.Clear();
             actionGraph = null;
         }
     }
@@ -314,7 +319,7 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
     /// Set the planning service for this flow node
     /// </summary>
     /// <param name="service">The planning service to use</param>
-    public void SetPlanningService(BTServiceBase service)
+    public void SetPlanningService(BTServicePlanner service)
     {
         LoggingService.LogInfo($"🔧 BTFlowNodeBase: SetPlanningService called for {DebugDisplayName} with service {service.GetType().Name}");
         PlanningService = service;

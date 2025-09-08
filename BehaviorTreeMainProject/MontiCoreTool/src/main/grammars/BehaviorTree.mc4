@@ -1,39 +1,29 @@
-/* (c) https://github.com/MontiCore/monticore */
-
 grammar BehaviorTree extends de.monticore.MCBasics {
 
 BehaviorTree = "BehaviorTree" Name "{"
         RootNode "}";
-
 //rootnode definition
 RootNode = "BTFlowNode" "RootNode" "{" (Service | Decorator | BTFlowNode | BTActionNode)* "}";
-
 // Service definition
 Service = "Service" Name;
 // Decorator definition
 Decorator = "Decorator" Name;
-
 // Node types
 BTNodeBase = BTFlowNode | BTActionNode;
-
 // Flow nodes 
-symbol BTFlowNode =  "BTFlowNode" Name "{" (Service | Decorator | BTFlowNode | BTActionNode)* "}";
-
+BTFlowNodeDefinition =  "BTFlowNode" Name "{" (Service | Decorator | BTFlowNode | BTActionNode)* "}";
 //action nodes
 symbol BTActionNode = "BTActionNode" Name "{" (Decorator| Service)* "}" ;
-
 // tokens definition
  token LETTER = 'a'..'z' | 'A'..'Z';
   token NUMBER = '0'..'9';
-  token LOWER_CASE_LETTER = 'a'..'z';
-  
+  token LOWER_CASE_LETTER = 'a'..'z';  
   token PDDL_START = LOWER_CASE_LETTER;
   token PDDL_CHAR = LETTER | NUMBER | '-' | '_';
   token STRING_VALUE = '"' (STRING_CHAR)* '"';
   token DOUBLE_VALUE = NUMBER+ '.' NUMBER+;
   token INTEGER_VALUE = NUMBER+;
   token STRING_CHAR = LETTER | NUMBER | '_'  | '.' ;
-  token BOOLEAN_VALUE = "true" | "false";
-  
+  token BOOLEAN_VALUE = "true" | "false";  
   token Name = PDDL_START (PDDL_CHAR)*; 
 }

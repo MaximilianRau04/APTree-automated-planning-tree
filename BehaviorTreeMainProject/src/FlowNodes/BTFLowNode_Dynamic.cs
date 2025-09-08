@@ -7,6 +7,7 @@ using BehaviorTreeMainProject.Log.Services;
 public class BTFlowNode_Dynamic : BTFlowNodeBase
 {
 
+    public override string TypeName => "BTFlowNode_Dynamic";
     private bool planningCompleted = false;
 
     // Track if we've completed the first planning cycle
@@ -36,6 +37,9 @@ public class BTFlowNode_Dynamic : BTFlowNodeBase
         // Track this flow node
         LoggingService.TrackNodeStart(nodeName.ToString(), "BTFlowNode_Dynamic", System.DateTime.Now);
 
+        // Track flow node initialization
+        BehaviorTreeComponentLogger.TrackFlowNodeInitialization(this.GetType().Name);
+
         // Automatically add PlanningComplete decorator to dynamic flow nodes
         AddDecorator(new BTDecorator_PlanningComplete());
         LoggingService.LogInfo($"🔧 BTFlowNode_Dynamic: Added PlanningComplete decorator to {nodeName.ToString()}");
@@ -59,6 +63,9 @@ public class BTFlowNode_Dynamic : BTFlowNodeBase
         LoggingService.LogInfo($"🚨 DEBUG: BTFlowNode_Dynamic.OnTick_NodeLogic called for {DebugDisplayName}");
         LoggingService.LogInfo($"🔍 FlowNode: Current LastStatus: {LastStatus}");
         LoggingService.LogInfo($"🔍 FlowNode: HasChildren: {HasChildren}");
+
+        // Track child count for average branching factor calculation
+        var childCount = actionGraph.GetAllActionNodes().Count;
 
         // Decorators handle all planning phase logic (PlanningPhase and PlanningPhaseDynamic flags)
         // This method only needs to set status for execution phase
@@ -249,6 +256,7 @@ public class BTFlowNode_Dynamic : BTFlowNodeBase
                 // Track completion of this flow node
                 LoggingService.TrackNodeCompletion(DebugDisplayName, System.DateTime.Now, false);
                 LoggingService.LogInfo($"   📊 FlowNode: Final status set to {LastStatus}");
+                
                 
                 // Return false to stop the parent from ticking this node again
                 LoggingService.LogInfo($"   🔄 FlowNode: OnTick_Children failed, returning false to stop ticking");

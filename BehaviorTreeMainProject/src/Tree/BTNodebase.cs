@@ -9,7 +9,9 @@ public abstract class BTNodeBase : IBTNode
 
     public Agent? self { get; protected set; }
     // which tree does this node belong to
-    public IBehaviorTree? OwningTree { get; protected set; }
+
+    public abstract string TypeName { get; }
+    public IBehaviorTree OwningTree { get; protected set; } = null!;
 
     // NEW: Reference to parent node for bidirectional access
     public IBTNode? ParentNode { get; set; }
@@ -33,10 +35,36 @@ public abstract class BTNodeBase : IBTNode
     protected List<IBTDecorator>? Decorators;
     
 // to know if a know has finished or not. (succeeded or failed)
-public bool HasFinished => (LastStatus == EBTNodeResult.Succeeded || LastStatus ==EBTNodeResult.failed);
-// to store if all the decorators allow for running this node
+    public bool HasFinished => (LastStatus == EBTNodeResult.Succeeded || LastStatus == EBTNodeResult.failed);
+    // to store if all the decorators allow for running this node
 
     protected bool bDecoratorsAllowRunning = true;
+
+    // Tick timing tracking
+    private DateTime tickStartTime;
+    private DateTime servicesEndTime;
+    private DateTime decoratorsEndTime;
+    private DateTime nodeLogicEndTime;
+    private DateTime childrenEndTime;
+    private DateTime tickEndTime;
+    
+    // Tick timing properties
+    public TimeSpan ServicesDuration => servicesEndTime - tickStartTime;
+    public TimeSpan DecoratorsDuration => decoratorsEndTime - servicesEndTime;
+    public TimeSpan NodeLogicDuration => nodeLogicEndTime - decoratorsEndTime;
+    public TimeSpan ChildrenDuration => childrenEndTime - nodeLogicEndTime;
+    public TimeSpan TotalTickDuration => tickEndTime - tickStartTime;
+    public bool HasCompletedFullTick { get; private set; } = false;
+
+    // Node execution statistics tracking
+    private int totalTickCount = 0;
+    private int successCount = 0;
+    private int failureCount = 0;
+    
+    // Public properties for accessing statistics
+    public int TotalTickCount => totalTickCount;
+    public int SuccessCount => successCount;
+    public int FailureCount => failureCount;
 
 // to diffrentiate between flow nodes and action nodes
     public abstract bool HasChildren { get; }
@@ -55,6 +83,10 @@ public bool HasFinished => (LastStatus == EBTNodeResult.Succeeded || LastStatus 
             Decorators = new();
         InDecorator.SetOwiningTree(OwningTree);
         Decorators.Add(InDecorator);
+        
+        // Track decorator addition
+        BehaviorTreeComponentLogger.TrackDecoratorAddition(InDecorator.GetType().Name);
+        
         return this;
     }
     /// <summary>
@@ -82,9 +114,12 @@ public bool HasFinished => (LastStatus == EBTNodeResult.Succeeded || LastStatus 
         {
             if (GenrealServices == null)
                 GenrealServices = new();
-                GenrealServices.Add(InService);
-    ;
-            }
+            GenrealServices.Add(InService);
+        }
+        
+        // Track service addition
+        BehaviorTreeComponentLogger.TrackServiceAddition(InService.GetType().Name);
+        
         return this;
 
     }
@@ -186,11 +221,15 @@ public bool HasFinished => (LastStatus == EBTNodeResult.Succeeded || LastStatus 
             LinkedBlackboard.SetActionInstance(action.InstanceName, action);
             LoggingService.LogInfo($"🔧 BTNodeBase: Set tree for SubtreeInjectionService of {childNode.DebugDisplayName}");
             
+            // Track action addition
+            BehaviorTreeComponentLogger.TrackActionAddition("GenericBTAction");
         }
         else if (childNode is BTFlowNodeBase flowNode)
         {
             LinkedBlackboard.SetFlowNodeInstance(flowNode.InstanceName, flowNode);
             LoggingService.LogInfo($"🔧 BTNodeBase: Set tree for all services of {childNode.DebugDisplayName}");
+            
+            // Flow node counting now handled in constructors via TrackFlowNodeInitialization
         }
         
         LoggingService.LogInfo($"🔧 BTNodeBase: AddChild completed for {childNode.DebugDisplayName}");
@@ -203,6 +242,24 @@ public bool HasFinished => (LastStatus == EBTNodeResult.Succeeded || LastStatus 
 /// <returns></returns>
     public EBTNodeResult Tick(float InDeltaTime)
     {
+        // Initialize timing tracking
+        tickStartTime = DateTime.Now;
+        HasCompletedFullTick = false;
+        
+        // Increment tick count
+        totalTickCount++;
+        
+        // Track flow node tick if this is a flow node
+        if (this is BTFlowNodeBase)
+        {
+            BehaviorTreeComponentLogger.TrackFlowNodeTick(this.GetType().Name);
+        }
+        // Track action tick if this is an action
+        else if (this is GenericBTAction)
+        {
+            BehaviorTreeComponentLogger.TrackActionTick("GenericBTAction");
+        }
+        
         // Log node tick start
         ExecutionFlowLogger.LogNodeTick(DebugDisplayName, GetType().Name, "START", LastStatus.ToString());
         
@@ -223,6 +280,10 @@ public bool HasFinished => (LastStatus == EBTNodeResult.Succeeded || LastStatus 
             LastStatus = EBTNodeResult.failed;
             LoggingService.LogWarning($"❌ BTNodeBase: AlwaysOnServices failed for {DebugDisplayName}, setting status to failed");
             LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - EXITING at AlwaysOnServices failure");
+            
+            // Track node failure
+            BehaviorTreeComponentLogger.TrackNodeFailure(this.GetType().Name, DebugDisplayName);
+            
             return OnTickReturn(LastStatus);
         }
         LoggingService.LogInfo($"✅ BTNodeBase: {DebugDisplayName} - AlwaysOnServices completed successfully");
@@ -235,9 +296,16 @@ public bool HasFinished => (LastStatus == EBTNodeResult.Succeeded || LastStatus 
         {
             LoggingService.LogWarning($"❌ BTNodeBase: GeneralServices failed for {DebugDisplayName}");
             LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - EXITING at GeneralServices failure");
+            
+            // Track node failure
+            BehaviorTreeComponentLogger.TrackNodeFailure(this.GetType().Name, DebugDisplayName);
+            
             return OnTickReturn(EBTNodeResult.failed);
         }
         LoggingService.LogInfo($"✅ BTNodeBase: {DebugDisplayName} - GeneralServices completed successfully");
+        
+        // Record services end time
+        servicesEndTime = DateTime.Now;
 
         // then the ticks goes through the decorators, if any of the decorators return false, then 
         LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - Starting Decorators phase");
@@ -254,9 +322,16 @@ public bool HasFinished => (LastStatus == EBTNodeResult.Succeeded || LastStatus 
             bDecoratorsAllowRunning = false;
             LoggingService.LogInfo($"⏳ BTNodeBase: Decorators blocked execution for {DebugDisplayName}, returning failed for re-evaluation on next tick");
             LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - EXITING at Decorators blocking");
+            
+            // Track node failure
+            BehaviorTreeComponentLogger.TrackNodeFailure(this.GetType().Name, DebugDisplayName);
+            
             return OnTickReturn(LastStatus);
         }
         LoggingService.LogInfo($"✅ BTNodeBase: {DebugDisplayName} - Decorators evaluation completed successfully");
+        
+        // Record decorators end time
+        decoratorsEndTime = DateTime.Now;
         
         // Only reset if decorators were previously blocking but now allow execution
         if (!bDecoratorsAllowRunning)
@@ -306,6 +381,9 @@ public bool HasFinished => (LastStatus == EBTNodeResult.Succeeded || LastStatus 
             return OnTickReturn(EBTNodeResult.failed);
         }
         LoggingService.LogInfo($"✅ BTNodeBase: {DebugDisplayName} - NodeLogic completed successfully");
+        
+        // Record node logic end time
+        nodeLogicEndTime = DateTime.Now;
 
         // if it has children, we tick them too 
         if(HasChildren)
@@ -325,6 +403,19 @@ public bool HasFinished => (LastStatus == EBTNodeResult.Succeeded || LastStatus 
         {
             LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - No children to tick (HasChildren: {HasChildren})");
         }
+        
+        // Record children end time
+        childrenEndTime = DateTime.Now;
+        
+        // Record tick end time and mark as completed full tick
+        tickEndTime = DateTime.Now;
+        HasCompletedFullTick = true;
+        
+        // Log tick timing information
+        LoggingService.LogInfo($"⏱️ BTNodeBase: {DebugDisplayName} - Tick timing: Services={ServicesDuration.TotalMilliseconds:F2}ms, Decorators={DecoratorsDuration.TotalMilliseconds:F2}ms, NodeLogic={NodeLogicDuration.TotalMilliseconds:F2}ms, Children={ChildrenDuration.TotalMilliseconds:F2}ms, Total={TotalTickDuration.TotalMilliseconds:F2}ms");
+
+        // Track tick timing for completed full ticks
+        TickTimingLogger.TrackTickTiming(this);
 
         LoggingService.LogInfo($"✅ BTNodeBase: {DebugDisplayName} - Tick method completed successfully, returning {LastStatus}");
         return OnTickReturn(LastStatus);
@@ -338,15 +429,48 @@ public bool HasFinished => (LastStatus == EBTNodeResult.Succeeded || LastStatus 
     {
         EBTNodeResult FinalResult = InProvisionalResult;
         CurrentTickPhase = EBTNodeTickPhase.WaitingForNextTick;
-        if(Decorators != null)
-        {
-            foreach(var Decorator in Decorators)
-            {
-                if (Decorator.CanPostProcessTickResult)
-                    FinalResult = Decorator.PostProcessTickResult(FinalResult);
+        // if(Decorators != null)
+        // {
+        //     foreach(var Decorator in Decorators)
+        //     {
+        //         if (Decorator.CanPostProcessTickResult)
+        //             FinalResult = Decorator.PostProcessTickResult(FinalResult);
 
+        //     }
+        // }
+        
+        // Track success and failure counts
+        if (FinalResult == EBTNodeResult.Succeeded)
+        {
+            successCount++;
+            // Track flow node success if this is a flow node
+            if (this is BTFlowNodeBase)
+            {
+                BehaviorTreeComponentLogger.TrackFlowNodeSuccess(this.GetType().Name);
             }
+            // Track action success if this is an action
+            else if (this is GenericBTAction)
+            {
+                BehaviorTreeComponentLogger.TrackActionSuccess("GenericBTAction");
+            }
+            // Simplified tracking - detailed node success tracking removed
         }
+        else if (FinalResult == EBTNodeResult.failed)
+        {
+            failureCount++;
+            // Track flow node failure if this is a flow node
+            if (this is BTFlowNodeBase)
+            {
+                BehaviorTreeComponentLogger.TrackFlowNodeFailure(this.GetType().Name);
+            }
+            // Track action failure if this is an action
+            else if (this is GenericBTAction)
+            {
+                BehaviorTreeComponentLogger.TrackActionFailure("GenericBTAction");
+            }
+            // Simplified tracking - detailed node failure tracking removed
+        }
+        
         if (bCanSendExitNotification && HasFinished)
             OnExit();
 

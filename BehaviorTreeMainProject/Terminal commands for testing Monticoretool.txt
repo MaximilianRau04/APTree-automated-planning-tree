@@ -20,3 +20,5 @@ gradle  testParameterInstances
 gradle testASTValue
 
 gradle generateCSharpParameterTypes
+
+ gradle runBehaviorTreeGrammarParser

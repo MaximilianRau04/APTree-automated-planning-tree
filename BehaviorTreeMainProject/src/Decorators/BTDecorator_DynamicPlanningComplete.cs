@@ -23,6 +23,7 @@ public class BTDecorator_DynamicPlanningComplete : BTDecoratorBase
         {
             LoggingService.LogWarning($"⚠️ DynamicPlanningCompleteDecorator: LinkedBlackboard is null, allowing execution");
             ExecutionFlowLogger.LogDecoratorTick("DynamicPlanningComplete", "LinkedBlackboard", "Null", "ALLOW_NULL");
+            BehaviorTreeComponentLogger.TrackDecoratorEvaluation("DecoratorDynamicPlanningComplete", true);
             return true; // Allow execution when blackboard is not available
         }
         SetFlagForSuccessfulCassetteNodes();
@@ -59,12 +60,14 @@ public class BTDecorator_DynamicPlanningComplete : BTDecoratorBase
 
             LoggingService.LogInfo($"⏳ DynamicPlanningCompleteDecorator: Waiting for cassettes {string.Join(", ", pendingCassettes)} to complete subtree injection");
             ExecutionFlowLogger.LogDecoratorTick("DynamicPlanningComplete", "CassetteSubtreeCompleted", "Pending", "BLOCK_FOR_RE_EVAL");
+            BehaviorTreeComponentLogger.TrackDecoratorEvaluation("DecoratorDynamicPlanningComplete", false);
             return false; // Block execution until all cassettes complete
         }
         else
         {
             LoggingService.LogInfo($"✅ DynamicPlanningCompleteDecorator: All cassettes have completed subtree injection, allowing execution");
             ExecutionFlowLogger.LogDecoratorTick("DynamicPlanningComplete", "CassetteSubtreeCompleted", "Complete", "ALLOW");
+            BehaviorTreeComponentLogger.TrackDecoratorEvaluation("DecoratorDynamicPlanningComplete", true);
             return true; // Allow execution when all cassettes are complete
         }
     }

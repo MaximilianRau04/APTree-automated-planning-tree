@@ -1,10 +1,26 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using BehaviorTreeMainProject.Log;
 
 namespace BehaviorTreeMainProject.Log.Services
 {
+    /// <summary>
+    /// Record of an action execution for CSV generation
+    /// </summary>
+    public class ActionExecutionRecord
+    {
+        public int Counter { get; set; }
+        public DateTime Timestamp { get; set; }
+        public string ActionName { get; set; }
+        public string InstanceName { get; set; }
+        public string Status { get; set; }
+        public string AdditionalInfo { get; set; }
+        public double TimeSinceStartMs { get; set; }
+    }
+
     /// <summary>
     /// Service to track the order of ML action node execution in a separate log file
     /// </summary>
@@ -14,6 +30,9 @@ namespace BehaviorTreeMainProject.Log.Services
         private static readonly object lockObject = new object();
         private int executionCounter = 0;
         private readonly DateTime startTime;
+        
+        // CSV generation data
+        private readonly List<ActionExecutionRecord> executionRecords = new List<ActionExecutionRecord>();
 
         public static ActionExecutionLogger Instance
         {
@@ -59,10 +78,24 @@ namespace BehaviorTreeMainProject.Log.Services
             lock (lockObject)
             {
                 executionCounter++;
-                var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
-                var timeSinceStart = DateTime.Now - startTime;
+                var timestamp = DateTime.Now;
+                var timeSinceStart = timestamp - startTime;
                 
-                var logEntry = $"[{executionCounter:D4}] [{timestamp}] [{actionName}] [{instanceName}] [{status}]";
+                // Store record for CSV generation
+                var record = new ActionExecutionRecord
+                {
+                    Counter = executionCounter,
+                    Timestamp = timestamp,
+                    ActionName = actionName,
+                    InstanceName = instanceName,
+                    Status = status,
+                    AdditionalInfo = additionalInfo,
+                    TimeSinceStartMs = timeSinceStart.TotalMilliseconds
+                };
+                executionRecords.Add(record);
+                
+                var timestampStr = timestamp.ToString("HH:mm:ss.fff");
+                var logEntry = $"[{executionCounter:D4}] [{timestampStr}] [{actionName}] [{instanceName}] [{status}]";
                 
                 if (!string.IsNullOrEmpty(additionalInfo))
                 {
@@ -139,6 +172,7 @@ namespace BehaviorTreeMainProject.Log.Services
             lock (lockObject)
             {
                 executionCounter = 0;
+                executionRecords.Clear();
                 base.Clear();
                 
                 // Recreate header
@@ -146,6 +180,99 @@ namespace BehaviorTreeMainProject.Log.Services
                 WriteToLog($"Cleared at: {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}");
                 WriteToLog("Format: [Counter] [Timestamp] [ActionName] [InstanceName] [Status]");
                 WriteToLog("===============================================");
+            }
+        }
+
+        /// <summary>
+        /// Generate and export CSV summary of action executions
+        /// </summary>
+        public static void GenerateCSVSummary()
+        {
+            Instance.GenerateCSVSummaryInternal();
+        }
+
+        private void GenerateCSVSummaryInternal()
+        {
+            lock (lockObject)
+            {
+                WriteSectionHeader("📊 ACTION EXECUTION CSV SUMMARY");
+                
+                if (executionRecords.Count == 0)
+                {
+                    WriteLog("⚠️ No action execution records found to generate CSV");
+                    return;
+                }
+
+                try
+                {
+                    // Generate CSV content
+                    var csvContent = GenerateCSVContent();
+                    
+                    // Write CSV to log
+                    WriteLog("CSV Summary:");
+                    WriteLog(csvContent);
+                    
+                    // Also write to a separate CSV file
+                    WriteCSVToFile(csvContent);
+                    
+                    WriteLog($"✅ Action execution CSV summary generated successfully with {executionRecords.Count} records");
+                }
+                catch (Exception ex)
+                {
+                    WriteLog($"❌ Error generating action execution CSV summary: {ex.Message}");
+                }
+            }
+        }
+
+        private string GenerateCSVContent()
+        {
+            var csv = new StringBuilder();
+            
+            // CSV Header
+            csv.AppendLine("Counter,Timestamp,ActionName,InstanceName,Status,AdditionalInfo,TimeSinceStartMs");
+            
+            // CSV Rows
+            foreach (var record in executionRecords)
+            {
+                var additionalInfo = string.IsNullOrEmpty(record.AdditionalInfo) ? "" : record.AdditionalInfo.Replace(",", ";");
+                csv.AppendLine($"{record.Counter},{record.Timestamp:yyyy-MM-dd HH:mm:ss.fff},{record.ActionName},{record.InstanceName},{record.Status},\"{additionalInfo}\",{record.TimeSinceStartMs:F2}");
+            }
+            
+            return csv.ToString();
+        }
+
+        private void WriteCSVToFile(string csvContent)
+        {
+            try
+            {
+                var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+                var csvFileName = $"ActionExecutionSummary_{timestamp}.csv";
+                var csvFilePath = Path.Combine("WrittenLogs", csvFileName);
+                
+                // Ensure directory exists
+                Directory.CreateDirectory("WrittenLogs");
+                
+                File.WriteAllText(csvFilePath, csvContent);
+                WriteLog($"📄 CSV file written to: {csvFilePath}");
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"❌ Error writing CSV file: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Close the logger and generate final CSV summary
+        /// </summary>
+        public new void Close()
+        {
+            lock (lockObject)
+            {
+                // Generate final CSV summary before closing
+                GenerateCSVSummaryInternal();
+                
+                // Call base close
+                base.Close();
             }
         }
     }

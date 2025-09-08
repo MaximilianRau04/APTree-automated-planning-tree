@@ -57,8 +57,12 @@ namespace BehaviorTreeMainProject
 
                      // Register all instances from files
                     LoggingService.LogSection("REGISTERING ALL INSTANCES FROM FILES");
-                     string actionInstancesFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "src", "InputInstances", "ParameterInstances.txt");
+                     string actionInstancesFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "src", "InputInstances", "ActionInstances.txt");
                      blackboardWriter.RegisterAllInstances(actionInstancesFile);
+
+                     // Capture blackboard state before ticking starts
+                    LoggingService.LogSection("CAPTURING BLACKBOARD STATE BEFORE TICKING");
+                    BlackboardSummaryLogger.CaptureBlackboardState(blackboard);
 
                      // making the tree
 
@@ -91,6 +95,27 @@ namespace BehaviorTreeMainProject
                 
                 // Log final blackboard tracking statistics
                 BlackboardTrackingLogger.LogStatistics();
+                
+                // Generate comprehensive CSV summary
+                BlackboardSummaryLogger.GenerateCSVSummary(blackboard);
+                BlackboardSummaryLogger.Close();
+                
+                // Generate behavior tree component CSV summary
+                BehaviorTreeComponentLogger.GenerateCSVSummary(blackboard);
+                BehaviorTreeComponentLogger.Close();
+                
+                // Generate planner statistics CSV summary
+                PlannerSummaryLogger.GenerateCSVSummary();
+                PlannerSummaryLogger.Close();
+                
+                // Generate tick timing CSV summary
+                TickTimingLogger.GenerateCSVSummary();
+                TickTimingLogger.Close();
+                
+
+                // Generate action execution CSV summary
+                ActionExecutionLogger.GenerateCSVSummary();
+                ActionExecutionLogger.Instance.Close();
                 
                 // Close logging service
                 LoggingService.Close();
@@ -546,7 +571,11 @@ namespace BehaviorTreeMainProject
                 ExecutionSummaryLogger.TrackMemoryUsage("Before Tree Execution", memoryBefore);
                 
                 // Test initial tick
+                ExecutionSummaryLogger.StartTreeExecution();
+                BlackboardSummaryLogger.StartTreeTicking();
                 var result = behaviorTree.Tick(0.0f);
+                BlackboardSummaryLogger.EndTreeTicking();
+                ExecutionSummaryLogger.EndTreeExecution();
                 LoggingService.LogSuccess($"✅ Initial tree tick result: {result}");
                 
                 // Track memory usage after tree execution
@@ -739,9 +768,10 @@ namespace BehaviorTreeMainProject
                     foreach (var planner in allPlanners)
                     {
                         var status = planner.HasCompleted ? "✅" : planner.IsExecuting ? "🔄" : "⏳";
-                        var duration = planner.IsExecuting ? currentTime - planner.StartTime : planner.ExecutionDuration;
+                        var currentDuration = planner.IsExecuting ? currentTime - planner.StartTime : planner.TotalExecutionDuration;
+                        var plannerDuration = planner.IsExecuting ? currentTime - planner.StartTime : planner.PlannerExecutionDuration;
                         
-                        LoggingService.LogInfo($"{status} {planner.PlannerName}: {duration:hh\\:mm\\:ss\\.fff}");
+                        LoggingService.LogInfo($"{status} {planner.PlannerName}: Total={currentDuration:hh\\:mm\\:ss\\.fff}, Planner={plannerDuration:hh\\:mm\\:ss\\.fff}");
                     }
                     
                     LoggingService.LogInfo("\nPress any key to stop monitoring...");
@@ -788,7 +818,8 @@ namespace BehaviorTreeMainProject
                 if (planner.HasCompleted)
                 {
                     LoggingService.LogInfo($"   ✅ Finished: {planner.EndTime:HH:mm:ss.fff}");
-                    LoggingService.LogInfo($"   ⏱️ Duration: {planner.ExecutionDuration:hh\\:mm\\:ss\\.fff}");
+                    LoggingService.LogInfo($"   ⏱️ Planner Duration: {planner.PlannerExecutionDuration:hh\\:mm\\:ss\\.fff}");
+                    LoggingService.LogInfo($"   ⏱️ Total Duration: {planner.TotalExecutionDuration:hh\\:mm\\:ss\\.fff}");
                     
                     if (planner.GeneratedNodeGraph != null)
                     {
@@ -818,13 +849,19 @@ namespace BehaviorTreeMainProject
             
             if (completedPlanners.Any())
             {
-                var avgDuration = TimeSpan.FromMilliseconds(completedPlanners.Average(p => p.ExecutionDuration.TotalMilliseconds));
-                var minDuration = completedPlanners.Min(p => p.ExecutionDuration);
-                var maxDuration = completedPlanners.Max(p => p.ExecutionDuration);
+                var avgPlannerDuration = TimeSpan.FromMilliseconds(completedPlanners.Average(p => p.PlannerExecutionDuration.TotalMilliseconds));
+                var avgTotalDuration = TimeSpan.FromMilliseconds(completedPlanners.Average(p => p.TotalExecutionDuration.TotalMilliseconds));
+                var minPlannerDuration = completedPlanners.Min(p => p.PlannerExecutionDuration);
+                var maxPlannerDuration = completedPlanners.Max(p => p.PlannerExecutionDuration);
+                var minTotalDuration = completedPlanners.Min(p => p.TotalExecutionDuration);
+                var maxTotalDuration = completedPlanners.Max(p => p.TotalExecutionDuration);
                 
-                LoggingService.LogInfo($"   ⏱️ Average duration: {avgDuration:hh\\:mm\\:ss\\.fff}");
-                LoggingService.LogInfo($"   ⏱️ Fastest: {minDuration:hh\\:mm\\:ss\\.fff}");
-                LoggingService.LogInfo($"   ⏱️ Slowest: {maxDuration:hh\\:mm\\:ss\\.fff}");
+                LoggingService.LogInfo($"   ⏱️ Average Planner Duration: {avgPlannerDuration:hh\\:mm\\:ss\\.fff}");
+                LoggingService.LogInfo($"   ⏱️ Average Total Duration: {avgTotalDuration:hh\\:mm\\:ss\\.fff}");
+                LoggingService.LogInfo($"   ⏱️ Fastest Planner: {minPlannerDuration:hh\\:mm\\:ss\\.fff}");
+                LoggingService.LogInfo($"   ⏱️ Slowest Planner: {maxPlannerDuration:hh\\:mm\\:ss\\.fff}");
+                LoggingService.LogInfo($"   ⏱️ Fastest Total: {minTotalDuration:hh\\:mm\\:ss\\.fff}");
+                LoggingService.LogInfo($"   ⏱️ Slowest Total: {maxTotalDuration:hh\\:mm\\:ss\\.fff}");
             }
             
             LoggingService.LogInfo("=".PadRight(80, '='));
@@ -1194,7 +1231,11 @@ namespace BehaviorTreeMainProject
                     LoggingService.LogInfo($"\n🔄 TICK {tickCount} STARTING...");
                     
                     // Execute one tick
+                    ExecutionSummaryLogger.StartTreeExecution();
+                    BlackboardSummaryLogger.StartTreeTicking();
                     var result = behaviorTree.Tick(0.1f); // 0.1 second delta time
+                    BlackboardSummaryLogger.EndTreeTicking();
+                    ExecutionSummaryLogger.EndTreeExecution();
                     
                     // Log comprehensive tick information
                     LogComprehensiveTickInfo(behaviorTree, tickCount, actionStatusHistory);
