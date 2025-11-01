@@ -9,6 +9,8 @@ import pddlplanner._ast.ASTProblemAssignment;
 import pddlplanner._ast.ASTPlannerAssignment;
 import pddlplanner._ast.ASTConfigurationAssignment;
 import pddlplanner._ast.ASTPlannerNameAssignment;
+import pddlplanner._cocos.PDDLPlannerCoCoChecker;
+import de.se_rwth.commons.logging.Log;
 import java.util.Optional;
 import java.io.*;
 
@@ -46,6 +48,18 @@ public class PDDLPlannerTest {
                 // Analyze the parsed planner definition
                 analyzePlannerDefinition(plannerDef);
                 
+                // Run Context Conditions
+                System.out.println("\n=== RUNNING CONTEXT CONDITIONS ===");
+                PDDLPlannerCoCoChecker cocoChecker = PDDLPlannerCoCoChecker.getCheckerForAllCoCos();
+                cocoChecker.checkAll(plannerDef);
+                
+                // Check for errors
+                if (Log.getErrorCount() > 0) {
+                    System.err.println("\n❌ VALIDATION FAILED: " + Log.getErrorCount() + " error(s) found");
+                } else {
+                    System.out.println("\n✓ VALIDATION PASSED: All context conditions satisfied");
+                }
+                
             } else {
                 System.out.println("ERROR: Failed to parse " + filePath);
                 System.out.println("Please check the grammar and test file for syntax errors.");
@@ -71,15 +85,15 @@ public class PDDLPlannerTest {
         for (ASTFileAssignment fileAssignment : filesSection.getFileAssignmentList()) {
             if (fileAssignment.isPresentDomainAssignment()) {
                 ASTDomainAssignment domainAssignment = fileAssignment.getDomainAssignment();
-                System.out.println("  Domain: " + domainAssignment.getFilePath());
+                System.out.println("  Domain: " + domainAssignment.getFilePath().getSTRING_VALUE());
             }
             if (fileAssignment.isPresentProblemAssignment()) {
                 ASTProblemAssignment problemAssignment = fileAssignment.getProblemAssignment();
-                System.out.println("  Problem: " + problemAssignment.getFilePath());
+                System.out.println("  Problem: " + problemAssignment.getFilePath().getSTRING_VALUE());
             }
             if (fileAssignment.isPresentPlannerAssignment()) {
                 ASTPlannerAssignment plannerAssignment = fileAssignment.getPlannerAssignment();
-                System.out.println("  Planner: " + plannerAssignment.getFilePath());
+                System.out.println("  Planner: " + plannerAssignment.getFilePath().getSTRING_VALUE());
             }
         }
         

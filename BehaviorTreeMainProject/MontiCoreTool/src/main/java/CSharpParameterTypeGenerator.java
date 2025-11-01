@@ -1,8 +1,8 @@
 import crf._parser.CRFParser;
 import crf._ast.ASTAllowedType;
 import crf._ast.ASTParameterTypeDef;
-import crf._ast.ASTParameterProperty;
-import crf._ast.ASTParameterPropertyList;
+import crf._ast.ASTProperty;
+import crf._ast.ASTPropertyList;
 import java.util.Optional;
 import java.io.*;
 import java.nio.file.*;
@@ -109,9 +109,9 @@ public class CSharpParameterTypeGenerator {
             writer.println("    {");
             
             // Generate properties
-            if (parameterType.isPresentParameterPropertyList()) {
-                ASTParameterPropertyList propertyList = parameterType.getParameterPropertyList();
-                for (ASTParameterProperty property : propertyList.getParameterPropertyList()) {
+            if (parameterType.isPresentPropertyList()) {
+                ASTPropertyList propertyList = parameterType.getPropertyList();
+                for (ASTProperty property : propertyList.getPropertyList()) {
                     String propertyName = property.getName();
                     String propertyType = getBasicTypeName(property.getBasicType());
                     writer.println("        public " + propertyType + " " + capitalizeFirst(propertyName) + " { get; set; }");
@@ -130,18 +130,18 @@ public class CSharpParameterTypeGenerator {
             writer.println();
             
             // Generate constructor with parameters (if any properties exist)
-            if (parameterType.isPresentParameterPropertyList()) {
-                ASTParameterPropertyList propertyList = parameterType.getParameterPropertyList();
-                if (!propertyList.isEmptyParameterPropertys()) {
+            if (parameterType.isPresentPropertyList()) {
+                ASTPropertyList propertyList = parameterType.getPropertyList();
+                if (!propertyList.isEmptyPropertys()) {
                     writer.println("        // Constructor with parameters");
                     writer.print("        public " + className + "(");
                     
-                    for (int i = 0; i < propertyList.sizeParameterPropertys(); i++) {
-                        ASTParameterProperty property = propertyList.getParameterProperty(i);
+                    for (int i = 0; i < propertyList.sizePropertys(); i++) {
+                        ASTProperty property = propertyList.getProperty(i);
                         String propertyType = getBasicTypeName(property.getBasicType());
                         String propertyName = property.getName();
                         writer.print(propertyType + " " + propertyName);
-                        if (i < propertyList.sizeParameterPropertys() - 1) {
+                        if (i < propertyList.sizePropertys() - 1) {
                             writer.print(", ");
                         }
                     }
@@ -149,7 +149,7 @@ public class CSharpParameterTypeGenerator {
                     writer.println("        {");
                     
                     // Generate constructor body
-                    for (ASTParameterProperty property : propertyList.getParameterPropertyList()) {
+                    for (ASTProperty property : propertyList.getPropertyList()) {
                         String propertyName = property.getName();
                         writer.println("            this." + capitalizeFirst(propertyName) + " = " + propertyName + ";");
                     }
@@ -161,12 +161,12 @@ public class CSharpParameterTypeGenerator {
                     writer.println("        // Constructor with name and parameters");
                     writer.print("        public " + className + "(string name, ");
                     
-                    for (int i = 0; i < propertyList.sizeParameterPropertys(); i++) {
-                        ASTParameterProperty property = propertyList.getParameterProperty(i);
+                    for (int i = 0; i < propertyList.sizePropertys(); i++) {
+                        ASTProperty property = propertyList.getProperty(i);
                         String propertyType = getBasicTypeName(property.getBasicType());
                         String propertyName = property.getName();
                         writer.print(propertyType + " " + propertyName);
-                        if (i < propertyList.sizeParameterPropertys() - 1) {
+                        if (i < propertyList.sizePropertys() - 1) {
                             writer.print(", ");
                         }
                     }
@@ -174,7 +174,7 @@ public class CSharpParameterTypeGenerator {
                     writer.println("        {");
                     
                     // Generate constructor body
-                    for (ASTParameterProperty property : propertyList.getParameterPropertyList()) {
+                    for (ASTProperty property : propertyList.getPropertyList()) {
                         String propertyName = property.getName();
                         writer.println("            this." + capitalizeFirst(propertyName) + " = " + propertyName + ";");
                     }
@@ -283,9 +283,9 @@ public class CSharpParameterTypeGenerator {
         writer.println("            base.SetParameters(parameters);");
         writer.println();
         
-        if (parameterType.isPresentParameterPropertyList()) {
-            ASTParameterPropertyList propertyList = parameterType.getParameterPropertyList();
-            for (ASTParameterProperty property : propertyList.getParameterPropertyList()) {
+        if (parameterType.isPresentPropertyList()) {
+            ASTPropertyList propertyList = parameterType.getPropertyList();
+            for (ASTProperty property : propertyList.getPropertyList()) {
                 String propertyName = property.getName();
                 String propertyType = getBasicTypeName(property.getBasicType());
                 String capitalizedPropertyName = capitalizeFirst(propertyName);

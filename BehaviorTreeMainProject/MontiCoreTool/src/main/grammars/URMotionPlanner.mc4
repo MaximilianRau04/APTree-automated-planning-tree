@@ -1,0 +1,25 @@
+grammar URMotionPlanner extends BehaviorTree { 
+  URMotionPlannerDefinition = "URMotionPlanner" Name "{" 
+                FilesSection
+                SettingsSection "}";
+  // Files section
+  FilesSection = "files" "{" 
+                ColladaAssignment ";" 
+                StlAssignment ";" 
+                (WorkspaceAssignment ";")? 
+              "}";   
+  ColladaAssignment = "collada" "=" FilePath;
+  StlAssignment = "stl" "=" FilePath;
+  WorkspaceAssignment = "workspace" "=" FilePath;  
+  FilePath = STRING_VALUE;  
+  // Settings section
+  SettingsSection = "settings" "{" (SettingAssignment ";")* "}"; 
+  SettingAssignment = PlannerNameAssignment | URTypeAssignment; 
+  PlannerNameAssignment = "plannerName" "=" PlannerType;
+  URTypeAssignment = "urType" "=" URType; 
+  // Planner types 
+  PlannerType = ompl:"ompl" | stomp:"stomp" | chomp:"chomp" | sbpl:"sbpl" | pilz:"pilz";
+  // UR robot types
+  URType = ur3:"ur3" | ur3e:"ur3e" | ur5:"ur5" | ur5e:"ur5e" | ur10:"ur10" 
+         | ur10e:"ur10e" | ur16e:"ur16e" | ur20:"ur20" | ur30:"ur30";
+}

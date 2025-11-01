@@ -170,6 +170,13 @@ task runPDDLPlannerParser(type: JavaExec) {
     workingDir = projectDir
 }
 
+task runMotionPlannerParser(type: JavaExec) {
+    dependsOn 'compileJava'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'URMotionPlannerTest'
+    workingDir = projectDir
+}
+
 
 
 defaultTasks 'build'

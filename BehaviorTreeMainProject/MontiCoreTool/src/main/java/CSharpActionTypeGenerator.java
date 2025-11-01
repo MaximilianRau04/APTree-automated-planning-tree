@@ -1,7 +1,7 @@
 import crf._parser.CRFParser;
 import crf._ast.ASTAllowedType;
 import crf._ast.ASTAction;
-import crf._ast.ASTParameterInstance;
+import crf._ast.ASTArgument;
 import java.util.Optional;
 import java.io.*;
 import java.nio.file.*;
@@ -136,11 +136,10 @@ public class CSharpActionTypeGenerator {
             
             // Generate constructor with all properties as parameters
             writer.print("        public " + className + "(string actionType, string instanceName, Blackboard<FastName> blackboard");
-            if (action.getActionParametersBlock() != null && action.getActionParametersBlock().getParameterInstanceList() != null) {
-                for (ASTParameterInstance param : action.getActionParametersBlock().getParameterInstanceList()) {
-                    String paramName = param.getName(0);
-                    String paramTypeName = param.getName(1);
-                    String csharpType = getBasicTypeFromName(paramTypeName);
+            if (action.getParametersBlock() != null && action.getParametersBlock().isPresentPropertyList()) {
+                for (crf._ast.ASTProperty param : action.getParametersBlock().getPropertyList().getPropertyList()) {
+                    String paramName = param.getName();
+                    String csharpType = getBasicTypeName(param.getBasicType());
                     writer.print(", " + csharpType + " " + paramName);
                 }
             }
@@ -148,9 +147,9 @@ public class CSharpActionTypeGenerator {
             writer.println("            : base(actionType, instanceName, blackboard)");
             writer.println("        {");
             // Set all properties directly
-            if (action.getActionParametersBlock() != null && action.getActionParametersBlock().getParameterInstanceList() != null) {
-                for (ASTParameterInstance param : action.getActionParametersBlock().getParameterInstanceList()) {
-                    String paramName = param.getName(0);
+            if (action.getParametersBlock() != null && action.getParametersBlock().isPresentPropertyList()) {
+                for (crf._ast.ASTProperty param : action.getParametersBlock().getPropertyList().getPropertyList()) {
+                    String paramName = param.getName();
                     writer.println("            this." + paramName + " = " + paramName + ";");
                 }
             }
@@ -192,27 +191,49 @@ public class CSharpActionTypeGenerator {
     }
     
     private static void generateParameterProperties(PrintWriter writer, ASTAction action) throws IOException {
-        if (action.getActionParametersBlock() != null && action.getActionParametersBlock().getParameterInstanceList() != null) {
-            for (ASTParameterInstance param : action.getActionParametersBlock().getParameterInstanceList()) {
-                String paramName = param.getName(0);
-                String paramTypeName = param.getName(1);
-                String csharpType = getBasicTypeFromName(paramTypeName);
+        if (action.getParametersBlock() != null && action.getParametersBlock().isPresentPropertyList()) {
+            for (crf._ast.ASTProperty param : action.getParametersBlock().getPropertyList().getPropertyList()) {
+                String paramName = param.getName();
+                String csharpType = getBasicTypeName(param.getBasicType());
                 
-                writer.println("        // Parameter: " + paramName + " of type " + paramTypeName);
+                writer.println("        // Parameter: " + paramName + " of type " + csharpType);
                 writer.println("        public " + csharpType + " " + paramName + " { get; private set; }");
                 writer.println();
             }
         }
     }
     
-    private static String getBasicTypeFromName(String typeName) {
-        // Return the original type name as-is, but capitalize it for C# convention
-        if (typeName == null || typeName.isEmpty()) {
-            return "string";
+    private static String getBasicTypeName(Object basicType) {
+        // Check if the basicType is an ASTBasicType and use the named alternative methods
+        if (basicType instanceof crf._ast.ASTBasicType) {
+            crf._ast.ASTBasicType astBasicType = (crf._ast.ASTBasicType) basicType;
+            
+            // Use the named alternative methods to determine the type
+            if (astBasicType.isPresentElement()) {
+                return "Element";
+            } else if (astBasicType.isPresentAgent()) {
+                return "Agent";
+            } else if (astBasicType.isPresentLocation()) {
+                return "Location";
+            } else if (astBasicType.isPresentLayer()) {
+                return "Layer";
+            } else if (astBasicType.isPresentModule()) {
+                return "Module";
+            } else if (astBasicType.isPresentTool()) {
+                return "Tool";
+            } else if (astBasicType.isPresentString()) {
+                return "string";
+            } else if (astBasicType.isPresentDouble()) {
+                return "double";
+            } else if (astBasicType.isPresentInteger()) {
+                return "int";
+            } else if (astBasicType.isPresentBoolean()) {
+                return "bool";
+            }
         }
         
-        // Capitalize the first letter for C# class naming convention
-        return typeName.substring(0, 1).toUpperCase() + typeName.substring(1);
+        // Fallback to string
+        return "string";
     }
     
     private static void generatePredicateInstantiationCode(PrintWriter writer, String actionName, boolean isPrecondition, ASTAllowedType ast) throws IOException {
@@ -370,57 +391,32 @@ public class CSharpActionTypeGenerator {
             
             // Add predicate arguments
             boolean first = true;
-            for (crf._ast.ASTPredicateArgument arg : predicateDef.getPredicateArgumentList()) {
-                if (!first) {
-                    sb.append(", ");
-                }
-                
-                // Safely get argument name and value
-                String argName = "unknown";
-                String argValue = "unknown";
-                
-                try {
-                    argName = arg.getName();
-                    System.out.println("DEBUG: Argument name: " + argName);
-                } catch (Exception e) {
-                    System.err.println("DEBUG: Failed to get argument name: " + e.getMessage());
-                    return null; // Return null to trigger fallback
-                }
-                
-                try {
-                    if (arg.getValue() != null) {
-                        argValue = arg.getValue().getName();
-                        System.out.println("DEBUG: Argument value: " + argValue);
-                    } else {
-                        System.err.println("DEBUG: Argument value is null");
-                        return null; // Return null to trigger fallback
-                    }
-                } catch (Exception e) {
-                    System.err.println("DEBUG: Failed to get argument value: " + e.getMessage());
-                    return null; // Return null to trigger fallback
-                }
-                
-                sb.append(argName).append(" = ").append(argValue);
-                first = false;
-            }
-            
-            // Add isNegated value
-            try {
-                if (predicateDef.getPredicateValue() != null) {
+            if (predicateDef.isPresentArgumentList()) {
+                for (crf._ast.ASTArgument arg : predicateDef.getArgumentList().getArgumentList()) {
                     if (!first) {
                         sb.append(", ");
                     }
-                    String negatedValue = predicateDef.getPredicateValue().getName();
-                    System.out.println("DEBUG: isNegated value: " + negatedValue);
-                    sb.append("isNegated = ").append(negatedValue);
-                } else {
-                    System.err.println("DEBUG: Predicate value is null - falling back to file parsing");
-                    return null; // Return null to trigger fallback
+                    
+                    // Get argument name and value
+                    String argName = arg.getName();
+                    String argValue = getValueAsString(arg.getValue());
+                    
+                    System.out.println("DEBUG: Argument - " + argName + " = " + argValue);
+                    
+                    sb.append(argName).append(" = ").append(argValue);
+                    first = false;
                 }
-            } catch (Exception e) {
-                System.err.println("DEBUG: Failed to get predicate value: " + e.getMessage() + " - falling back to file parsing");
-                return null; // Return null to trigger fallback
             }
+            
+            // Add isNegated value - it's directly accessible in the PredicateInstanceDef
+            if (!first) {
+                sb.append(", ");
+            }
+            
+            // Get the boolean value token
+            String negatedValue = predicateDef.getBOOLEAN_VALUE();
+            System.out.println("DEBUG: isNegated value: " + negatedValue);
+            sb.append("isNegated = ").append(negatedValue);
             
             sb.append(")");
             String result = sb.toString();
@@ -431,6 +427,12 @@ public class CSharpActionTypeGenerator {
             e.printStackTrace();
             return null;
         }
+    }
+    
+    private static String getValueAsString(crf._ast.ASTValue value) {
+        // ASTValue can be Name, INTEGER_VALUE, DOUBLE_VALUE, STRING_VALUE, or BOOLEAN_VALUE
+        // We'll get the name which should work for all types
+        return value.getName();
     }
     
     private static String[] getPredicateStringsFromModelFile(String actionName, boolean isPrecondition) {

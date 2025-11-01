@@ -1,14 +1,14 @@
-grammar DynamicBTFlowNode extends CRF {
+grammar DynamicBTFlowNode extends CRF,BehaviorTree {
     
-    // Dynamic BTflow node definition - separate production to avoid conflicts
- BTFlowNodeDefinition = "BTFlowNode" Name "{" SuccessDefinition ChildTypeDefinition (Service | Decorator | NodeGraph | BTFlowNodeDefinition)* "}";
+    // Dynamic BTflow node definition - separate node type with different keyword
+ symbol BTFlowNodeDynamic = "DynamicBTFlowNode" Name "{" SuccessDefinition ChildTypeDefinition (Service | Decorator | NodeGraph | BTFlowNode | BTFlowNodeDynamic)* "}";
 
     //success criteria definition
     SuccessDefinition = "success:" SuccessType ",";
     SuccessType = all:"ALL" | any:"ANY" | count:"COUNT" | percentage:"PERCENTAGE" | signal:"SIGNAL";
     
     //child type definition
-    ChildType = allactions:"ALLACTIONS" | allflow:"ALLFLOW" | allflows:"ALLFLOWS";
+    ChildType = allactions:"ALLACTION" | allflow:"ALLFLOW";
     ChildTypeDefinition = "childType:" ChildType ",";  
 
     // NodeGraph definition - separate top-level production
@@ -20,7 +20,7 @@ grammar DynamicBTFlowNode extends CRF {
     NodesDefinition = (NodeDefinition)*;
     RelationsDefinition = (RelationDefinition)*;
 
-    NodeDefinition = ActionInstance | BTFlowNodeDefinition;
+    NodeDefinition = ActionInstance | BTFlowNodeDynamic;
    
     
         RelationDefinition = SourceNode "--[" TemporalType "]-->" TargetNode;

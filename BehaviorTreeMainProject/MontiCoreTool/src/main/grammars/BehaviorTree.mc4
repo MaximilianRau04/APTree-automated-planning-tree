@@ -11,7 +11,7 @@ Decorator = "Decorator" Name;
 // Node types
 BTNodeBase = BTFlowNode | BTActionNode;
 // Flow nodes 
-BTFlowNodeDefinition =  "BTFlowNode" Name "{" (Service | Decorator | BTFlowNode | BTActionNode)* "}";
+symbol BTFlowNode =  "BTFlowNode" Name "{" (Service | Decorator | BTFlowNode | BTActionNode)* "}";
 //action nodes
 symbol BTActionNode = "BTActionNode" Name "{" (Decorator| Service)* "}" ;
 // tokens definition
@@ -23,7 +23,7 @@ symbol BTActionNode = "BTActionNode" Name "{" (Decorator| Service)* "}" ;
   token STRING_VALUE = '"' (STRING_CHAR)* '"';
   token DOUBLE_VALUE = NUMBER+ '.' NUMBER+;
   token INTEGER_VALUE = NUMBER+;
-  token STRING_CHAR = LETTER | NUMBER | '_'  | '.' ;
+  token STRING_CHAR = LETTER | NUMBER | '_'  | '.' | '/' | '\\' | '-' ;
   token BOOLEAN_VALUE = "true" | "false";  
   token Name = PDDL_START (PDDL_CHAR)*; 
 }

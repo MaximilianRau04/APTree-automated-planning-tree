@@ -1,7 +1,7 @@
 import crf._parser.CRFParser;
 import crf._ast.ASTAllowedType;
 import crf._ast.ASTPredicateTypeDef;
-import crf._ast.ASTParameterDeclaration;
+import crf._ast.ASTProperty;
 import java.util.Optional;
 import java.io.*;
 import java.nio.file.*;
@@ -99,8 +99,8 @@ public class CSharpPredicateGenerator {
             writer.println("    {");
             
             // Generate properties
-            if (predicate.getParameterDeclarationList() != null) {
-                for (ASTParameterDeclaration param : predicate.getParameterDeclarationList()) {
+            if (predicate.isPresentPropertyList()) {
+                for (ASTProperty param : predicate.getPropertyList().getPropertyList()) {
                     String paramName = param.getName();
                     String paramType = getBasicTypeName(param.getBasicType());
                     writer.println("        public " + paramType + " " + paramName + " { get; set; }");
@@ -111,19 +111,19 @@ public class CSharpPredicateGenerator {
             
             // Generate constructor with parameters that calls base constructor
             writer.print("        public " + className + "(");
-            if (predicate.getParameterDeclarationList() != null && !predicate.getParameterDeclarationList().isEmpty()) {
-                for (int i = 0; i < predicate.getParameterDeclarationList().size(); i++) {
-                    ASTParameterDeclaration param = predicate.getParameterDeclarationList().get(i);
+            if (predicate.isPresentPropertyList() && !predicate.getPropertyList().isEmptyPropertys()) {
+                for (int i = 0; i < predicate.getPropertyList().sizePropertys(); i++) {
+                    ASTProperty param = predicate.getPropertyList().getProperty(i);
                     String paramType = getBasicTypeName(param.getBasicType());
                     String paramName = param.getName();
                     writer.print(paramType + " " + paramName);
-                    if (i < predicate.getParameterDeclarationList().size() - 1) {
+                    if (i < predicate.getPropertyList().sizePropertys() - 1) {
                         writer.print(", ");
                     }
                 }
             }
             // Always add isNegated parameter
-            if (predicate.getParameterDeclarationList() != null && !predicate.getParameterDeclarationList().isEmpty()) {
+            if (predicate.isPresentPropertyList() && !predicate.getPropertyList().isEmptyPropertys()) {
                 writer.print(", ");
             }
             writer.print("bool isNegated");
@@ -134,8 +134,8 @@ public class CSharpPredicateGenerator {
             writer.println("            PredicateType = new FastName(\"" + predicate.getName() + "\");");
             
             // Generate constructor body
-            if (predicate.getParameterDeclarationList() != null) {
-                for (ASTParameterDeclaration param : predicate.getParameterDeclarationList()) {
+            if (predicate.isPresentPropertyList()) {
+                for (ASTProperty param : predicate.getPropertyList().getPropertyList()) {
                     String paramName = param.getName();
                     writer.println("            this." + paramName + " = " + paramName + ";");
                 }
@@ -153,11 +153,11 @@ public class CSharpPredicateGenerator {
             writer.println("            return new List<string>");
             writer.println("            {");
             
-            if (predicate.getParameterDeclarationList() != null && !predicate.getParameterDeclarationList().isEmpty()) {
-                for (int i = 0; i < predicate.getParameterDeclarationList().size(); i++) {
-                    ASTParameterDeclaration param = predicate.getParameterDeclarationList().get(i);
+            if (predicate.isPresentPropertyList() && !predicate.getPropertyList().isEmptyPropertys()) {
+                for (int i = 0; i < predicate.getPropertyList().sizePropertys(); i++) {
+                    ASTProperty param = predicate.getPropertyList().getProperty(i);
                     String paramName = param.getName();
-                    String separator = (i < predicate.getParameterDeclarationList().size() - 1) ? "," : "";
+                    String separator = (i < predicate.getPropertyList().sizePropertys() - 1) ? "," : "";
                     writer.println("                " + paramName + "?.NameKey?.ToString() ?? \"null\"" + separator);
                 }
             }

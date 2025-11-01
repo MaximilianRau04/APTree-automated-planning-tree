@@ -42,5 +42,5 @@ ReturnType = BasicType;
 ImplementationBlock = "implementation" "{" FunctionReference "}";
 FunctionReference = Name; 
 // ActionInstance definition - references action types
-ActionInstance = "ActionInstance" ":" Name "(" (ArgumentList)? ")"; 
+symbol ActionInstance = "ActionInstance" ":" Name "(" (ArgumentList)? ")"; 
 }
