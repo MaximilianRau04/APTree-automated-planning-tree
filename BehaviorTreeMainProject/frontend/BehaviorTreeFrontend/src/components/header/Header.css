@@ -1,0 +1,139 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(180deg, #303030 0%, #262626 100%);
+  padding: 8px 16px;
+  border-bottom: 1px solid #3a3a3a;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  height: auto; 
+  min-height: clamp(30px, 4vh, 46px); 
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px; 
+}
+
+.app-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #e0e0e0;
+  margin: 0;
+  padding-right: 16px;
+  border-right: 1px solid #444;
+  white-space: nowrap;
+}
+
+.header-nav {
+  display: flex;
+  gap: 4px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 16px;
+  border-left: 1px solid #444; 
+  height: 24px; 
+}
+
+.icon-btn {
+  background: transparent;
+  border: none;
+  color: #d0d0d0;
+  padding: 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex; 
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.icon-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  transform: translateY(-1px); 
+}
+
+.icon-btn:active {
+  transform: translateY(0);
+}
+
+.icon-btn svg {
+  display: block; 
+}
+
+.dropdown {
+  position: relative;
+}
+
+.dropdown-trigger {
+  background: transparent;
+  border: none;
+  color: #d0d0d0;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.dropdown-trigger:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  min-width: 160px;
+  z-index: 1000;
+  animation: dropdownSlide 0.15s ease;
+}
+
+@keyframes dropdownSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  color: #d0d0d0;
+  text-align: left;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dropdown-item:first-child {
+  border-radius: 6px 6px 0 0;
+}
+
+.dropdown-item:last-child {
+  border-radius: 0 0 6px 6px;
+}
+
+.dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}

@@ -1,0 +1,395 @@
+
+// parameter type definition
+
+Parameter beam : Element {
+    length: Double
+}
+
+Parameter plate : Element {
+    thickness: Double,
+    material: String
+}
+
+Parameter vacuumGripper : Tool {
+    isOn: Boolean
+}
+
+Parameter nailGripper : Tool {
+    isOn: Boolean
+}
+
+Parameter glueGun : Tool {
+    isOn: Boolean
+}
+
+Parameter robot : Agent {
+    type: String,
+    speed: Double
+}
+
+Parameter stack : Layer {
+    level: Integer,
+    belongsToModule: Module
+}
+
+Parameter cassette : Module {
+    layers: List<Layer>
+}
+
+Parameter positionOnRail : Location {
+}
+
+Parameter equipposition : Location {
+}
+
+Parameter firstposition : Location {
+}
+
+Parameter stackposition : Location {
+}
+
+
+// parameter instance
+
+ParameterInstance: beam {b1}
+ParameterInstance: beam {b3}
+ParameterInstance: beam {b2}
+ParameterInstance: robot {r1}
+ParameterInstance: firstposition {fp1}
+ParameterInstance: vacuumGripper {vg1}
+
+// Predicate definition
+
+predicate isAt {
+    myObject - Element,
+    location - Location
+}
+
+predicate atAgent {
+    agent - Agent,
+    location - Location
+}
+
+predicate hasTool {
+    agent - Agent,
+    tool - Tool
+}
+
+predicate holding {
+    agent - Agent,
+    myObject - Element
+}
+
+predicate atplace {
+    myObject - Element,
+    place - Location
+}
+
+predicate empty {
+    client - Agent
+}
+
+predicate clear {
+    myObject - Element
+}
+
+predicate ontop {
+    myObject1 - Element,
+    myObject2 - Element
+}
+
+predicate allset {
+    lay - Layer,
+    mod - Module
+}
+
+predicate belongstolayer {
+    myObject - Element,
+    lay - Layer
+}
+
+predicate belongstomodule {
+    myObject - Element,
+    mod - Module
+}
+
+predicate positionfree {
+    pos - Location
+}
+
+predicate stacked {
+    myObject - Element
+}
+
+predicate glued {
+    myObject - Element
+}
+
+predicate nailed {
+    myObject - Element
+}
+
+//predicate instances
+
+PredicateInstance: isAt(myObject = b1, location = fp1, isNegated = false)
+PredicateInstance: hasTool(agent = r1, tool = vg1, isNegated = false)
+
+// Action definition 
+
+Action pickUp {
+    parameters {
+        pickedObject: beam
+        rob: robot
+        loc: firstposition
+        robTool: vacuumGripper
+    }
+    precondition {
+        PredicateInstance: isAt(myObject = pickedObject, location = loc, isNegated = false)
+        PredicateInstance: atAgent(agent = rob, location = loc, isNegated = false)
+        PredicateInstance: hasTool(agent = rob, tool = robTool, isNegated = false)
+    }    
+    effect {
+        PredicateInstance: holding(agent = rob, myObject = pickedObject, isNegated = false)
+        PredicateInstance: atAgent(agent = rob, location = loc, isNegated = false)
+    }   
+    function {
+        {pickedObject,rob},
+        {Boolean}
+    }
+    implementation {
+        pickupImplementation
+    }
+}
+
+// Robot equips the endeffector
+Action equipe {
+    parameters {
+        client: robot
+        too: vacuumGripper
+        ep: equipposition
+    }
+    precondition {
+        PredicateInstance: empty(client = client, isNegated = false)
+        PredicateInstance: positionfree(pos = ep, isNegated = true)
+    }    
+    effect {
+        PredicateInstance: hasTool(agent = client, tool = too, isNegated = false)
+        PredicateInstance: empty(client = client, isNegated = true)
+        PredicateInstance: positionfree(pos = ep, isNegated = false)
+    }   
+    function {
+        {client,too,ep},
+        {Boolean}
+    }
+    implementation {
+        equipeImplementation
+    }
+}
+
+// Robot puts the endeffector down
+Action deequip {
+    parameters {
+        client: robot
+        too: vacuumGripper
+        ep: equipposition
+    }
+    precondition {
+        PredicateInstance: hasTool(agent = client, tool = too, isNegated = false)
+        PredicateInstance: empty(client = client, isNegated = true)
+        PredicateInstance: positionfree(pos = ep, isNegated = false)
+    }    
+    effect {
+        PredicateInstance: empty(client = client, isNegated = false)
+        PredicateInstance: hasTool(agent = client, tool = too, isNegated = true)
+        PredicateInstance: positionfree(pos = ep, isNegated = true)
+    }   
+    function {
+        {client,too,ep},
+        {Boolean}
+    }
+    implementation {
+        deequipImplementation
+    }
+}
+
+// Robot grabs an object from the table
+Action grab {
+    parameters {
+        obj: beam
+        grabPos: firstposition
+        client: robot
+    }
+    precondition {
+        PredicateInstance: atplace(myObject = obj, place = grabPos, isNegated = false)
+        PredicateInstance: holding(agent = client, myObject = obj, isNegated = true)
+        PredicateInstance: positionfree(pos = grabPos, isNegated = true)
+        PredicateInstance: clear(myObject = obj, isNegated = false)
+        PredicateInstance: stacked(myObject = obj, isNegated = true)
+    }    
+    effect {
+        PredicateInstance: holding(agent = client, myObject = obj, isNegated = false)
+        PredicateInstance: atplace(myObject = obj, place = grabPos, isNegated = true)
+        PredicateInstance: clear(myObject = obj, isNegated = true)
+        PredicateInstance: positionfree(pos = grabPos, isNegated = false)
+    }   
+    function {
+        {obj,grabPos,client},
+        {Boolean}
+    }
+    implementation {
+        grabImplementation
+    }
+}
+
+// Robot places an object
+Action place {
+    parameters {
+        obj: beam
+        placePos: firstposition
+        client: robot
+    }
+    precondition {
+        PredicateInstance: holding(agent = client, myObject = obj, isNegated = false)
+        PredicateInstance: clear(myObject = obj, isNegated = true)
+        PredicateInstance: positionfree(pos = placePos, isNegated = false)
+    }    
+    effect {
+        PredicateInstance: atplace(myObject = obj, place = placePos, isNegated = false)
+        PredicateInstance: holding(agent = client, myObject = obj, isNegated = true)
+        PredicateInstance: clear(myObject = obj, isNegated = false)
+        PredicateInstance: positionfree(pos = placePos, isNegated = true)
+    }   
+    function {
+        {obj,placePos,client},
+        {Boolean}
+    }
+    implementation {
+        placeImplementation
+    }
+}
+
+// Robot stacks one object on top of another object
+Action stackHL {
+    parameters {
+        obj1: beam
+        obj2: beam
+        client: robot
+        vg: vacuumGripper
+        pr: positionOnRail
+        lay: stack
+        mod: cassette
+    }
+    precondition {
+        PredicateInstance: holding(agent = client, myObject = obj1, isNegated = false)
+        PredicateInstance: hasTool(agent = client, tool = vg, isNegated = false)
+        PredicateInstance: atplace(myObject = obj2, place = pr, isNegated = false)
+        PredicateInstance: atplace(myObject = obj1, place = pr, isNegated = true)
+    }    
+    effect {
+        PredicateInstance: ontop(myObject1 = obj1, myObject2 = obj2, isNegated = false)
+        PredicateInstance: stacked(myObject = obj1, isNegated = false)
+        PredicateInstance: holding(agent = client, myObject = obj1, isNegated = true)
+        PredicateInstance: atplace(myObject = obj1, place = pr, isNegated = false)
+        PredicateInstance: clear(myObject = obj2, isNegated = true)
+        PredicateInstance: clear(myObject = obj1, isNegated = false)
+        PredicateInstance: allset(lay = lay, mod = mod, isNegated = false)
+    }   
+    function {
+        {obj1,obj2,client,vg,pr,lay,mod},
+        {Boolean}
+    }
+    implementation {
+        stackImplementation
+    }
+}
+
+// Robot stacks one bigger object on top of multiple objects
+Action stackonmultiple {
+    parameters {
+        plate: plate
+        client: robot
+        pos: positionOnRail
+        vg: vacuumGripper
+        mod: cassette
+        lay: stack
+    }
+    precondition {
+        PredicateInstance: allset(lay = lay, mod = mod, isNegated = false)
+        PredicateInstance: hasTool(agent = client, tool = vg, isNegated = false)
+        PredicateInstance: holding(agent = client, myObject = plate, isNegated = false)
+        PredicateInstance: atplace(myObject = plate, place = pos, isNegated = true)
+    }    
+    effect {
+        PredicateInstance: atplace(myObject = plate, place = pos, isNegated = false)
+    }   
+    function {
+        {plate,client,pos,vg,mod,lay},
+        {Boolean}
+    }
+    implementation {
+        stackonmultipleImplementation
+    }
+}
+
+// Robot pours glue on top of an object
+Action gluing {
+    parameters {
+        obj: beam
+        pos: positionOnRail
+        client: robot
+        gg: glueGun
+    }
+    precondition {
+        PredicateInstance: hasTool(agent = client, tool = gg, isNegated = false)
+        PredicateInstance: empty(client = client, isNegated = true)
+        PredicateInstance: atplace(myObject = obj, place = pos, isNegated = false)
+        PredicateInstance: clear(myObject = obj, isNegated = false)
+    }    
+    effect {
+        PredicateInstance: glued(myObject = obj, isNegated = false)
+    }   
+    function {
+        {obj,pos,client,gg},
+        {Boolean}
+    }
+    implementation {
+        gluingImplementation
+    }
+}
+
+// Robot nails an object
+Action nailing {
+    parameters {
+        obj: beam
+        pos: positionOnRail
+        client: robot
+        ng: nailGripper
+    }
+    precondition {
+        PredicateInstance: empty(client = client, isNegated = true)
+        PredicateInstance: hasTool(agent = client, tool = ng, isNegated = false)
+        PredicateInstance: atplace(myObject = obj, place = pos, isNegated = false)
+        PredicateInstance: clear(myObject = obj, isNegated = false)
+    }    
+    effect {
+        PredicateInstance: nailed(myObject = obj, isNegated = false)
+    }   
+    function {
+        {obj,pos,client,ng},
+        {Boolean}
+    }
+    implementation {
+        nailingImplementation
+    }
+}
+
+
+// Action instances
+
+ActionInstance: pickUp(pickedObject : b1, rob : r1, loc : fp1, robTool : vg1)
+ActionInstance: grab(obj : b2, grabPos : fp2, client : r1)
+ActionInstance: place(obj : b3, placePos : fp3, client : r1)
+
+
+
+

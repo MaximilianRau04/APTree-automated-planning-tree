@@ -1,26 +1,7 @@
 .app-container {
   display: flex;
-  flex-direction: column;
   height: 100vh;
-}
-
-.header {
-  padding: 12px;
-  background: #222;
-  color: white;
-}
-
-.layout {
-  display: flex;
-  flex: 1;
   overflow: hidden;
-}
-
-.sidebar {
-  width: 200px;
-  background: #222;
-  border-right: 1px solid #ccc;
-  padding: 10px;
 }
 
 .editor {

@@ -1,26 +1,16 @@
 import './App.css'
+import Header from './components/header/Header.tsx'
+import Sidebar from './components/sidebar/Sidebar.tsx'
 
 function App() {
   return (
     <div className="app-container">
-      <header className="header">
-        <h1>Behavior Tree Editor</h1>
-      </header>
-
-      <div className="layout">
-        <aside className="sidebar">
-          <p>Nodes</p>
-          <ul>
-            <li>Selector</li>
-            <li>Sequence</li>
-            <li>Condition</li>
-            <li>Action</li>
-          </ul>
-        </aside>
-
-        <main className="editor">
-          <p>Editor Canvas</p>
-        </main>
+      <Sidebar />
+      <div className="main-content">
+        <Header />
+        <div className="editor">
+          <p>Editor Canvas here.</p>
+        </div>
       </div>
     </div>
   )

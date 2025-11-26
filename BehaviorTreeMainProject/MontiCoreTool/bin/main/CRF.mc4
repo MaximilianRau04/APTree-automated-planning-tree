@@ -1,0 +1,78 @@
+grammar CRF extends BehaviorTree {
+// Root rule that allows multiple predicates, parameter types, parameter instances, predicate instances, and actions
+AllowedType = (PredicateTypeDef | ParameterTypeDef | ParameterInstanceDef | PredicateInstanceDef | Action | ActionInstance)*;
+
+// Parameter type definition with inheritance and properties
+ParameterTypeDef = "Parameter" Name ":" BasicType "{" (ParameterPropertyList)? "}";
+ParameterPropertyList = ParameterProperty (("," ParameterProperty)*)?;
+
+// Parameter property definition
+ParameterProperty = Name ":" BasicType;
+
+// Parameter instance definition
+ParameterInstanceDef = "ParameterInstance" ":" Name "{" ParameterInstanceValues "}";
+ParameterInstanceValues = ParameterInstanceValue (("," ParameterInstanceValue)*)?;
+ParameterInstanceValue = Value;
+Value = Name | INTEGER_VALUE | DOUBLE_VALUE | STRING_VALUE | "true" | "false";
+
+
+// Basic types for parameters - using named alternatives
+BasicType = element:"Element" | agent:"Agent" | location:"Location" | layer:"Layer" 
+    | module:"Module" | tool:"Tool" | string:"String" | double:"Double" | integer:"Integer" | boolean:"Boolean"
+    | list:"List" "<" BasicType ">" | set:"Set" "<" BasicType ">" | map:"Map" "<" BasicType "," BasicType ">";    
+
+// Extend BTNodeBase to include CRF-specific components
+BTNodeBase = 
+    ParametersBlock
+    PreconditionState
+    EffectState;
+
+// Define the missing rules that CRF uses
+ParametersBlock = "parameters" "{" (ParameterDeclaration)* "}";
+ParameterDeclaration = Name "-" BasicType;
+
+// Parameter instance for Actions (references existing parameter types)
+ParameterInstance = Name ":" Name; 
+
+// State-related rules
+State = Name? "{" (PredicateInstanceDef)* "}";    
+StateType = "precondition" | "effect" | "initial" | "goal"; 
+PreconditionState = "precondition" "{" (PredicateInstanceDef)* "}"; 
+EffectState = "effect" "{" (PredicateInstanceDef)* "}"; 
+InitialState = "initial" "{" (PredicateInstanceDef)* "}"; 
+GoalState = "goal" "{" (PredicateInstanceDef)* "}";
+
+// ActionInstance definition - references action types
+ActionInstance = "ActionInstance" ":" ActionTypeName "(" (ParameterInstance ("," ParameterInstance)*)? ")";    
+ActionTypeName = Name;    
+       
+// Action type definition
+Action = "Action" Name "{"
+    ActionParametersBlock
+    PreconditionState
+    EffectState
+    FunctionBlock
+    ImplementationBlock"}";
+
+// Action parameters block (uses parameter instances)
+ActionParametersBlock = "parameters" "{" (ParameterInstance)* "}";       
+NameBlock = "name" "=" STRING_VALUE;       
+FunctionBlock = "function" "{" 
+    "{" (Name ("," Name)*)? "}" ","
+    "{" ReturnType "}" "}";   
+ReturnType = BasicType;              
+ImplementationBlock = "implementation" "{" FunctionReference "}";
+FunctionReference = Name; 
+
+// Predicate type definition
+PredicateTypeDef = "predicate" Name "{" (ParameterDeclaration (("," ParameterDeclaration)*)?)? "}";
+
+// Predicate instance definition (standalone)
+PredicateInstanceDef = "PredicateInstance" ":" Name "(" (PredicateArgument ("," PredicateArgument)*)? "," "isNegated" "=" PredicateValue ")";   
+
+PredicateArgument = value: PredicateValue "=" name: Name;
+// Possible predicate values
+PredicateValue = Name | AttributeAccess | "true" | "false";
+// Attribute access with dot notation
+AttributeAccess = Name "." Name;
+}  
