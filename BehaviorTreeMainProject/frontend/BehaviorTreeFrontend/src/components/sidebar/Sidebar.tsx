@@ -11,7 +11,7 @@ import type {
 
 /**
  * Sidebar Section Component
- * @param param0 
+ * @param param0
  * @returns The Sidebar Section TSX element
  */
 function SidebarSection({ title, children, isOpen = false }: SectionProps) {
@@ -27,7 +27,6 @@ function SidebarSection({ title, children, isOpen = false }: SectionProps) {
     </div>
   );
 }
-
 
 export default function Sidebar() {
   const [data, setData] = useState<AppData>({
@@ -50,12 +49,12 @@ export default function Sidebar() {
     mode: "add",
     category: null,
     index: null,
-    initialValue: { name: "", type: "" }, 
+    initialValue: { name: "", type: "" },
   });
 
   /**
    * opens the add modal for a specific category
-   * @param category 
+   * @param category
    */
   const openAddModal = (category: DataCategory) => {
     setModalState({
@@ -63,15 +62,15 @@ export default function Sidebar() {
       mode: "add",
       category,
       index: null,
-      initialValue: { name: "", type: "String" }, 
+      initialValue: { name: "", type: "String" },
     });
   };
 
   /**
    * opens the edit modal for a specific category and index
-   * @param category 
-   * @param index 
-   * @param currentValue 
+   * @param category
+   * @param index
+   * @param currentValue
    */
   const openEditModal = (
     category: DataCategory,

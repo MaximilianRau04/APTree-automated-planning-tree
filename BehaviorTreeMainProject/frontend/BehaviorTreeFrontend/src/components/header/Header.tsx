@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './Header.css';
 
 interface DropdownProps {
@@ -13,18 +13,46 @@ interface DropdownProps {
  */
 function Dropdown({ title, items }: DropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Closes the dropdown when clicking outside of it
+   * @param event MouseEvent
+   */
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   return (
     <div 
       className="dropdown"
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
+      ref={dropdownRef}
     >
-      <button className="dropdown-trigger">{title}</button>
+      <button 
+        className="dropdown-trigger"
+        onClick={() => setIsOpen(!isOpen)} 
+      >
+        {title}
+      </button>
+      
       {isOpen && (
         <div className="dropdown-menu">
           {items.map((item, index) => (
-            <button key={index} className="dropdown-item">
+            <button 
+              key={index} 
+              className="dropdown-item"
+              onClick={() => setIsOpen(false)} 
+            >
               {item}
             </button>
           ))}
