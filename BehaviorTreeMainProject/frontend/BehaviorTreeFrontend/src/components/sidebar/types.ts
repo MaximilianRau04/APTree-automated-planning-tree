@@ -1,3 +1,10 @@
+import type { ReactNode } from "react";
+
+export interface StructuredItem {
+  name: string;
+  type: string;
+}
+
 export type DataCategory =
   | "variables"
   | "paramTypes"
@@ -29,11 +36,6 @@ export interface ModalState {
 
 export interface SectionProps {
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
   isOpen?: boolean;
-}
-
-export interface StructuredItem {
-  name: string;
-  type: string;
 }

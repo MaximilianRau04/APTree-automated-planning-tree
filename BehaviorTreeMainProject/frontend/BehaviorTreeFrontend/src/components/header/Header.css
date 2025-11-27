@@ -2,28 +2,23 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: linear-gradient(180deg, #303030 0%, #262626 100%);
-  padding: 8px 16px;
-  border-bottom: 1px solid #3a3a3a;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  height: auto; 
-  min-height: clamp(30px, 4vh, 46px); 
+  padding: 12px 24px;
+  background: var(--surface-header);
+  border-bottom: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-sm);
+  transition: background var(--transition-medium), border-color var(--transition-medium), box-shadow var(--transition-medium);
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 16px; 
+  gap: 16px;
 }
 
-.app-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #e0e0e0;
-  margin: 0;
-  padding-right: 16px;
-  border-right: 1px solid #444;
-  white-space: nowrap;
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .header-nav {
@@ -31,40 +26,53 @@
   gap: 4px;
 }
 
+.header-separator {
+  width: 1px;
+  height: 24px;
+  background: var(--border-subtle);
+}
+
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   padding-left: 16px;
-  border-left: 1px solid #444; 
-  height: 24px; 
 }
 
 .icon-btn {
   background: transparent;
   border: none;
-  color: #d0d0d0;
+  color: var(--text-secondary);
   padding: 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  display: flex; 
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
 }
 
 .icon-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  transform: translateY(-1px); 
+  background: var(--surface-hover);
+  color: var(--text-primary);
+  transform: translateY(-1px);
 }
 
 .icon-btn:active {
   transform: translateY(0);
+  background: var(--surface-active);
 }
 
 .icon-btn svg {
-  display: block; 
+  display: block;
+}
+
+.theme-toggle {
+  border: 1px solid transparent;
+}
+
+.theme-toggle:hover {
+  border-color: var(--border-subtle);
 }
 
 .dropdown {
@@ -74,37 +82,40 @@
 .dropdown-trigger {
   background: transparent;
   border: none;
-  color: #d0d0d0;
-  padding: 8px 16px;
+  color: var(--text-secondary);
+  padding: 8px 14px;
   font-size: 14px;
   cursor: pointer;
-  border-radius: 4px;
-  transition: all 0.2s ease;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
-.dropdown-trigger:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+.dropdown-trigger:hover,
+.dropdown-trigger:focus-visible {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+  outline: none;
 }
 
 .dropdown-menu {
   position: absolute;
   top: 100%;
   left: 0;
-  margin-top: 4px;
-  background: #2a2a2a;
-  border: 1px solid #444;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  min-width: 160px;
+  margin-top: 6px;
+  background: var(--surface-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  min-width: 180px;
   z-index: 1000;
-  animation: dropdownSlide 0.15s ease;
+  animation: dropdownSlide 0.18s ease;
+  backdrop-filter: saturate(160%) blur(6px);
 }
 
 @keyframes dropdownSlide {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateY(-6px);
   }
   to {
     opacity: 1;
@@ -118,22 +129,24 @@
   padding: 10px 16px;
   background: transparent;
   border: none;
-  color: #d0d0d0;
+  color: var(--text-secondary);
   text-align: left;
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .dropdown-item:first-child {
-  border-radius: 6px 6px 0 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
 
 .dropdown-item:last-child {
-  border-radius: 0 0 6px 6px;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
 }
 
-.dropdown-item:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
+.dropdown-item:hover,
+.dropdown-item:focus-visible {
+  background: var(--accent-soft);
+  color: var(--text-primary);
+  outline: none;
 }
