@@ -1,13 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import type { StructuredItem } from "./types.ts";
-
-interface EditModalProps {
-  isOpen: boolean;
-  title: string;
-  initialValue: StructuredItem;
-  onClose: () => void;
-  onSave: (value: StructuredItem) => void;
-}
+import type { EditModalProps } from "./types.ts";
 
 // list of basic types for the dropdown
 const BASIC_TYPES = [
@@ -33,6 +25,11 @@ export default function EditModal({
   initialValue,
   onClose,
   onSave,
+  hideTypeField = false,
+  nameLabel = "Name",
+  namePlaceholder = "e.g., target_entity",
+  helperText,
+  saveLabel = "Save",
 }: EditModalProps) {
   const [nameValue, setNameValue] = useState(initialValue.name);
   const [typeValue, setTypeValue] = useState(initialValue.type);
@@ -54,13 +51,19 @@ export default function EditModal({
   if (!isOpen) return null;
 
   /**
-   * handles the form submission
+   * handles the form submission for items and categoriess
    * @param e React.FormEvent
    */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (nameValue.trim() && typeValue.trim()) {
-      onSave({ name: nameValue.trim(), type: typeValue.trim() });
+    if (hideTypeField) {
+      if (nameValue.trim()) {
+        onSave({ name: nameValue.trim(), type: "" });
+      }
+    } else {
+      if (nameValue.trim() && typeValue.trim()) {
+        onSave({ name: nameValue.trim(), type: typeValue.trim() });
+      }
     }
   };
 
@@ -76,34 +79,45 @@ export default function EditModal({
 
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="form-group">
-            <label className="modal-label">Name:</label>
+            <label className="modal-label" htmlFor="modal-name-input">
+              {nameLabel}
+            </label>
             <input
               ref={nameInputRef}
               type="text"
               className="modal-input"
               value={nameValue}
               onChange={(e) => setNameValue(e.target.value)}
-              placeholder="e.g., target_entity"
+              placeholder={namePlaceholder}
+              id="modal-name-input"
             />
+            {helperText && hideTypeField && (
+              <p className="category-modal-text">{helperText}</p>
+            )}
           </div>
 
-          <div className="form-group">
-            <label className="modal-label">Type:</label>
-            <select
-              className="modal-select"
-              value={typeValue}
-              onChange={(e) => setTypeValue(e.target.value)}
-            >
-              <option value="" disabled>
-                Select a type...
-              </option>
-              {BASIC_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type}
+          {!hideTypeField && (
+            <div className="form-group">
+              <label className="modal-label" htmlFor="modal-type-select">
+                Type
+              </label>
+              <select
+                className="modal-select"
+                value={typeValue}
+                onChange={(e) => setTypeValue(e.target.value)}
+                id="modal-type-select"
+              >
+                <option value="" disabled>
+                  Select a type...
                 </option>
-              ))}
-            </select>
-          </div>
+                {BASIC_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="modal-footer">
             <button type="button" className="btn-cancel" onClick={onClose}>
@@ -112,9 +126,13 @@ export default function EditModal({
             <button
               type="submit"
               className="btn-save"
-              disabled={!nameValue.trim() || !typeValue.trim()}
+              disabled={
+                hideTypeField
+                  ? !nameValue.trim()
+                  : !nameValue.trim() || !typeValue.trim()
+              }
             >
-              Save
+              {saveLabel}
             </button>
           </div>
         </form>

@@ -5,26 +5,9 @@ export interface StructuredItem {
   type: string;
 }
 
-export type DataCategory =
-  | "variables"
-  | "paramTypes"
-  | "paramInstances"
-  | "predTypes"
-  | "predInstances"
-  | "actions"
-  | "actionInstances"
-  | "nodes";
+export type DataCategory = string;
 
-export interface AppData {
-  variables: StructuredItem[];
-  paramTypes: StructuredItem[];
-  paramInstances: StructuredItem[];
-  predTypes: StructuredItem[];
-  predInstances: StructuredItem[];
-  actions: StructuredItem[];
-  actionInstances: StructuredItem[];
-  nodes: StructuredItem[];
-}
+export type AppData = Record<DataCategory, StructuredItem[]>;
 
 export interface ModalState {
   isOpen: boolean;
@@ -38,4 +21,21 @@ export interface SectionProps {
   title: string;
   children: ReactNode;
   isOpen?: boolean;
+  iconLabel?: string;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  disableDelete?: boolean;
+}
+
+export interface EditModalProps {
+  isOpen: boolean;
+  title: string;
+  initialValue: StructuredItem;
+  onClose: () => void;
+  onSave: (value: StructuredItem) => void;
+  hideTypeField?: boolean;
+  nameLabel?: string;
+  namePlaceholder?: string;
+  helperText?: string;
+  saveLabel?: string;
 }

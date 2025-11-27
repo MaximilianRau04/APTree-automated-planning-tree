@@ -16,8 +16,9 @@
 .sidebar-title {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   min-height: var(--topbar-height);
-  padding: 0 22px;
+  padding: 0 20px;
   margin: 0;
   font-size: 1.2rem;
   font-weight: 600;
@@ -25,34 +26,156 @@
   background: var(--surface-panel);
   border-bottom: 1px solid var(--border-subtle);
   letter-spacing: 0.01em;
+  gap: 12px;
+}
+
+.sidebar-title-text {
+  font-weight: 700;
+}
+
+.add-category-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.add-category-button:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+  border-color: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.add-category-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* Collapsible sections */
 .sidebar-section {
   border-bottom: 1px solid var(--border-subtle);
   transition: border-color var(--transition-medium);
+  background: var(--surface-panel);
 }
 
 .sidebar-section-header {
-  padding: 12px 18px;
-  background: var(--surface-panel-alt);
-  cursor: pointer;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  user-select: none;
+  justify-content: space-between;
+  background: var(--surface-panel-alt);
+  border-bottom: 1px solid var(--border-subtle);
+  gap: 6px;
+}
+
+.sidebar-section-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebar-section-toggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: transparent;
+  border: none;
   color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
   transition: background var(--transition-fast), color var(--transition-fast);
 }
 
-.sidebar-section-header:hover {
+.sidebar-section-toggle:hover,
+.sidebar-section-toggle:focus-visible {
   background: var(--surface-hover);
   color: var(--text-primary);
+}
+
+.sidebar-section-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.sidebar-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 12px;
+}
+
+.section-action-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  line-height: 1;
+  transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+
+.section-action-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.section-action-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.section-action-btn.delete-action:hover {
+  color: var(--danger);
+}
+
+.section-action-btn:disabled,
+.section-action-btn:disabled:hover {
+  background: transparent;
+  color: var(--text-muted);
+  cursor: not-allowed;
+  transform: none;
+  opacity: 0.6;
+}
+
+.section-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.sidebar-section-header strong {
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 .toggle-icon {
   font-size: 0.85rem;
   color: var(--text-muted);
+}
+
+.sidebar-section-toggle:hover .toggle-icon,
+.sidebar-section-toggle:focus-visible .toggle-icon {
+  color: var(--text-primary);
 }
 
 .sidebar-content {
@@ -120,6 +243,11 @@
   margin-right: 12px;
 }
 
+.list-item-separator {
+  margin: 0 6px;
+  color: var(--text-muted);
+}
+
 .type-badge {
   color: var(--accent);
   margin-left: 4px;
@@ -155,8 +283,19 @@
   transform: translateY(-1px);
 }
 
+.sidebar .icon-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .sidebar .delete-btn:hover {
   color: var(--danger);
+}
+
+.empty-copy {
+  margin: 8px 4px 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
 }
 
 /* Modal */
@@ -318,4 +457,11 @@
   cursor: not-allowed;
   box-shadow: none;
   transform: none;
+}
+
+.category-modal-text {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin: 0;
 }

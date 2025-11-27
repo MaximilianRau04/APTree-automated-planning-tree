@@ -1,15 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import "./Header.css";
-
-interface HeaderProps {
-  theme: "light" | "dark";
-  onToggleTheme: () => void;
-}
-
-interface DropdownProps {
-  title: string;
-  items: string[];
-}
+import type {
+  DropdownProps,
+  HeaderProps,
+} from "./types.ts";
+import { UserMenu } from "./UserMenu";
 
 /**
  * Component for a dropdown menu in the header.
@@ -126,6 +121,14 @@ export default function Header({ theme, onToggleTheme }: HeaderProps) {
       </div>
 
       <div className="header-right">
+        <UserMenu />
+        
+        <button
+          className="icon-btn theme-toggle"
+          onClick={onToggleTheme}
+          aria-label={`Switch to ${isDarkMode ? "light" : "dark"} mode`}
+          title={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+        ></button>
         <button
           className="icon-btn theme-toggle"
           onClick={onToggleTheme}
