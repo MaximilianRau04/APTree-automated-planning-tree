@@ -2,10 +2,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 24px;
+  height: var(--topbar-height);
+  padding: 0 24px;
   background: var(--surface-header);
-  border-bottom: 1px solid var(--border-subtle);
-  box-shadow: var(--shadow-sm);
   transition: background var(--transition-medium), border-color var(--transition-medium), box-shadow var(--transition-medium);
 }
 

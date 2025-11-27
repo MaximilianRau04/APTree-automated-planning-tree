@@ -14,9 +14,12 @@
 }
 
 .sidebar-title {
-  padding: 18px 22px 14px;
+  display: flex;
+  align-items: center;
+  min-height: var(--topbar-height);
+  padding: 0 22px;
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   font-weight: 600;
   color: var(--text-primary);
   background: var(--surface-panel);
@@ -169,7 +172,7 @@
   align-items: flex-start;
   padding-top: 100px;
   z-index: 2000;
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(1px);
 }
 
 .modal-content {

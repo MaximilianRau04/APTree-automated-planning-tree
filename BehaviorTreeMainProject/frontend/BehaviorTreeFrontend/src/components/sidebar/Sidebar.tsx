@@ -62,7 +62,7 @@ export default function Sidebar() {
       mode: "add",
       category,
       index: null,
-      initialValue: { name: "", type: "String" },
+      initialValue: { name: "", type: "" },
     });
   };
 

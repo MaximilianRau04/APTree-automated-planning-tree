@@ -39,6 +39,11 @@ export default function EditModal({
 
   const nameInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    setNameValue(initialValue.name);
+    setTypeValue(initialValue.type);
+  }, [initialValue]);
+
   // focus the name input when modal opens
   useEffect(() => {
     if (isOpen && nameInputRef.current) {
