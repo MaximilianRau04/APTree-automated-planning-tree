@@ -69,7 +69,6 @@ const ADD_LABELS = CATEGORY_CONFIG.reduce<Record<string, string>>(
 );
 
 const DEFAULT_ORDER = CATEGORY_CONFIG.map((section) => section.key);
-const BASE_SECTION_KEYS = new Set(DEFAULT_ORDER);
 
 function SidebarSection({
   title,
@@ -418,7 +417,6 @@ export default function Sidebar() {
         const displayTitle = categoryTitles[categoryKey] ?? categoryKey;
         const iconLabel = displayTitle.charAt(0).toUpperCase();
         const buttonLabel = ADD_LABELS[categoryKey] ?? "Add Item";
-        const disableDelete = BASE_SECTION_KEYS.has(categoryKey);
 
         return (
           <SidebarSection
@@ -428,7 +426,6 @@ export default function Sidebar() {
             iconLabel={iconLabel}
             onEdit={() => openRenameCategoryModal(categoryKey)}
             onDelete={() => handleDeleteCategory(categoryKey)}
-            disableDelete={disableDelete}
           >
             <button
               className="add-button"
