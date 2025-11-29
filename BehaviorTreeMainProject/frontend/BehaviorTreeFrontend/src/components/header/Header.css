@@ -1,3 +1,4 @@
+/* header */
 .header {
   display: flex;
   justify-content: space-between;
@@ -38,6 +39,7 @@
   padding-left: 16px;
 }
 
+/* icsons */
 .icon-btn {
   background: transparent;
   border: none;
@@ -74,6 +76,7 @@
   border-color: var(--border-subtle);
 }
 
+/* dropdown */
 .dropdown {
   position: relative;
 }

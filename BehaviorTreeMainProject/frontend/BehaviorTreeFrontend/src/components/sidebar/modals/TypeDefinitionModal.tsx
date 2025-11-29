@@ -1,17 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { BASIC_TYPE_OPTIONS } from "../../constants/basicTypes";
-import { createId } from "../../utils/id";
-import type { ParameterType, TypeProperty } from "./types";
+import { BASIC_TYPE_OPTIONS } from "../../../constants/basicTypes";
+import { createId } from "../../../utils/id";
+import type {
+  ParameterType,
+  TypeDefinitionModalProps,
+  TypeProperty,
+} from "../utils/types";
 
-interface TypeDefinitionModalProps {
-  isOpen: boolean;
-  mode: "add" | "edit";
-  title: string;
-  initialValue: ParameterType;
-  onClose: () => void;
-  onSave: (value: ParameterType) => void;
-}
-
+/**
+ * creates an empty type property object.
+ * @returns freshly created property placeholder
+ */
 function createEmptyProperty(): TypeProperty {
   return {
     id: createId("property"),
@@ -20,6 +19,11 @@ function createEmptyProperty(): TypeProperty {
   };
 }
 
+/**
+ * sanitizes the properties by trimming whitespace.
+ * @param properties array of properties to sanitize
+ * @returns cloned property array with trimmed strings
+ */
 function sanitizeProperties(properties: TypeProperty[]): TypeProperty[] {
   return properties.map((property) => ({
     ...property,
@@ -28,6 +32,11 @@ function sanitizeProperties(properties: TypeProperty[]): TypeProperty[] {
   }));
 }
 
+/**
+ * renders the parameter-type definition modal, including property editing controls.
+ * @param props modal configuration including the draft type and callbacks
+ * @returns modal markup or null when the modal is closed
+ */
 export default function TypeDefinitionModal({
   isOpen,
   mode,
@@ -41,7 +50,9 @@ export default function TypeDefinitionModal({
   const cloneProperties = (props: TypeProperty[]) =>
     props.map((property) => ({ ...property }));
   const [properties, setProperties] = useState<TypeProperty[]>(() =>
-    initialValue.properties.length > 0 ? cloneProperties(initialValue.properties) : []
+    initialValue.properties.length > 0
+      ? cloneProperties(initialValue.properties)
+      : []
   );
   const [typeId, setTypeId] = useState(initialValue.id);
 
@@ -104,7 +115,11 @@ export default function TypeDefinitionModal({
     if (!baseType) {
       return false;
     }
-    if (properties.some((property) => !property.name.trim() || !property.valueType)) {
+    if (
+      properties.some(
+        (property) => !property.name.trim() || !property.valueType
+      )
+    ) {
       return false;
     }
     if (hasDuplicatePropertyNames) {
@@ -122,7 +137,9 @@ export default function TypeDefinitionModal({
   };
 
   const handleRemoveProperty = (propertyId: string) => {
-    setProperties((prev) => prev.filter((property) => property.id !== propertyId));
+    setProperties((prev) =>
+      prev.filter((property) => property.id !== propertyId)
+    );
   };
 
   const handlePropertyNameChange = (propertyId: string, value: string) => {
@@ -136,7 +153,9 @@ export default function TypeDefinitionModal({
   const handlePropertyTypeChange = (propertyId: string, value: string) => {
     setProperties((prev) =>
       prev.map((property) =>
-        property.id === propertyId ? { ...property, valueType: value } : property
+        property.id === propertyId
+          ? { ...property, valueType: value }
+          : property
       )
     );
   };
@@ -234,7 +253,10 @@ export default function TypeDefinitionModal({
                       type="text"
                       value={property.name}
                       onChange={(event) =>
-                        handlePropertyNameChange(property.id, event.target.value)
+                        handlePropertyNameChange(
+                          property.id,
+                          event.target.value
+                        )
                       }
                       placeholder="property name"
                     />
@@ -242,7 +264,10 @@ export default function TypeDefinitionModal({
                       className="modal-select property-select"
                       value={property.valueType}
                       onChange={(event) =>
-                        handlePropertyTypeChange(property.id, event.target.value)
+                        handlePropertyTypeChange(
+                          property.id,
+                          event.target.value
+                        )
                       }
                     >
                       <option value="" disabled>

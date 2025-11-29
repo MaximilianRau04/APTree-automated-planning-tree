@@ -589,59 +589,59 @@
   grid-template-rows: auto auto;
   column-gap: 12px;
 
-.instance-modal {
-  width: min(540px, calc(100% - 32px));
-}
+  .instance-modal {
+    width: min(540px, calc(100% - 32px));
+  }
 
-.instance-type-hint {
-  margin-top: 6px;
-  font-size: 0.85rem;
-  color: var(--text-muted);
-}
+  .instance-type-hint {
+    margin-top: 6px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
 
-.instance-properties {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin-top: 12px;
-}
+  .instance-properties {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 12px;
+  }
 
-.instance-property-row {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+  .instance-property-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
 
-.instance-property-label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
+  .instance-property-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
 
-.instance-property-type {
-  padding: 2px 8px;
-  border-radius: var(--radius-pill, 999px);
-  background: var(--accent-soft);
-  border: 1px solid var(--border-subtle);
-  color: var(--accent);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
+  .instance-property-type {
+    padding: 2px 8px;
+    border-radius: var(--radius-pill, 999px);
+    background: var(--accent-soft);
+    border: 1px solid var(--border-subtle);
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
 
-.instance-property-input {
-  width: 100%;
-}
+  .instance-property-input {
+    width: 100%;
+  }
 
-.instance-property-empty {
-  margin: 10px 0 0;
-  font-size: 0.85rem;
-  color: var(--text-muted);
-}
+  .instance-property-empty {
+    margin: 10px 0 0;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
   row-gap: 10px;
   align-items: center;
 }
@@ -659,9 +659,9 @@
     box-shadow var(--transition-fast), background var(--transition-fast);
 }
 
-  .instance-modal {
-    width: min(100%, calc(100% - 24px));
-  }
+.instance-modal {
+  width: min(100%, calc(100% - 24px));
+}
 
 .property-input::placeholder {
   color: var(--text-muted);

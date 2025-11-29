@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef } from "react";
-import type { EditModalProps } from "./types.ts";
+import { useEffect, useRef, useState } from "react";
+import type { EditModalProps } from "../utils/types";
 
-// list of basic types for the dropdown
+/**
+ * list of basic types for the dropdown.
+ */
 const BASIC_TYPES = [
   "Integer",
   "Double",
@@ -19,6 +21,11 @@ const BASIC_TYPES = [
   "Map",
 ];
 
+/**
+ * renders the generic edit modal used for simple planner entities and sections.
+ * @param props modal configuration such as mode, callbacks, and labels
+ * @returns modal markup or null when the modal is closed
+ */
 export default function EditModal({
   isOpen,
   title,
@@ -43,7 +50,10 @@ export default function EditModal({
     setItemId(initialValue.id);
   }, [initialValue]);
 
-  // focus the name input when modal opens
+  /**
+   * focuses the name input when the modal opens.
+   * @returns void
+   */
   useEffect(() => {
     if (isOpen && nameInputRef.current) {
       setTimeout(() => nameInputRef.current?.focus(), 50);
@@ -53,11 +63,12 @@ export default function EditModal({
   if (!isOpen) return null;
 
   /**
-   * handles the form submission for items and categoriess
-   * @param e React.FormEvent
+   * handles the form submission for items and sections.
+   * @param event React.FormEvent submitted by the modal form
+   * @returns void
    */
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
     const trimmedName = nameValue.trim();
     const trimmedType = typeValue.trim();
 

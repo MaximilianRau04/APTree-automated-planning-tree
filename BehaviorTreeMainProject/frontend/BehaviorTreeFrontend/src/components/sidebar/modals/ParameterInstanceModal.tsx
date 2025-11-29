@@ -1,17 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { createId } from "../../utils/id.ts";
-import type { ParameterInstance, ParameterType } from "./types.ts";
+import { createId } from "../../../utils/id";
+import type { ParameterInstanceModalProps } from "../utils/types";
 
-interface ParameterInstanceModalProps {
-  isOpen: boolean;
-  mode: "add" | "edit";
-  title: string;
-  initialValue: ParameterInstance;
-  parameterTypes: ParameterType[];
-  onClose: () => void;
-  onSave: (value: ParameterInstance) => void;
-}
-
+/**
+ * renders the parameter-instance modal, keeping instance values aligned with the selected type definition.
+ * @param props modal configuration including initial values, available parameter types, and callbacks
+ * @returns modal markup or null when the modal is closed
+ */
 export default function ParameterInstanceModal({
   isOpen,
   mode,
@@ -33,6 +28,10 @@ export default function ParameterInstanceModal({
     () => ({ ...initialValue.propertyValues })
   );
 
+  /**
+   * synchronizes local state when the initial value or parameter type catalogue changes.
+   * @returns void
+   */
   useEffect(() => {
     if (nameValue !== initialValue.name) {
       setNameValue(initialValue.name);
@@ -88,29 +87,44 @@ export default function ParameterInstanceModal({
     : false;
   const isFormValid = !isFormDisabled && trimmedName && allPropertiesFilled;
 
+  /**
+   * handles changes to the selected parameter type.
+   * @param event change event carrying the new parameter type id
+   * @returns void
+   */
   const handleTypeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const nextTypeId = event.target.value;
     setTypeId(nextTypeId);
     setPropertyValues({});
   };
 
+  /**
+   * handles changes to a property value.
+   * @param propertyId identifier of the property being edited
+   * @param value new value entered by the user
+   * @returns void
+   */
   const handlePropertyValueChange = (propertyId: string, value: string) => {
     setPropertyValues((prev) => ({ ...prev, [propertyId]: value }));
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
+  /**
+   * handles the form submission.
+   * @param event submit event emitted by the modal form
+   * @returns void
+   */
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!isFormValid || !selectedType) {
       return;
     }
 
-    const sanitizedValues = selectedType.properties.reduce<Record<string, string>>(
-      (acc, property) => {
-        acc[property.id] = (resolvedPropertyValues[property.id] ?? "").trim();
-        return acc;
-      },
-      {}
-    );
+    const sanitizedValues = selectedType.properties.reduce<
+      Record<string, string>
+    >((acc, property) => {
+      acc[property.id] = (resolvedPropertyValues[property.id] ?? "").trim();
+      return acc;
+    }, {});
 
     onSave({
       ...initialValue,
@@ -124,7 +138,10 @@ export default function ParameterInstanceModal({
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content instance-modal" onClick={(event) => event.stopPropagation()}>
+      <div
+        className="modal-content instance-modal"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="modal-header">
           <h3>{title}</h3>
           <button className="modal-close-btn" onClick={onClose}>
@@ -182,7 +199,10 @@ export default function ParameterInstanceModal({
                   const fieldId = `instance-${property.id}`;
                   return (
                     <div key={property.id} className="instance-property-row">
-                      <label className="instance-property-label" htmlFor={fieldId}>
+                      <label
+                        className="instance-property-label"
+                        htmlFor={fieldId}
+                      >
                         {property.name}
                         <span className="instance-property-type">
                           {property.valueType}
@@ -194,7 +214,10 @@ export default function ParameterInstanceModal({
                         type="text"
                         value={resolvedPropertyValues[property.id] ?? ""}
                         onChange={(event) =>
-                          handlePropertyValueChange(property.id, event.target.value)
+                          handlePropertyValueChange(
+                            property.id,
+                            event.target.value
+                          )
                         }
                         placeholder={`Enter ${property.valueType}`}
                       />
