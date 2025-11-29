@@ -16,6 +16,11 @@ export interface ParameterType extends StructuredItem {
   properties: TypeProperty[];
 }
 
+export interface ParameterInstance extends StructuredItem {
+  typeId: string;
+  propertyValues: Record<string, string>;
+}
+
 export type DataCategory = string;
 
 export type AppData = Record<DataCategory, StructuredItem[]>;
@@ -49,4 +54,11 @@ export interface EditModalProps {
   namePlaceholder?: string;
   helperText?: string;
   saveLabel?: string;
+}
+
+export interface CategoryConfig {
+  key: DataCategory;
+  title: string;
+  addLabel: string;
+  defaultItems?: StructuredItem[];
 }

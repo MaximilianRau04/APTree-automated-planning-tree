@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BASIC_TYPE_OPTIONS } from "../../constants/basicTypes";
 import { createId } from "../../utils/id";
 import type { ParameterType, TypeProperty } from "./types";
@@ -38,12 +38,48 @@ export default function TypeDefinitionModal({
 }: TypeDefinitionModalProps) {
   const [nameValue, setNameValue] = useState(initialValue.name);
   const [baseType, setBaseType] = useState(initialValue.type);
+  const cloneProperties = (props: TypeProperty[]) =>
+    props.map((property) => ({ ...property }));
   const [properties, setProperties] = useState<TypeProperty[]>(() =>
-    initialValue.properties.length > 0
-      ? initialValue.properties.map((property) => ({ ...property }))
-      : []
+    initialValue.properties.length > 0 ? cloneProperties(initialValue.properties) : []
   );
-  const [typeId] = useState(initialValue.id);
+  const [typeId, setTypeId] = useState(initialValue.id);
+
+  useEffect(() => {
+    if (nameValue !== initialValue.name) {
+      setNameValue(initialValue.name);
+    }
+
+    if (baseType !== initialValue.type) {
+      setBaseType(initialValue.type);
+    }
+
+    const nextProperties =
+      initialValue.properties.length > 0
+        ? cloneProperties(initialValue.properties)
+        : [];
+
+    const propertiesChanged =
+      nextProperties.length !== properties.length ||
+      nextProperties.some((property, index) => {
+        const current = properties[index];
+        if (!current) return true;
+        return (
+          current.id !== property.id ||
+          current.name !== property.name ||
+          current.valueType !== property.valueType
+        );
+      });
+
+    if (propertiesChanged) {
+      setProperties(nextProperties);
+    }
+
+    if (typeId !== initialValue.id) {
+      setTypeId(initialValue.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialValue]);
 
   const hasDuplicatePropertyNames = useMemo(() => {
     const seen = new Set<string>();
@@ -200,7 +236,7 @@ export default function TypeDefinitionModal({
                       onChange={(event) =>
                         handlePropertyNameChange(property.id, event.target.value)
                       }
-                      placeholder="property-name"
+                      placeholder="property name"
                     />
                     <select
                       className="modal-select property-select"

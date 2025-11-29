@@ -1,22 +1,22 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createId } from "../../utils/id";
 import EditModal from "./EditModal";
+import ParameterInstanceModal from "./ParameterInstanceModal.tsx";
 import TypeDefinitionModal from "./TypeDefinitionModal";
-import type { ParameterType, StructuredItem } from "./types.ts";
+import type {
+  ParameterInstance,
+  ParameterType,
+  StructuredItem,
+} from "./types.ts";
 import "./Sidebar.css";
 import type {
   AppData,
   DataCategory,
   ModalState,
   SectionProps,
+  CategoryConfig,
 } from "./types.ts";
 
-interface CategoryConfig {
-  key: DataCategory;
-  title: string;
-  addLabel: string;
-  defaultItems?: StructuredItem[];
-}
 
 const CATEGORY_CONFIG: CategoryConfig[] = [
   {
@@ -84,12 +84,21 @@ const ADD_LABELS = CATEGORY_CONFIG.reduce<Record<string, string>>(
 
 const DEFAULT_ORDER = CATEGORY_CONFIG.map((section) => section.key);
 const PARAM_TYPES_KEY: DataCategory = "paramTypes";
+const PARAM_INSTANCES_KEY: DataCategory = "paramInstances";
 
 interface TypeModalState {
   isOpen: boolean;
   mode: "add" | "edit";
   index: number | null;
   initialValue: ParameterType;
+  revision: number;
+}
+
+interface ParameterInstanceModalState {
+  isOpen: boolean;
+  mode: "add" | "edit";
+  index: number | null;
+  initialValue: ParameterInstance;
   revision: number;
 }
 
@@ -109,6 +118,37 @@ const cloneParameterType = (entry: ParameterType): ParameterType => ({
   ...entry,
   properties: entry.properties.map((property) => ({ ...property })),
 });
+
+const createEmptyParameterInstance = (
+  parameterType?: ParameterType
+): ParameterInstance => ({
+  ...createEmptyStructuredItem(),
+  id: createId("param-instance"),
+  type: parameterType?.name ?? "",
+  typeId: parameterType?.id ?? "",
+  propertyValues: parameterType
+    ? parameterType.properties.reduce<Record<string, string>>((acc, property) => {
+        acc[property.id] = "";
+        return acc;
+      }, {})
+    : {},
+});
+
+const cloneParameterInstance = (
+  entry: ParameterInstance
+): ParameterInstance => ({
+  ...entry,
+  propertyValues: { ...entry.propertyValues },
+});
+
+const reconcileInstanceValues = (
+  parameterType: ParameterType,
+  currentValues: Record<string, string>
+): Record<string, string> =>
+  parameterType.properties.reduce<Record<string, string>>((acc, property) => {
+    acc[property.id] = currentValues[property.id] ?? "";
+    return acc;
+  }, {});
 
 function SidebarSection({
   title,
@@ -184,6 +224,7 @@ function SidebarSection({
 export default function Sidebar() {
   const [data, setData] = useState<AppData>(() => ({ ...DEFAULT_DATA }));
   const typeModalRevision = useRef(0);
+  const instanceModalRevision = useRef(0);
 
   const [categoryTitles, setCategoryTitles] = useState<Record<string, string>>(
     () => ({ ...DEFAULT_TITLES })
@@ -200,10 +241,24 @@ export default function Sidebar() {
   const [categoryModalValue, setCategoryModalValue] = useState<StructuredItem>(
     () => createEmptyStructuredItem()
   );
+  const [searchQueries, setSearchQueries] = useState<Record<string, string>>(
+    () => {
+      const initial: Record<string, string> = {};
+      DEFAULT_ORDER.forEach((key) => {
+        initial[key] = "";
+      });
+      return initial;
+    }
+  );
 
   function nextTypeModalRevision() {
     typeModalRevision.current += 1;
     return typeModalRevision.current;
+  }
+
+  function nextInstanceModalRevision() {
+    instanceModalRevision.current += 1;
+    return instanceModalRevision.current;
   }
 
   const [typeModalState, setTypeModalState] = useState<TypeModalState>(() => ({
@@ -214,6 +269,16 @@ export default function Sidebar() {
     revision: 0,
   }));
 
+  const [instanceModalState, setInstanceModalState] = useState<ParameterInstanceModalState>(
+    () => ({
+      isOpen: false,
+      mode: "add",
+      index: null,
+      initialValue: createEmptyParameterInstance(),
+      revision: 0,
+    })
+  );
+
   const [modalState, setModalState] = useState<ModalState>(() => ({
     isOpen: false,
     mode: "add",
@@ -221,6 +286,18 @@ export default function Sidebar() {
     index: null,
     initialValue: createEmptyStructuredItem(),
   }));
+
+  const parameterTypes = useMemo(() => {
+    const entries = data[PARAM_TYPES_KEY] as ParameterType[] | undefined;
+    return entries ? [...entries] : [];
+  }, [data]);
+  const parameterTypeMap = useMemo(() => {
+    const map = new Map<string, ParameterType>();
+    parameterTypes.forEach((entry) => {
+      map.set(entry.id, entry);
+    });
+    return map;
+  }, [parameterTypes]);
 
   /**
    * Opens the item creation modal for the given category.
@@ -240,6 +317,23 @@ export default function Sidebar() {
       return;
     }
 
+    if (category === PARAM_INSTANCES_KEY) {
+      if (parameterTypes.length === 0) {
+        window.alert("Create a parameter type before adding instances.");
+        return;
+      }
+
+      const firstType = parameterTypes[0];
+      setInstanceModalState({
+        isOpen: true,
+        mode: "add",
+        index: null,
+        initialValue: createEmptyParameterInstance(firstType),
+        revision: nextInstanceModalRevision(),
+      });
+      return;
+    }
+
     setModalState({
       isOpen: true,
       mode: "add",
@@ -247,6 +341,10 @@ export default function Sidebar() {
       index: null,
       initialValue: createEmptyStructuredItem(),
     });
+  };
+
+  const handleSearchChange = (category: DataCategory, value: string) => {
+    setSearchQueries((prev) => ({ ...prev, [category]: value }));
   };
 
   /**
@@ -270,6 +368,30 @@ export default function Sidebar() {
     });
   };
 
+  const openEditParameterInstance = (
+    index: number,
+    currentValue: ParameterInstance
+  ) => {
+    const parameterType = parameterTypeMap.get(currentValue.typeId);
+    const initialEntry = cloneParameterInstance(currentValue);
+
+    if (parameterType) {
+      initialEntry.type = parameterType.name;
+      initialEntry.propertyValues = reconcileInstanceValues(
+        parameterType,
+        currentValue.propertyValues
+      );
+    }
+
+    setInstanceModalState({
+      isOpen: true,
+      mode: "edit",
+      index,
+      initialValue: initialEntry,
+      revision: nextInstanceModalRevision(),
+    });
+  };
+
   const openEditModal = (
     category: DataCategory,
     index: number,
@@ -277,6 +399,11 @@ export default function Sidebar() {
   ) => {
     if (category === PARAM_TYPES_KEY) {
       openEditParameterType(index, currentValue as ParameterType);
+      return;
+    }
+
+    if (category === PARAM_INSTANCES_KEY) {
+      openEditParameterInstance(index, currentValue as ParameterInstance);
       return;
     }
 
@@ -336,6 +463,16 @@ export default function Sidebar() {
     });
   };
 
+  const closeInstanceModal = () => {
+    setInstanceModalState({
+      isOpen: false,
+      mode: "add",
+      index: null,
+      initialValue: createEmptyParameterInstance(),
+      revision: nextInstanceModalRevision(),
+    });
+  };
+
   const handleSaveParameterType = (value: ParameterType) => {
     const normalized: ParameterType = {
       ...value,
@@ -351,22 +488,89 @@ export default function Sidebar() {
     };
 
     setData((prev) => {
-      const existing = (prev[PARAM_TYPES_KEY] as ParameterType[] | undefined) ?? [];
-      const next = [...existing];
+      const existingTypes =
+        (prev[PARAM_TYPES_KEY] as ParameterType[] | undefined) ?? [];
+      const nextTypes = [...existingTypes];
 
       if (typeModalState.mode === "add") {
-        next.push(normalized);
+        nextTypes.push(normalized);
       } else if (typeModalState.mode === "edit" && typeModalState.index !== null) {
-        next[typeModalState.index] = normalized;
+        nextTypes[typeModalState.index] = normalized;
       }
+
+      const existingInstances =
+        (prev[PARAM_INSTANCES_KEY] as ParameterInstance[] | undefined) ?? [];
+      const nextInstances = existingInstances.map((instance) => {
+        if (instance.typeId !== normalized.id) {
+          return instance;
+        }
+
+        return {
+          ...instance,
+          type: normalized.name,
+          propertyValues: reconcileInstanceValues(
+            normalized,
+            instance.propertyValues
+          ),
+        };
+      });
 
       return {
         ...prev,
-        [PARAM_TYPES_KEY]: next,
+        [PARAM_TYPES_KEY]: nextTypes,
+        [PARAM_INSTANCES_KEY]: nextInstances,
       };
     });
 
     closeTypeModal();
+  };
+
+  const handleSaveParameterInstance = (value: ParameterInstance) => {
+    const parameterType = parameterTypeMap.get(value.typeId);
+    if (!parameterType) {
+      window.alert("Select a valid parameter type.");
+      return;
+    }
+
+    const sanitizedValues = parameterType.properties.reduce<Record<string, string>>(
+      (acc, property) => {
+        const rawValue = value.propertyValues?.[property.id] ?? "";
+        acc[property.id] = rawValue.trim();
+        return acc;
+      },
+      {}
+    );
+
+    const normalized: ParameterInstance = {
+      ...value,
+      id: value.id || createId("param-instance"),
+      name: value.name.trim(),
+      type: parameterType.name,
+      typeId: parameterType.id,
+      propertyValues: sanitizedValues,
+    };
+
+    setData((prev) => {
+      const existing =
+        (prev[PARAM_INSTANCES_KEY] as ParameterInstance[] | undefined) ?? [];
+      const next = [...existing];
+
+      if (instanceModalState.mode === "add") {
+        next.push(normalized);
+      } else if (
+        instanceModalState.mode === "edit" &&
+        instanceModalState.index !== null
+      ) {
+        next[instanceModalState.index] = normalized;
+      }
+
+      return {
+        ...prev,
+        [PARAM_INSTANCES_KEY]: next,
+      };
+    });
+
+    closeInstanceModal();
   };
 
   /**
@@ -380,10 +584,50 @@ export default function Sidebar() {
       return;
     }
 
-    setData((prev) => ({
-      ...prev,
-      [category]: (prev[category] ?? []).filter((_, i) => i !== index),
-    }));
+    const removedEntry = (data[category] ?? [])[index];
+
+    setData((prev) => {
+      const existingItems = prev[category] ?? [];
+      const nextItems = existingItems.filter((_, i) => i !== index);
+      const nextData: AppData = { ...prev, [category]: nextItems };
+
+      if (category === PARAM_TYPES_KEY && removedEntry) {
+        const removedType = removedEntry as ParameterType;
+        const existingInstances =
+          (prev[PARAM_INSTANCES_KEY] as ParameterInstance[] | undefined) ?? [];
+        nextData[PARAM_INSTANCES_KEY] = existingInstances.filter(
+          (instance) => instance.typeId !== removedType.id
+        );
+      }
+
+      return nextData;
+    });
+
+    if (
+      category === PARAM_INSTANCES_KEY &&
+      instanceModalState.isOpen &&
+      instanceModalState.index === index
+    ) {
+      closeInstanceModal();
+    }
+
+    if (
+      category === PARAM_TYPES_KEY &&
+      typeModalState.isOpen &&
+      typeModalState.index === index
+    ) {
+      closeTypeModal();
+    }
+
+    if (
+      category === PARAM_TYPES_KEY &&
+      removedEntry &&
+      instanceModalState.isOpen &&
+      instanceModalState.initialValue.typeId ===
+        (removedEntry as ParameterType).id
+    ) {
+      closeInstanceModal();
+    }
   };
 
   /**
@@ -393,19 +637,59 @@ export default function Sidebar() {
    * @returns A JSX structure containing the item list.
    */
   const renderList = (category: DataCategory) => {
-    const items = data[category] ?? [];
-    const isParameterTypeCategory = category === PARAM_TYPES_KEY;
+    const isParameterInstanceCategory = category === PARAM_INSTANCES_KEY;
+    const query = (searchQueries[category] ?? "").trim().toLowerCase();
+    const rawItems = data[category] ?? [];
+
+    const matchesSearch = (item: StructuredItem) => {
+      if (!query) {
+        return true;
+      }
+
+      const base = `${item.name} ${item.type}`.toLowerCase();
+      if (base.includes(query)) {
+        return true;
+      }
+
+      if (category === PARAM_TYPES_KEY) {
+        const typeItem = item as ParameterType;
+        return typeItem.properties.some((property) =>
+          `${property.name} ${property.valueType}`.toLowerCase().includes(query)
+        );
+      }
+
+      if (category === PARAM_INSTANCES_KEY) {
+        const instance = item as ParameterInstance;
+        const linkedType = parameterTypeMap.get(instance.typeId);
+        const typeName = (linkedType?.name ?? item.type).toLowerCase();
+        if (typeName.includes(query)) {
+          return true;
+        }
+
+        return Object.entries(instance.propertyValues ?? {}).some(
+          ([propertyId, propertyValue]) => {
+            const propertyLabel = linkedType?.properties.find(
+              (property) => property.id === propertyId
+            )?.name;
+            const combined = `${propertyLabel ?? ""} ${propertyValue ?? ""}`
+              .toLowerCase()
+              .trim();
+            return combined.includes(query);
+          }
+        );
+      }
+
+      return false;
+    };
+
+    const items = query ? rawItems.filter(matchesSearch) : rawItems;
 
     return (
       <div className="item-list-container">
         {items.map((item, index) => {
-          const propertyCount = isParameterTypeCategory
-            ? (item as ParameterType).properties.length
-            : null;
-          const propertyLabel =
-            propertyCount !== null
-              ? `${propertyCount} ${propertyCount === 1 ? "prop" : "props"}`
-              : null;
+          const badgeLabel = isParameterInstanceCategory
+            ? (parameterTypeMap.get((item as ParameterInstance).typeId)?.name || item.type)
+            : item.type;
 
           return (
             <div
@@ -413,15 +697,12 @@ export default function Sidebar() {
               className="list-item-box"
             >
               <span className="list-item-text">
-                {item.name}
+                <span className="item-name">{item.name}</span>
                 <span className="list-item-separator" aria-hidden>
                   :
                 </span>
                 <span className="type-badge">
-                  <span className="type-badge-primary">{item.type}</span>
-                  {propertyLabel && (
-                    <span className="type-meta">{propertyLabel}</span>
-                  )}
+                  <span className="type-badge-primary">{badgeLabel}</span>
                 </span>
               </span>
 
@@ -447,7 +728,15 @@ export default function Sidebar() {
           );
         })}
 
-        {items.length === 0 && <p className="empty-copy">No items defined.</p>}
+        {items.length === 0 && (
+          <p className="empty-copy">
+            {query
+              ? "No matching items."
+              : isParameterInstanceCategory && parameterTypes.length === 0
+              ? "Create a parameter type before adding instances."
+              : "No items defined."}
+          </p>
+        )}
       </div>
     );
   };
@@ -531,6 +820,7 @@ export default function Sidebar() {
       setData((prev) => ({ ...prev, [newKey]: [] }));
       setCategoryTitles((prev) => ({ ...prev, [newKey]: displayName }));
       setCategoryOrder((prev) => [...prev, newKey]);
+      setSearchQueries((prev) => ({ ...prev, [newKey]: "" }));
     } else if (categoryModalMode === "edit" && activeCategoryKey) {
       setCategoryTitles((prev) => ({
         ...prev,
@@ -566,6 +856,11 @@ export default function Sidebar() {
       delete nextData[categoryKey];
       return nextData;
     });
+    setSearchQueries((prev) => {
+      const nextQueries = { ...prev };
+      delete nextQueries[categoryKey];
+      return nextQueries;
+    });
     setModalState((prev) =>
       prev.category === categoryKey
         ? {
@@ -577,6 +872,14 @@ export default function Sidebar() {
           }
         : prev
     );
+
+    if (categoryKey === PARAM_TYPES_KEY) {
+      closeTypeModal();
+    }
+
+    if (categoryKey === PARAM_INSTANCES_KEY) {
+      closeInstanceModal();
+    }
 
     if (activeCategoryKey === categoryKey) {
       closeCategoryModal();
@@ -608,6 +911,21 @@ export default function Sidebar() {
         initialValue={typeModalState.initialValue}
         onClose={closeTypeModal}
         onSave={handleSaveParameterType}
+      />
+
+      <ParameterInstanceModal
+        key={`${instanceModalState.mode}-${instanceModalState.index ?? "new"}-${instanceModalState.initialValue.id}-${instanceModalState.revision}`}
+        isOpen={instanceModalState.isOpen}
+        mode={instanceModalState.mode}
+        title={
+          instanceModalState.mode === "add"
+            ? "Add Parameter Instance"
+            : "Edit Parameter Instance"
+        }
+        initialValue={instanceModalState.initialValue}
+        parameterTypes={parameterTypes}
+        onClose={closeInstanceModal}
+        onSave={handleSaveParameterInstance}
       />
 
       <EditModal
@@ -643,6 +961,7 @@ export default function Sidebar() {
         const displayTitle = categoryTitles[categoryKey] ?? categoryKey;
         const iconLabel = displayTitle.charAt(0).toUpperCase();
         const buttonLabel = ADD_LABELS[categoryKey] ?? "Add Item";
+        const searchQuery = searchQueries[categoryKey] ?? "";
 
         return (
           <SidebarSection
@@ -660,6 +979,18 @@ export default function Sidebar() {
             >
               + {buttonLabel}
             </button>
+            <div className="section-search">
+              <input
+                type="search"
+                className="section-search-input"
+                value={searchQuery}
+                onChange={(event) =>
+                  handleSearchChange(categoryKey, event.target.value)
+                }
+                placeholder="Search..."
+                aria-label={`Search ${displayTitle}`}
+              />
+            </div>
             {renderList(categoryKey)}
           </SidebarSection>
         );
