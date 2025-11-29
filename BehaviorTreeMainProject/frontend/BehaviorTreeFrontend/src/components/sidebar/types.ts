@@ -1,8 +1,19 @@
 import type { ReactNode } from "react";
 
 export interface StructuredItem {
+  id: string;
   name: string;
   type: string;
+}
+
+export interface TypeProperty {
+  id: string;
+  name: string;
+  valueType: string;
+}
+
+export interface ParameterType extends StructuredItem {
+  properties: TypeProperty[];
 }
 
 export type DataCategory = string;

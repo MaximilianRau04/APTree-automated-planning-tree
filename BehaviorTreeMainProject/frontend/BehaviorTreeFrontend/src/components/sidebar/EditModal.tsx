@@ -33,12 +33,14 @@ export default function EditModal({
 }: EditModalProps) {
   const [nameValue, setNameValue] = useState(initialValue.name);
   const [typeValue, setTypeValue] = useState(initialValue.type);
+  const [itemId, setItemId] = useState(initialValue.id);
 
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setNameValue(initialValue.name);
     setTypeValue(initialValue.type);
+    setItemId(initialValue.id);
   }, [initialValue]);
 
   // focus the name input when modal opens
@@ -56,13 +58,26 @@ export default function EditModal({
    */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const trimmedName = nameValue.trim();
+    const trimmedType = typeValue.trim();
+
     if (hideTypeField) {
-      if (nameValue.trim()) {
-        onSave({ name: nameValue.trim(), type: "" });
+      if (trimmedName) {
+        onSave({
+          ...initialValue,
+          id: itemId,
+          name: trimmedName,
+          type: initialValue.type ?? "",
+        });
       }
     } else {
-      if (nameValue.trim() && typeValue.trim()) {
-        onSave({ name: nameValue.trim(), type: typeValue.trim() });
+      if (trimmedName && trimmedType) {
+        onSave({
+          ...initialValue,
+          id: itemId,
+          name: trimmedName,
+          type: trimmedType,
+        });
       }
     }
   };
