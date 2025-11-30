@@ -1,43 +1,66 @@
 import { useEffect, useMemo, useState } from "react";
 import { createId } from "../../../utils/id";
-import type { ParameterInstanceModalProps } from "../utils/types";
+import type {
+  ActionInstance,
+  ActionInstanceModalProps,
+  ParameterInstance,
+  ParameterInstanceModalProps,
+  PredicateInstance,
+  PredicateInstanceModalProps,
+  TypedInstanceModalProps,
+} from "../utils/types";
 
-/**
- * renders the parameter-instance modal, keeping instance values aligned with the selected type definition.
- * @param props modal configuration including initial values, available parameter types, and callbacks
- * @returns modal markup or null when the modal is closed
- */
-export default function ParameterInstanceModal({
-  isOpen,
-  mode,
-  title,
-  initialValue,
-  parameterTypes,
-  onClose,
-  onSave,
-}: ParameterInstanceModalProps) {
-  const instanceId = useMemo(
-    () => initialValue.id || createId("param-instance"),
-    [initialValue.id]
-  );
+type AnyInstance = ParameterInstance | PredicateInstance | ActionInstance;
+
+/** shared modal rendering logic used by all typed instance modals. */
+function BaseInstanceModal<TInstance extends AnyInstance>(
+  props: TypedInstanceModalProps<TInstance>
+) {
+  const {
+    isOpen,
+    mode,
+    title,
+    initialValue,
+    typeDefinitions,
+    onClose,
+    onSave,
+    nameLabel = "Instance Name",
+    namePlaceholder = "e.g., selected_item",
+    typeLabel = "Type",
+    typePlaceholder = "Select a type...",
+    propertyValuesLabel = "Property Values",
+    propertyEmptyMessage,
+    createButtonLabel = "Create Instance",
+    saveButtonLabel = "Save Changes",
+    baseTypePrefixLabel = "Base type",
+    enableNegationToggle = false,
+    negationLabel = "Negate",
+  } = props;
+
   const [nameValue, setNameValue] = useState(initialValue.name);
   const [typeId, setTypeId] = useState(
-    () => initialValue.typeId || parameterTypes[0]?.id || ""
+    () => initialValue.typeId || typeDefinitions[0]?.id || ""
   );
   const [propertyValues, setPropertyValues] = useState<Record<string, string>>(
     () => ({ ...initialValue.propertyValues })
   );
+  const instanceId = useMemo(
+    () => initialValue.id || createId("instance"),
+    [initialValue.id]
+  );
+  const [isNegated, setIsNegated] = useState(() => {
+    if (enableNegationToggle && "isNegated" in initialValue) {
+      return Boolean(initialValue.isNegated);
+    }
+    return false;
+  });
 
-  /**
-   * synchronizes local state when the initial value or parameter type catalogue changes.
-   * @returns void
-   */
   useEffect(() => {
     if (nameValue !== initialValue.name) {
       setNameValue(initialValue.name);
     }
 
-    const fallbackTypeId = initialValue.typeId || parameterTypes[0]?.id || "";
+    const fallbackTypeId = initialValue.typeId || typeDefinitions[0]?.id || "";
     if (typeId !== fallbackTypeId) {
       setTypeId(fallbackTypeId);
     }
@@ -52,12 +75,16 @@ export default function ParameterInstanceModal({
     if (valuesChanged) {
       setPropertyValues(nextValues);
     }
+
+    if (enableNegationToggle && "isNegated" in initialValue) {
+      setIsNegated(Boolean(initialValue.isNegated));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialValue, parameterTypes]);
+  }, [initialValue, typeDefinitions, enableNegationToggle]);
 
   const selectedType = useMemo(
-    () => parameterTypes.find((type) => type.id === typeId) ?? null,
-    [parameterTypes, typeId]
+    () => typeDefinitions.find((type) => type.id === typeId) ?? null,
+    [typeDefinitions, typeId]
   );
 
   const resolvedPropertyValues = useMemo(() => {
@@ -78,7 +105,7 @@ export default function ParameterInstanceModal({
     return null;
   }
 
-  const isFormDisabled = parameterTypes.length === 0 || !selectedType;
+  const isFormDisabled = typeDefinitions.length === 0 || !selectedType;
   const trimmedName = nameValue.trim();
   const allPropertiesFilled = selectedType
     ? selectedType.properties.every((property) =>
@@ -87,32 +114,22 @@ export default function ParameterInstanceModal({
     : false;
   const isFormValid = !isFormDisabled && trimmedName && allPropertiesFilled;
 
-  /**
-   * handles changes to the selected parameter type.
-   * @param event change event carrying the new parameter type id
-   * @returns void
-   */
+  const emptyStateMessage = propertyEmptyMessage
+    ? propertyEmptyMessage
+    : selectedType
+    ? "This type has no properties."
+    : "Define a type to provide property values.";
+
   const handleTypeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const nextTypeId = event.target.value;
     setTypeId(nextTypeId);
     setPropertyValues({});
   };
 
-  /**
-   * handles changes to a property value.
-   * @param propertyId identifier of the property being edited
-   * @param value new value entered by the user
-   * @returns void
-   */
   const handlePropertyValueChange = (propertyId: string, value: string) => {
     setPropertyValues((prev) => ({ ...prev, [propertyId]: value }));
   };
 
-  /**
-   * handles the form submission.
-   * @param event submit event emitted by the modal form
-   * @returns void
-   */
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!isFormValid || !selectedType) {
@@ -126,14 +143,20 @@ export default function ParameterInstanceModal({
       return acc;
     }, {});
 
-    onSave({
+    const payload: AnyInstance = {
       ...initialValue,
       id: instanceId,
       name: trimmedName,
       type: selectedType.name,
       typeId: selectedType.id,
       propertyValues: sanitizedValues,
-    });
+    };
+
+    if (enableNegationToggle) {
+      (payload as PredicateInstance).isNegated = isNegated;
+    }
+
+    onSave(payload as TInstance);
   };
 
   return (
@@ -152,7 +175,7 @@ export default function ParameterInstanceModal({
         <form onSubmit={handleSubmit} className="modal-form">
           <div className="form-group">
             <label className="modal-label" htmlFor="instance-name-input">
-              Instance Name
+              {nameLabel}
             </label>
             <input
               id="instance-name-input"
@@ -160,39 +183,52 @@ export default function ParameterInstanceModal({
               type="text"
               value={nameValue}
               onChange={(event) => setNameValue(event.target.value)}
-              placeholder="e.g., selected_tool"
+              placeholder={namePlaceholder}
             />
           </div>
 
           <div className="form-group">
             <label className="modal-label" htmlFor="instance-type-select">
-              Parameter Type
+              {typeLabel}
             </label>
             <select
               id="instance-type-select"
               className="modal-select"
               value={typeId}
               onChange={handleTypeChange}
-              disabled={parameterTypes.length === 0}
+              disabled={typeDefinitions.length === 0}
             >
               <option value="" disabled>
-                Select a parameter type...
+                {typePlaceholder}
               </option>
-              {parameterTypes.map((parameterType) => (
-                <option key={parameterType.id} value={parameterType.id}>
-                  {parameterType.name}
+              {typeDefinitions.map((definition) => (
+                <option key={definition.id} value={definition.id}>
+                  {definition.name}
                 </option>
               ))}
             </select>
             {selectedType && (
               <p className="instance-type-hint">
-                Base type: <strong>{selectedType.type || "n/a"}</strong>
+                {baseTypePrefixLabel}: <strong>{selectedType.type || "n/a"}</strong>
               </p>
             )}
           </div>
 
+          {enableNegationToggle && (
+            <div className="form-group">
+              <label className="modal-checkbox">
+                <input
+                  type="checkbox"
+                  checked={isNegated}
+                  onChange={(event) => setIsNegated(event.target.checked)}
+                />
+                {negationLabel}
+              </label>
+            </div>
+          )}
+
           <div className="form-group">
-            <span className="modal-label">Property Values</span>
+            <span className="modal-label">{propertyValuesLabel}</span>
             {selectedType && selectedType.properties.length > 0 ? (
               <div className="instance-properties">
                 {selectedType.properties.map((property) => {
@@ -226,11 +262,7 @@ export default function ParameterInstanceModal({
                 })}
               </div>
             ) : (
-              <p className="instance-property-empty">
-                {selectedType
-                  ? "This parameter type has no properties."
-                  : "Define a parameter type to provide property values."}
-              </p>
+              <p className="instance-property-empty">{emptyStateMessage}</p>
             )}
           </div>
 
@@ -239,11 +271,68 @@ export default function ParameterInstanceModal({
               Cancel
             </button>
             <button type="submit" className="btn-save" disabled={!isFormValid}>
-              {mode === "add" ? "Create Instance" : "Save Changes"}
+              {mode === "add" ? createButtonLabel : saveButtonLabel}
             </button>
           </div>
         </form>
       </div>
     </div>
+  );
+}
+
+/**
+ * default export remains for backward compatibility when only parameter instances are required.
+ */
+export default function ParameterInstanceModal(
+  props: ParameterInstanceModalProps
+) {
+  return <BaseInstanceModal<ParameterInstance> {...props} />;
+}
+
+/** predicate instance modal with negation toggle enabled. */
+export function PredicateInstanceModal(props: PredicateInstanceModalProps) {
+  return (
+    <BaseInstanceModal<PredicateInstance>
+      {...props}
+      enableNegationToggle
+      nameLabel={props.nameLabel ?? "Predicate Instance Name"}
+      namePlaceholder={
+        props.namePlaceholder ?? "e.g., target_location_is_visible"
+      }
+      typeLabel={props.typeLabel ?? "Predicate Type"}
+      negationLabel={props.negationLabel ?? "Negate predicate"}
+      typePlaceholder={props.typePlaceholder ?? "Select a predicate type..."}
+      propertyEmptyMessage={
+        props.propertyEmptyMessage ??
+        "This predicate type does not define any properties."
+      }
+      propertyValuesLabel={props.propertyValuesLabel ?? "Predicate Property Values"}
+      baseTypePrefixLabel={props.baseTypePrefixLabel ?? "Base predicate"}
+      createButtonLabel={
+        props.createButtonLabel ?? "Create Predicate Instance"
+      }
+      saveButtonLabel={props.saveButtonLabel ?? "Save Predicate Instance"}
+    />
+  );
+}
+
+/** action instance modal configured with action-centric copy. */
+export function ActionInstanceModal(props: ActionInstanceModalProps) {
+  return (
+    <BaseInstanceModal<ActionInstance>
+      {...props}
+      nameLabel={props.nameLabel ?? "Action Instance Name"}
+      namePlaceholder={props.namePlaceholder ?? "e.g., pick_up_wrench"}
+      typeLabel={props.typeLabel ?? "Action Type"}
+      typePlaceholder={props.typePlaceholder ?? "Select an action type..."}
+      propertyEmptyMessage={
+        props.propertyEmptyMessage ??
+        "This action type does not define any properties."
+      }
+      propertyValuesLabel={props.propertyValuesLabel ?? "Action Property Values"}
+      baseTypePrefixLabel={props.baseTypePrefixLabel ?? "Base action"}
+      createButtonLabel={props.createButtonLabel ?? "Create Action Instance"}
+      saveButtonLabel={props.saveButtonLabel ?? "Save Action Instance"}
+    />
   );
 }

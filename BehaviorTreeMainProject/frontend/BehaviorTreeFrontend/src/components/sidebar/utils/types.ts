@@ -25,6 +25,20 @@ export interface ParameterInstance extends StructuredItem {
   propertyValues: Record<string, string>;
 }
 
+/** extends parameter-type declarations for predicate definitions. */
+export type PredicateType = ParameterType;
+
+/** concrete predicate instance including negation flag. */
+export interface PredicateInstance extends ParameterInstance {
+  isNegated: boolean;
+}
+
+/** extends parameter-type declarations for action definitions. */
+export type ActionType = ParameterType;
+
+/** concrete action instance referencing an action type. */
+export type ActionInstance = ParameterInstance;
+
 export type DataCategory = string;
 
 export type AppData = Record<DataCategory, StructuredItem[]>;
@@ -96,19 +110,69 @@ export interface ParameterInstanceModalState {
   revision: number;
 }
 
+/** modal state governing predicate-type editing. */
+export type PredicateTypeModalState = Omit<TypeModalState, "initialValue"> & {
+  initialValue: PredicateType;
+};
+
+/** modal state governing predicate-instance editing. */
+export interface PredicateInstanceModalState {
+  isOpen: boolean;
+  mode: "add" | "edit";
+  index: number | null;
+  initialValue: PredicateInstance;
+  revision: number;
+}
+
+/** modal state governing action-type editing. */
+export type ActionTypeModalState = Omit<TypeModalState, "initialValue"> & {
+  initialValue: ActionType;
+};
+
+/** modal state governing action-instance editing. */
+export interface ActionInstanceModalState {
+  isOpen: boolean;
+  mode: "add" | "edit";
+  index: number | null;
+  initialValue: ActionInstance;
+  revision: number;
+}
+
 /** maps categories to their current search-filter query strings. */
 export type SearchQueries = Record<DataCategory, string>;
 
-/** props consumed by the parameter-instance modal component. */
-export interface ParameterInstanceModalProps {
+/** props consumed by the generic instance modal component. */
+export interface TypedInstanceModalProps<
+  TInstance extends ParameterInstance = ParameterInstance
+> {
   isOpen: boolean;
   mode: "add" | "edit";
   title: string;
-  initialValue: ParameterInstance;
-  parameterTypes: ParameterType[];
+  initialValue: TInstance;
+  typeDefinitions: ParameterType[];
   onClose: () => void;
-  onSave: (value: ParameterInstance) => void;
+  onSave: (value: TInstance) => void;
+  nameLabel?: string;
+  namePlaceholder?: string;
+  typeLabel?: string;
+  typePlaceholder?: string;
+  propertyValuesLabel?: string;
+  propertyEmptyMessage?: string;
+  createButtonLabel?: string;
+  saveButtonLabel?: string;
+  baseTypePrefixLabel?: string;
+  enableNegationToggle?: boolean;
+  negationLabel?: string;
 }
+
+/** specialized props for the parameter instance modal. */
+export type ParameterInstanceModalProps = TypedInstanceModalProps<ParameterInstance>;
+
+/** specialized props for the predicate instance modal. */
+export type PredicateInstanceModalProps = TypedInstanceModalProps<PredicateInstance>;
+
+/** specialized props for the action instance modal. */
+export type ActionInstanceModalProps = TypedInstanceModalProps<ActionInstance>;
 
 /** props consumed by the type-definition modal component. */
 export interface TypeDefinitionModalProps {
@@ -118,6 +182,16 @@ export interface TypeDefinitionModalProps {
   initialValue: ParameterType;
   onClose: () => void;
   onSave: (value: ParameterType) => void;
+  nameLabel?: string;
+  namePlaceholder?: string;
+  baseTypeLabel?: string;
+  baseTypePlaceholder?: string;
+  showBaseTypeField?: boolean;
+  propertyLabel?: string;
+  propertyNamePlaceholder?: string;
+  propertyTypePlaceholder?: string;
+  propertyHelperText?: string;
+  baseTypeOptions?: string[];
 }
 
 /** public api returned by the useSidebarManager hook. */
@@ -127,18 +201,28 @@ export interface SidebarManager {
   categoryOrder: string[];
   categoryTitles: Record<string, string>;
   closeCategoryModal: () => void;
-  closeInstanceModal: () => void;
+  closeParameterInstanceModal: () => void;
+  closePredicateInstanceModal: () => void;
+  closeActionInstanceModal: () => void;
   closeModal: () => void;
-  closeTypeModal: () => void;
+  closeParameterTypeModal: () => void;
+  closePredicateTypeModal: () => void;
+  closeActionTypeModal: () => void;
   getItemsForCategory: (category: DataCategory) => StructuredItem[];
   handleDeleteCategory: (categoryKey: DataCategory) => void;
   handleDeleteItem: (category: DataCategory, index: number) => void;
   handleSaveCategory: (value: StructuredItem) => void;
   handleSaveFromModal: (value: StructuredItem) => void;
   handleSaveParameterInstance: (value: ParameterInstance) => void;
+  handleSavePredicateInstance: (value: PredicateInstance) => void;
+  handleSaveActionInstance: (value: ActionInstance) => void;
   handleSaveParameterType: (value: ParameterType) => void;
+  handleSavePredicateType: (value: PredicateType) => void;
+  handleSaveActionType: (value: ActionType) => void;
   handleSearchChange: (category: DataCategory, value: string) => void;
-  instanceModalState: ParameterInstanceModalState;
+  parameterInstanceModalState: ParameterInstanceModalState;
+  predicateInstanceModalState: PredicateInstanceModalState;
+  actionInstanceModalState: ActionInstanceModalState;
   modalState: ModalState;
   openAddModal: (category: DataCategory) => void;
   openCategoryModal: () => void;
@@ -150,8 +234,14 @@ export interface SidebarManager {
   openRenameCategoryModal: (category: DataCategory) => void;
   parameterTypeMap: Map<string, ParameterType>;
   parameterTypes: ParameterType[];
+  predicateTypeMap: Map<string, PredicateType>;
+  predicateTypes: PredicateType[];
+  actionTypeMap: Map<string, ActionType>;
+  actionTypes: ActionType[];
   searchQueries: SearchQueries;
-  typeModalState: TypeModalState;
+  parameterTypeModalState: TypeModalState;
+  predicateTypeModalState: PredicateTypeModalState;
+  actionTypeModalState: ActionTypeModalState;
 }
 
 /** props consumed by the category item list component. */
@@ -160,6 +250,10 @@ export interface CategoryItemListProps {
   items: StructuredItem[];
   parameterTypes: ParameterType[];
   parameterTypeMap: Map<string, ParameterType>;
+  predicateTypes: PredicateType[];
+  predicateTypeMap: Map<string, PredicateType>;
+  actionTypes: ActionType[];
+  actionTypeMap: Map<string, ActionType>;
   searchQuery: string;
   onEdit: (
     category: DataCategory,

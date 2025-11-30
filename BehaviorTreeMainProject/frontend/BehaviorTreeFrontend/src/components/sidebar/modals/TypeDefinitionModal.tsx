@@ -44,6 +44,16 @@ export default function TypeDefinitionModal({
   initialValue,
   onClose,
   onSave,
+  nameLabel = "Type Name",
+  namePlaceholder = "e.g., Sensor",
+  baseTypeLabel = "Base Type",
+  baseTypePlaceholder = "Select a base type...",
+  showBaseTypeField = true,
+  propertyLabel = "Properties",
+  propertyNamePlaceholder = "property name",
+  propertyTypePlaceholder = "Select type...",
+  propertyHelperText,
+  baseTypeOptions = BASIC_TYPE_OPTIONS,
 }: TypeDefinitionModalProps) {
   const [nameValue, setNameValue] = useState(initialValue.name);
   const [baseType, setBaseType] = useState(initialValue.type);
@@ -112,7 +122,7 @@ export default function TypeDefinitionModal({
     if (!trimmedName) {
       return false;
     }
-    if (!baseType) {
+    if (showBaseTypeField && !baseType) {
       return false;
     }
     if (
@@ -126,7 +136,13 @@ export default function TypeDefinitionModal({
       return false;
     }
     return true;
-  }, [nameValue, baseType, properties, hasDuplicatePropertyNames]);
+  }, [
+    nameValue,
+    baseType,
+    properties,
+    hasDuplicatePropertyNames,
+    showBaseTypeField,
+  ]);
 
   if (!isOpen) {
     return null;
@@ -197,42 +213,44 @@ export default function TypeDefinitionModal({
         <form onSubmit={handleSubmit} className="modal-form type-modal-form">
           <div className="form-group">
             <label className="modal-label" htmlFor="type-name-input">
-              Type Name
+              {nameLabel}
             </label>
             <input
               id="type-name-input"
               className="modal-input"
               value={nameValue}
               onChange={(event) => setNameValue(event.target.value)}
-              placeholder="e.g., Sensor"
+              placeholder={namePlaceholder}
               type="text"
             />
           </div>
 
-          <div className="form-group">
-            <label className="modal-label" htmlFor="type-base-select">
-              Base Type
-            </label>
-            <select
-              id="type-base-select"
-              className="modal-select"
-              value={baseType}
-              onChange={(event) => setBaseType(event.target.value)}
-            >
-              <option value="" disabled>
-                Select a base type...
-              </option>
-              {BASIC_TYPE_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
+          {showBaseTypeField && (
+            <div className="form-group">
+              <label className="modal-label" htmlFor="type-base-select">
+                {baseTypeLabel}
+              </label>
+              <select
+                id="type-base-select"
+                className="modal-select"
+                value={baseType}
+                onChange={(event) => setBaseType(event.target.value)}
+              >
+                <option value="" disabled>
+                  {baseTypePlaceholder}
                 </option>
-              ))}
-            </select>
-          </div>
+                {baseTypeOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="form-group type-modal-properties">
             <div className="property-list-header">
-              <span className="modal-label">Properties</span>
+              <span className="modal-label">{propertyLabel}</span>
               <button
                 type="button"
                 className="property-add-btn"
@@ -241,6 +259,10 @@ export default function TypeDefinitionModal({
                 + Add Property
               </button>
             </div>
+
+            {propertyHelperText && (
+              <p className="property-helper-text">{propertyHelperText}</p>
+            )}
 
             {properties.length === 0 ? (
               <p className="property-empty-hint">No properties defined yet.</p>
@@ -258,7 +280,7 @@ export default function TypeDefinitionModal({
                           event.target.value
                         )
                       }
-                      placeholder="property name"
+                      placeholder={propertyNamePlaceholder}
                     />
                     <select
                       className="modal-select property-select"
@@ -271,9 +293,9 @@ export default function TypeDefinitionModal({
                       }
                     >
                       <option value="" disabled>
-                        Select type...
+                        {propertyTypePlaceholder}
                       </option>
-                      {BASIC_TYPE_OPTIONS.map((option) => (
+                      {baseTypeOptions.map((option) => (
                         <option key={option} value={option}>
                           {option}
                         </option>

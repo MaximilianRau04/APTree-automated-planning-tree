@@ -1,5 +1,8 @@
 import EditModal from "./modals/EditModal";
-import ParameterInstanceModal from "./modals/ParameterInstanceModal";
+import ParameterInstanceModal, {
+  ActionInstanceModal,
+  PredicateInstanceModal,
+} from "./modals/InstanceModal";
 import TypeDefinitionModal from "./modals/TypeDefinitionModal";
 import "./Sidebar.css";
 import { CategoryItemList } from "./components/CategoryItemList";
@@ -17,18 +20,28 @@ export default function Sidebar() {
     categoryOrder,
     categoryTitles,
     closeCategoryModal,
-    closeInstanceModal,
+    closeParameterInstanceModal,
+    closePredicateInstanceModal,
+    closeActionInstanceModal,
     closeModal,
-    closeTypeModal,
+    closeParameterTypeModal,
+    closePredicateTypeModal,
+    closeActionTypeModal,
     getItemsForCategory,
     handleDeleteCategory,
     handleDeleteItem,
     handleSaveCategory,
     handleSaveFromModal,
     handleSaveParameterInstance,
+    handleSavePredicateInstance,
+    handleSaveActionInstance,
     handleSaveParameterType,
+    handleSavePredicateType,
+    handleSaveActionType,
     handleSearchChange,
-    instanceModalState,
+    parameterInstanceModalState,
+    predicateInstanceModalState,
+    actionInstanceModalState,
     modalState,
     openAddModal,
     openCategoryModal,
@@ -36,8 +49,14 @@ export default function Sidebar() {
     openRenameCategoryModal,
     parameterTypeMap,
     parameterTypes,
+    predicateTypeMap,
+    predicateTypes,
+    actionTypeMap,
+    actionTypes,
     searchQueries,
-    typeModalState,
+    parameterTypeModalState,
+    predicateTypeModalState,
+    actionTypeModalState,
   } = useSidebarManager();
 
   const categoryModalTitle =
@@ -63,36 +82,136 @@ export default function Sidebar() {
       </div>
 
       <TypeDefinitionModal
-        key={`${typeModalState.mode}-${typeModalState.index ?? "new"}-${
-          typeModalState.initialValue.id
-        }-${typeModalState.revision}`}
-        isOpen={typeModalState.isOpen}
-        mode={typeModalState.mode}
+        key={`${parameterTypeModalState.mode}-${
+          parameterTypeModalState.index ?? "new"
+        }-${parameterTypeModalState.initialValue.id}-${
+          parameterTypeModalState.revision
+        }`}
+        isOpen={parameterTypeModalState.isOpen}
+        mode={parameterTypeModalState.mode}
         title={
-          typeModalState.mode === "add"
+          parameterTypeModalState.mode === "add"
             ? "Add Parameter Type"
             : "Edit Parameter Type"
         }
-        initialValue={typeModalState.initialValue}
-        onClose={closeTypeModal}
+        initialValue={parameterTypeModalState.initialValue}
+        onClose={closeParameterTypeModal}
         onSave={handleSaveParameterType}
       />
 
-      <ParameterInstanceModal
-        key={`${instanceModalState.mode}-${instanceModalState.index ?? "new"}-${
-          instanceModalState.initialValue.id
-        }-${instanceModalState.revision}`}
-        isOpen={instanceModalState.isOpen}
-        mode={instanceModalState.mode}
+      <TypeDefinitionModal
+        key={`${predicateTypeModalState.mode}-${
+          predicateTypeModalState.index ?? "new"
+        }-${predicateTypeModalState.initialValue.id}-${
+          predicateTypeModalState.revision
+        }`}
+        isOpen={predicateTypeModalState.isOpen}
+        mode={predicateTypeModalState.mode}
         title={
-          instanceModalState.mode === "add"
+          predicateTypeModalState.mode === "add"
+            ? "Add Predicate Type"
+            : "Edit Predicate Type"
+        }
+        initialValue={predicateTypeModalState.initialValue}
+        onClose={closePredicateTypeModal}
+        onSave={handleSavePredicateType}
+        nameLabel="Predicate Type Name"
+        namePlaceholder="e.g., is_reachable"
+        baseTypeLabel="Predicate Base Type"
+        baseTypePlaceholder="Select a base type..."
+        propertyLabel="Predicate Properties"
+        propertyNamePlaceholder="e.g., target_location"
+        propertyTypePlaceholder="e.g., string"
+      />
+
+      <TypeDefinitionModal
+        key={`${actionTypeModalState.mode}-${
+          actionTypeModalState.index ?? "new"
+        }-${actionTypeModalState.initialValue.id}-${
+          actionTypeModalState.revision
+        }`}
+        isOpen={actionTypeModalState.isOpen}
+        mode={actionTypeModalState.mode}
+        title={
+          actionTypeModalState.mode === "add"
+            ? "Add Action Type"
+            : "Edit Action Type"
+        }
+        initialValue={actionTypeModalState.initialValue}
+        onClose={closeActionTypeModal}
+        onSave={handleSaveActionType}
+        nameLabel="Action Type Name"
+        namePlaceholder="e.g., pick_up"
+        baseTypeLabel="Action Base Type"
+        baseTypePlaceholder="Select a base type..."
+        propertyLabel="Action Properties"
+        propertyNamePlaceholder="e.g., required_tool"
+        propertyTypePlaceholder="e.g., Tool"
+      />
+
+      <ParameterInstanceModal
+        key={`${parameterInstanceModalState.mode}-${
+          parameterInstanceModalState.index ?? "new"
+        }-${parameterInstanceModalState.initialValue.id}-${
+          parameterInstanceModalState.revision
+        }`}
+        isOpen={parameterInstanceModalState.isOpen}
+        mode={parameterInstanceModalState.mode}
+        title={
+          parameterInstanceModalState.mode === "add"
             ? "Add Parameter Instance"
             : "Edit Parameter Instance"
         }
-        initialValue={instanceModalState.initialValue}
-        parameterTypes={parameterTypes}
-        onClose={closeInstanceModal}
+        initialValue={parameterInstanceModalState.initialValue}
+        typeDefinitions={parameterTypes}
+        onClose={closeParameterInstanceModal}
         onSave={handleSaveParameterInstance}
+        namePlaceholder="e.g., selected_tool"
+        typeLabel="Parameter Type"
+        typePlaceholder="Select a parameter type..."
+        propertyValuesLabel="Property Values"
+        propertyEmptyMessage="Define a parameter type to provide property values."
+        baseTypePrefixLabel="Base type"
+        createButtonLabel="Create Instance"
+        saveButtonLabel="Save Changes"
+      />
+
+      <PredicateInstanceModal
+        key={`${predicateInstanceModalState.mode}-${
+          predicateInstanceModalState.index ?? "new"
+        }-${predicateInstanceModalState.initialValue.id}-${
+          predicateInstanceModalState.revision
+        }`}
+        isOpen={predicateInstanceModalState.isOpen}
+        mode={predicateInstanceModalState.mode}
+        title={
+          predicateInstanceModalState.mode === "add"
+            ? "Add Predicate Instance"
+            : "Edit Predicate Instance"
+        }
+        initialValue={predicateInstanceModalState.initialValue}
+        typeDefinitions={predicateTypes}
+        onClose={closePredicateInstanceModal}
+        onSave={handleSavePredicateInstance}
+      />
+
+      <ActionInstanceModal
+        key={`${actionInstanceModalState.mode}-${
+          actionInstanceModalState.index ?? "new"
+        }-${actionInstanceModalState.initialValue.id}-${
+          actionInstanceModalState.revision
+        }`}
+        isOpen={actionInstanceModalState.isOpen}
+        mode={actionInstanceModalState.mode}
+        title={
+          actionInstanceModalState.mode === "add"
+            ? "Add Action Instance"
+            : "Edit Action Instance"
+        }
+        initialValue={actionInstanceModalState.initialValue}
+        typeDefinitions={actionTypes}
+        onClose={closeActionInstanceModal}
+        onSave={handleSaveActionInstance}
       />
 
       <EditModal
@@ -160,6 +279,10 @@ export default function Sidebar() {
               items={items}
               parameterTypes={parameterTypes}
               parameterTypeMap={parameterTypeMap}
+              predicateTypes={predicateTypes}
+              predicateTypeMap={predicateTypeMap}
+              actionTypes={actionTypes}
+              actionTypeMap={actionTypeMap}
               searchQuery={searchQuery}
               onEdit={openEditModal}
               onDelete={handleDeleteItem}

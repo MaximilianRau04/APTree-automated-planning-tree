@@ -34,7 +34,7 @@ export const CATEGORY_CONFIG: CategoryConfig[] = [
     title: "Predicate Instances",
     addLabel: "Add Predicate Instance",
   },
-  { key: "actions", title: "Actions", addLabel: "Add Action" },
+  { key: "actions", title: "Action Types", addLabel: "Add Action Type" },
   {
     key: "actionInstances",
     title: "Action Instances",
@@ -90,3 +90,11 @@ export const DEFAULT_ORDER = CATEGORY_CONFIG.map((section) => section.key);
 export const PARAM_TYPES_KEY: DataCategory = "paramTypes";
 /** sidebar key pointing to parameter-instance entries. */
 export const PARAM_INSTANCES_KEY: DataCategory = "paramInstances";
+/** sidebar key pointing to predicate-type entries. */
+export const PREDICATE_TYPES_KEY: DataCategory = "predTypes";
+/** sidebar key pointing to predicate-instance entries. */
+export const PREDICATE_INSTANCES_KEY: DataCategory = "predInstances";
+/** sidebar key pointing to action-type entries. */
+export const ACTION_TYPES_KEY: DataCategory = "actions";
+/** sidebar key pointing to action-instance entries. */
+export const ACTION_INSTANCES_KEY: DataCategory = "actionInstances";
