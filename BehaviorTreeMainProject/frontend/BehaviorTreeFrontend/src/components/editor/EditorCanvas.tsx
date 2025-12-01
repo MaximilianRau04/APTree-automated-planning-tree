@@ -13,6 +13,7 @@ export interface EditorCanvasProps {
     nodeId: string,
     position: { x: number; y: number }
   ) => void;
+  onRemoveNode?: (nodeId: string) => void;
 }
 
 /**
@@ -24,6 +25,7 @@ export default function EditorCanvas({
   nodes,
   onDropNode,
   onMoveNode,
+  onRemoveNode,
 }: EditorCanvasProps) {
   const [isActive, setIsActive] = useState(false);
   const dragOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -183,6 +185,22 @@ export default function EditorCanvas({
               onMoveNode(node.id, nextPosition);
             }}
           >
+            {onRemoveNode ? (
+              <button
+                type="button"
+                className="canvas-node-remove"
+                onMouseDown={(event) => {
+                  event.stopPropagation();
+                }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onRemoveNode(node.id);
+                }}
+                aria-label={`Remove ${node.name}`}
+              >
+                X
+              </button>
+            ) : null}
             <span className="canvas-node-label">{node.name}</span>
             <span className="canvas-node-meta">{node.typeLabel}</span>
             {node.isNegated ? (

@@ -103,6 +103,10 @@ function App() {
     []
   );
 
+  const handleRemoveNode = useCallback((nodeId: string) => {
+    setCanvasNodes((prev) => prev.filter((node) => node.id !== nodeId));
+  }, []);
+
   return (
     <div className="app-container">
       <Sidebar />
@@ -113,6 +117,7 @@ function App() {
             nodes={canvasNodes}
             onDropNode={handleDropOnCanvas}
             onMoveNode={handleMoveNode}
+            onRemoveNode={handleRemoveNode}
           />
         </div>
       </div>
