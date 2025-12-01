@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { DRAG_DATA_FORMAT, isSidebarDrag, type DraggedSidebarItem } from "./dragTypes";
 import type { CanvasNode } from "./types";
 import "./EditorCanvas.css";
@@ -29,11 +29,6 @@ export default function EditorCanvas({
 }: EditorCanvasProps) {
   const [isActive, setIsActive] = useState(false);
   const dragOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-
-  const emptyStateCopy = useMemo(
-    () => "Drag types or instances from the sidebar to start planning.",
-    []
-  );
 
   /**
    * handles drag enter events on the canvas area.
@@ -115,9 +110,7 @@ export default function EditorCanvas({
       onDrop={handleDrop}
       role="presentation"
     >
-      {nodes.length === 0 ? (
-        <div className="canvas-placeholder">{emptyStateCopy}</div>
-      ) : (
+      {nodes.length === 0 ? null : (
         nodes.map((node) => (
           <div
             key={node.id}
