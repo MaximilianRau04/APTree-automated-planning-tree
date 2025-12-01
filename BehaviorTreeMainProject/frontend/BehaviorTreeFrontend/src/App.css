@@ -21,15 +21,3 @@
   background: var(--surface-panel-alt);
   overflow: auto;
 }
-
-.editor-inner {
-  height: 100%;
-  border: 1px dashed var(--border-subtle);
-  border-radius: var(--radius-lg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-muted);
-  background: var(--surface-panel);
-  transition: border-color var(--transition-medium), color var(--transition-medium), background var(--transition-medium);
-}

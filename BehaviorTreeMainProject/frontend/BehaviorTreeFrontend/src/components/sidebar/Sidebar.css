@@ -259,6 +259,14 @@
     border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
+.list-item-text[draggable="true"] {
+  cursor: grab;
+}
+
+.list-item-text[draggable="true"]:active {
+  cursor: grabbing;
+}
+
 .list-item-box:hover {
   background: var(--accent-soft);
   border-color: var(--accent);

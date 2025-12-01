@@ -1,3 +1,4 @@
+import type { DragEvent } from "react";
 import type {
   ActionInstance,
   ActionType,
@@ -17,6 +18,11 @@ import {
   PREDICATE_INSTANCES_KEY,
   PREDICATE_TYPES_KEY,
 } from "../utils/constants";
+import {
+  DRAG_DATA_FORMAT,
+  resolveDragEntityKind,
+  type DraggedSidebarItem,
+} from "../../editor/dragTypes";
 
 /**
  * checks if an item matches the search query for the given category.
@@ -175,11 +181,14 @@ export function CategoryItemList({
     <div className="item-list-container">
       {filteredItems.map((item, index) => {
         let badgeLabel = item.type;
+        let dragTypeId: string | undefined;
+        let dragIsNegated: boolean | undefined;
 
         if (isParameterInstanceCategory) {
+          const parameterInstance = item as ParameterInstance;
           badgeLabel =
-            parameterTypeMap.get((item as ParameterInstance).typeId)?.name ||
-            item.type;
+            parameterTypeMap.get(parameterInstance.typeId)?.name || item.type;
+          dragTypeId = parameterInstance.typeId;
         } else if (isPredicateInstanceCategory) {
           const predicateInstance = item as PredicateInstance;
           const typeName =
@@ -187,18 +196,57 @@ export function CategoryItemList({
           badgeLabel = predicateInstance.isNegated
             ? `NOT ${typeName}`
             : typeName;
+          dragTypeId = predicateInstance.typeId;
+          dragIsNegated = predicateInstance.isNegated;
         } else if (isActionInstanceCategory) {
+          const actionInstance = item as ActionInstance;
           badgeLabel =
-            actionTypeMap.get((item as ActionInstance).typeId)?.name ||
-            item.type;
+            actionTypeMap.get(actionInstance.typeId)?.name || item.type;
+          dragTypeId = actionInstance.typeId;
         }
+
+        const dragPayload: DraggedSidebarItem = {
+          id: item.id,
+          name: item.name,
+          type: badgeLabel,
+          category,
+          kind: resolveDragEntityKind(category),
+        };
+
+        if (dragTypeId) {
+          dragPayload.typeId = dragTypeId;
+        }
+
+        if (typeof dragIsNegated === "boolean") {
+          dragPayload.isNegated = dragIsNegated;
+        }
+
+        const handleDragStart = (event: DragEvent<HTMLSpanElement>) => {
+          const serializedPayload = JSON.stringify(dragPayload);
+          event.dataTransfer.setData("text/plain", item.name);
+          event.dataTransfer.setData(DRAG_DATA_FORMAT, serializedPayload);
+          event.dataTransfer.effectAllowed = "copy";
+        };
+
+        const handleDragEnd = (event: DragEvent<HTMLSpanElement>) => {
+          const dataTransfer = event.dataTransfer;
+          if (dataTransfer) {
+            dataTransfer.clearData(DRAG_DATA_FORMAT);
+          }
+        };
 
         return (
           <div
             key={item.id || `${item.name}-${index}`}
             className="list-item-box"
           >
-            <span className="list-item-text">
+            <span
+              className="list-item-text"
+              draggable
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              data-drag-kind={dragPayload.kind}
+            >
               <span className="item-name">{item.name}</span>
               <span className="item-meta">
                 <span className="list-item-separator" aria-hidden>

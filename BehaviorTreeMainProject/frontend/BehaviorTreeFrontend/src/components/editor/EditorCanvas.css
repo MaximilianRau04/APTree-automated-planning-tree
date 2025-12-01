@@ -1,0 +1,160 @@
+@keyframes canvas-grid-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.editor-canvas {
+  position: relative;
+  height: 100%;
+  min-height: 560px;
+  border-radius: var(--radius-xl, 18px);
+  background: var(--surface-panel);
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  transition: box-shadow var(--transition-medium),
+    background var(--transition-medium), transform var(--transition-medium);
+}
+
+.editor-canvas::before,
+.editor-canvas::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat;
+  pointer-events: none;
+  opacity: 0.35;
+  transition: opacity var(--transition-fast);
+}
+
+.editor-canvas::before {
+  background-image: linear-gradient(
+      90deg,
+      var(--border-subtle) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      var(--border-subtle) 1px,
+      transparent 1px
+    );
+  background-size: 64px 64px;
+  animation: canvas-grid-fade 320ms ease-out forwards;
+}
+
+.editor-canvas::after {
+  background-image: linear-gradient(
+      90deg,
+      transparent 31px,
+      color-mix(in srgb, var(--accent) 25%, transparent) 31px,
+      color-mix(in srgb, var(--accent) 25%, transparent) 33px,
+      transparent 33px
+    ),
+    linear-gradient(
+      transparent 31px,
+      color-mix(in srgb, var(--accent) 25%, transparent) 31px,
+      color-mix(in srgb, var(--accent) 25%, transparent) 33px,
+      transparent 33px
+    );
+  background-size: 64px 64px;
+  opacity: 0.15;
+}
+
+.editor-canvas.is-active {
+  box-shadow: inset 0 0 0 1px var(--accent), 0 0 0 3px var(--accent-soft);
+}
+
+.canvas-placeholder {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--text-muted);
+  text-align: center;
+  max-width: 320px;
+  line-height: 1.5;
+  pointer-events: none;
+}
+
+.canvas-node {
+  position: absolute;
+  min-width: 190px;
+  max-width: 260px;
+  padding: 14px 18px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-muted, var(--border-subtle));
+  background: var(--surface-panel-alt);
+  color: var(--text-primary);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transform: translate(calc(-50% + 0px), calc(-50% + 0px)) scale(1);
+  cursor: grab;
+  user-select: none;
+  transition: border-color var(--transition-fast),
+    box-shadow var(--transition-fast), transform var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.canvas-node:hover {
+  border-color: var(--accent);
+  transform: translate(calc(-50% + 0px), calc(-50% + 0px)) scale(1.015);
+  box-shadow: 0 14px 32px rgba(99, 102, 241, 0.26);
+}
+
+.canvas-node:active {
+  cursor: grabbing;
+  transform: translate(calc(-50% + 0px), calc(-50% + 0px)) scale(0.99);
+}
+.canvas-node-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
+.canvas-node-meta {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.canvas-node-badge {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--danger-soft, rgba(244, 67, 54, 0.1));
+  color: var(--danger, #f44336);
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+}
+
+.canvas-node-parameterType {
+  border-color: color-mix(in srgb, var(--accent) 85%, transparent);
+  background: color-mix(in srgb, var(--accent-soft) 60%, var(--surface-panel) 40%);
+}
+
+.canvas-node-parameterInstance {
+  border-color: color-mix(in srgb, var(--accent-secondary, var(--accent)) 80%, transparent);
+}
+
+.canvas-node-predicateType {
+  border-color: color-mix(in srgb, var(--accent-purple, var(--accent)) 80%, transparent);
+}
+
+.canvas-node-predicateInstance {
+  border-color: color-mix(in srgb, var(--accent-purple, var(--accent)) 70%, transparent);
+  background: color-mix(in srgb, var(--accent-purple, var(--accent)) 12%, var(--surface-panel-alt) 88%);
+}
+
+.canvas-node-actionType {
+  border-color: color-mix(in srgb, var(--accent) 85%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-panel-alt) 90%);
+}
+
+.canvas-node-actionInstance {
+  border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+}

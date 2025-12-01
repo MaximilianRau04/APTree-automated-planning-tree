@@ -4,6 +4,11 @@ export function UserMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  /**
+   * Closes the user menu when clicking outside of it
+   * @param event MouseEvent
+   * @return void
+   */
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {

@@ -1,7 +1,11 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import "./App.css";
 import Header from "./components/header/Header.tsx";
 import Sidebar from "./components/sidebar/Sidebar.tsx";
+import EditorCanvas from "./components/editor/EditorCanvas.tsx";
+import type { CanvasNode } from "./components/editor/types";
+import type { DraggedSidebarItem } from "./components/editor/dragTypes";
+import { createId } from "./utils/id";
 
 type ThemeMode = "light" | "dark";
 
@@ -29,6 +33,7 @@ function App() {
     const savedTheme = window.localStorage.getItem(STORAGE_KEY);
     return savedTheme === "light" || savedTheme === "dark";
   });
+  const [canvasNodes, setCanvasNodes] = useState<CanvasNode[]>([]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -61,15 +66,54 @@ function App() {
     setUserLockedTheme(true);
   };
 
+  const handleDropOnCanvas = useCallback(
+    (item: DraggedSidebarItem, position: { x: number; y: number }) => {
+      setCanvasNodes((prev) => [
+        ...prev,
+        {
+          id: createId("canvas-node"),
+          sourceId: item.id,
+          name: item.name,
+          typeLabel: item.type,
+          category: item.category,
+          kind: item.kind,
+          x: position.x,
+          y: position.y,
+          isNegated: item.isNegated,
+        },
+      ]);
+    },
+    []
+  );
+
+  const handleMoveNode = useCallback(
+    (nodeId: string, position: { x: number; y: number }) => {
+      setCanvasNodes((prev) =>
+        prev.map((node) =>
+          node.id === nodeId
+            ? {
+                ...node,
+                x: Math.max(0, position.x),
+                y: Math.max(0, position.y),
+              }
+            : node
+        )
+      );
+    },
+    []
+  );
+
   return (
     <div className="app-container">
       <Sidebar />
       <div className="main-content">
         <Header theme={theme} onToggleTheme={handleToggleTheme} />
         <div className="editor" role="main">
-          <div className="editor-inner">
-            <p>Editor Canvas here.</p>
-          </div>
+          <EditorCanvas
+            nodes={canvasNodes}
+            onDropNode={handleDropOnCanvas}
+            onMoveNode={handleMoveNode}
+          />
         </div>
       </div>
     </div>

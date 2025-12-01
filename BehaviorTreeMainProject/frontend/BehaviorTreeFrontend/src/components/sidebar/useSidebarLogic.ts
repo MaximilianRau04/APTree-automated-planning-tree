@@ -31,25 +31,133 @@ import {
 } from "./utils/helpers";
 import type {
   ActionInstance,
-  ActionInstanceModalState,
   ActionType,
-  ActionTypeModalState,
   AppData,
   CategoryModalState,
   DataCategory,
   ModalState,
   ParameterInstance,
-  ParameterInstanceModalState,
   ParameterType,
   PredicateInstance,
-  PredicateInstanceModalState,
   PredicateType,
-  PredicateTypeModalState,
   SearchQueries,
   SidebarManager,
   StructuredItem,
-  TypeModalState,
 } from "./utils/types";
+
+/** describes the shared shape for modal controller state. */
+interface ModalControllerState<TValue> {
+  isOpen: boolean;
+  mode: "add" | "edit";
+  index: number | null;
+  initialValue: TValue;
+  revision: number;
+}
+
+/** exposes modal state along with the typical lifecycle helpers. */
+interface ModalController<TValue> {
+  state: ModalControllerState<TValue>;
+  openAdd: (initialValue?: TValue) => void;
+  openEdit: (index: number, initialValue: TValue) => void;
+  close: () => void;
+}
+
+/**
+ * provides a monotonically increasing revision number for modal resets.
+ * @returns function that returns the next revision identifier per invocation
+ */
+const useRevisionGenerator = () => {
+  const counterRef = useRef(0);
+
+  return useCallback(() => {
+    counterRef.current += 1;
+    return counterRef.current;
+  }, []);
+};
+
+/**
+ * centralizes reusable modal state management helpers for add/edit flows.
+ * @param createEmpty factory returning a blank value for the modal
+ * @returns modal state alongside helpers for opening and closing the modal
+ */
+const useModalController = <TValue,>(
+  createEmpty: () => TValue
+): ModalController<TValue> => {
+  const nextRevision = useRevisionGenerator();
+  const [state, setState] = useState<ModalControllerState<TValue>>(() => ({
+    isOpen: false,
+    mode: "add",
+    index: null,
+    initialValue: createEmpty(),
+    revision: 0,
+  }));
+
+  /**
+   * opens the modal in "add" mode with an optional initial value.
+   * @param initialValue optional initial value to prefill the modal
+   */
+  const openAdd = (initialValue?: TValue) => {
+    setState({
+      isOpen: true,
+      mode: "add",
+      index: null,
+      initialValue: initialValue ?? createEmpty(),
+      revision: nextRevision(),
+    });
+  };
+
+  /**
+   * opens the modal in "edit" mode with the provided index and initial value.
+   * @param index index of the item being edited
+   * @param initialValue initial value to prefill the modal
+   */
+  const openEdit = (index: number, initialValue: TValue) => {
+    setState({
+      isOpen: true,
+      mode: "edit",
+      index,
+      initialValue,
+      revision: nextRevision(),
+    });
+  };
+
+  /**
+   * closes the modal and resets its state.
+   */
+  const close = () => {
+    setState({
+      isOpen: false,
+      mode: "add",
+      index: null,
+      initialValue: createEmpty(),
+      revision: nextRevision(),
+    });
+  };
+
+  return { state, openAdd, openEdit, close };
+};
+
+/**
+ * normalizes type definitions by trimming fields and ensuring property ids.
+ * @param value type definition being persisted
+ * @param createEmpty factory providing a fallback structure for missing ids
+ * @returns sanitized type definition ready for storage
+ */
+const normalizeType = (
+  value: ParameterType,
+  createEmpty: () => ParameterType
+): ParameterType => ({
+  ...value,
+  id: value.id || createEmpty().id,
+  name: value.name.trim(),
+  type: value.type.trim(),
+  properties: value.properties.map((property) => ({
+    ...property,
+    id: property.id || generatePropertyId(),
+    name: property.name.trim(),
+    valueType: property.valueType.trim(),
+  })),
+});
 
 /**
  * builds the initial search-query map with empty strings per default category.
@@ -66,13 +174,6 @@ const createInitialSearchQueries = (): SearchQueries => {
  */
 export const useSidebarManager = (): SidebarManager => {
   const [data, setData] = useState<AppData>(() => ({ ...DEFAULT_DATA }));
-  const parameterTypeRevision = useRef(0);
-  const predicateTypeRevision = useRef(0);
-  const actionTypeRevision = useRef(0);
-  const parameterInstanceRevision = useRef(0);
-  const predicateInstanceRevision = useRef(0);
-  const actionInstanceRevision = useRef(0);
-
   const [categoryTitles, setCategoryTitles] = useState<Record<string, string>>(
     () => ({ ...DEFAULT_TITLES })
   );
@@ -91,59 +192,32 @@ export const useSidebarManager = (): SidebarManager => {
       value: createEmptyStructuredItem(),
     });
 
-  const [parameterTypeModalState, setParameterTypeModalState] =
-    useState<TypeModalState>(() => ({
-      isOpen: false,
-      mode: "add",
-      index: null,
-      initialValue: createEmptyParameterType(),
-      revision: 0,
-    }));
+  const parameterTypeModal = useModalController<ParameterType>(
+    createEmptyParameterType
+  );
+  const predicateTypeModal = useModalController<PredicateType>(
+    createEmptyPredicateType
+  );
+  const actionTypeModal = useModalController<ActionType>(
+    createEmptyActionType
+  );
 
-  const [predicateTypeModalState, setPredicateTypeModalState] =
-    useState<PredicateTypeModalState>(() => ({
-      isOpen: false,
-      mode: "add",
-      index: null,
-      initialValue: createEmptyPredicateType(),
-      revision: 0,
-    }));
+  const parameterInstanceModal = useModalController<ParameterInstance>(
+    createEmptyParameterInstance
+  );
+  const predicateInstanceModal = useModalController<PredicateInstance>(
+    createEmptyPredicateInstance
+  );
+  const actionInstanceModal = useModalController<ActionInstance>(
+    createEmptyActionInstance
+  );
 
-  const [actionTypeModalState, setActionTypeModalState] =
-    useState<ActionTypeModalState>(() => ({
-      isOpen: false,
-      mode: "add",
-      index: null,
-      initialValue: createEmptyActionType(),
-      revision: 0,
-    }));
-
-  const [parameterInstanceModalState, setParameterInstanceModalState] =
-    useState<ParameterInstanceModalState>(() => ({
-      isOpen: false,
-      mode: "add",
-      index: null,
-      initialValue: createEmptyParameterInstance(),
-      revision: 0,
-    }));
-
-  const [predicateInstanceModalState, setPredicateInstanceModalState] =
-    useState<PredicateInstanceModalState>(() => ({
-      isOpen: false,
-      mode: "add",
-      index: null,
-      initialValue: createEmptyPredicateInstance(),
-      revision: 0,
-    }));
-
-  const [actionInstanceModalState, setActionInstanceModalState] =
-    useState<ActionInstanceModalState>(() => ({
-      isOpen: false,
-      mode: "add",
-      index: null,
-      initialValue: createEmptyActionInstance(),
-      revision: 0,
-    }));
+  const parameterTypeModalState = parameterTypeModal.state;
+  const predicateTypeModalState = predicateTypeModal.state;
+  const actionTypeModalState = actionTypeModal.state;
+  const parameterInstanceModalState = parameterInstanceModal.state;
+  const predicateInstanceModalState = predicateInstanceModal.state;
+  const actionInstanceModalState = actionInstanceModal.state;
 
   const [modalState, setModalState] = useState<ModalState>(() => ({
     isOpen: false,
@@ -152,36 +226,6 @@ export const useSidebarManager = (): SidebarManager => {
     index: null,
     initialValue: createEmptyStructuredItem(),
   }));
-
-  const nextParameterTypeRevision = () => {
-    parameterTypeRevision.current += 1;
-    return parameterTypeRevision.current;
-  };
-
-  const nextPredicateTypeRevision = () => {
-    predicateTypeRevision.current += 1;
-    return predicateTypeRevision.current;
-  };
-
-  const nextActionTypeRevision = () => {
-    actionTypeRevision.current += 1;
-    return actionTypeRevision.current;
-  };
-
-  const nextParameterInstanceRevision = () => {
-    parameterInstanceRevision.current += 1;
-    return parameterInstanceRevision.current;
-  };
-
-  const nextPredicateInstanceRevision = () => {
-    predicateInstanceRevision.current += 1;
-    return predicateInstanceRevision.current;
-  };
-
-  const nextActionInstanceRevision = () => {
-    actionInstanceRevision.current += 1;
-    return actionInstanceRevision.current;
-  };
 
   const parameterTypes = useMemo(() => {
     const entries = data[PARAM_TYPES_KEY] as ParameterType[] | undefined;
@@ -230,35 +274,17 @@ export const useSidebarManager = (): SidebarManager => {
    */
   const openAddModal = (category: DataCategory) => {
     if (category === PARAM_TYPES_KEY) {
-      setParameterTypeModalState({
-        isOpen: true,
-        mode: "add",
-        index: null,
-        initialValue: createEmptyParameterType(),
-        revision: nextParameterTypeRevision(),
-      });
+      parameterTypeModal.openAdd();
       return;
     }
 
     if (category === PREDICATE_TYPES_KEY) {
-      setPredicateTypeModalState({
-        isOpen: true,
-        mode: "add",
-        index: null,
-        initialValue: createEmptyPredicateType(),
-        revision: nextPredicateTypeRevision(),
-      });
+      predicateTypeModal.openAdd();
       return;
     }
 
     if (category === ACTION_TYPES_KEY) {
-      setActionTypeModalState({
-        isOpen: true,
-        mode: "add",
-        index: null,
-        initialValue: createEmptyActionType(),
-        revision: nextActionTypeRevision(),
-      });
+      actionTypeModal.openAdd();
       return;
     }
 
@@ -269,13 +295,9 @@ export const useSidebarManager = (): SidebarManager => {
       }
 
       const defaultType = parameterTypes[0];
-      setParameterInstanceModalState({
-        isOpen: true,
-        mode: "add",
-        index: null,
-        initialValue: createEmptyParameterInstance(defaultType),
-        revision: nextParameterInstanceRevision(),
-      });
+      parameterInstanceModal.openAdd(
+        createEmptyParameterInstance(defaultType)
+      );
       return;
     }
 
@@ -286,13 +308,9 @@ export const useSidebarManager = (): SidebarManager => {
       }
 
       const defaultType = predicateTypes[0];
-      setPredicateInstanceModalState({
-        isOpen: true,
-        mode: "add",
-        index: null,
-        initialValue: createEmptyPredicateInstance(defaultType),
-        revision: nextPredicateInstanceRevision(),
-      });
+      predicateInstanceModal.openAdd(
+        createEmptyPredicateInstance(defaultType)
+      );
       return;
     }
 
@@ -303,13 +321,7 @@ export const useSidebarManager = (): SidebarManager => {
       }
 
       const defaultType = actionTypes[0];
-      setActionInstanceModalState({
-        isOpen: true,
-        mode: "add",
-        index: null,
-        initialValue: createEmptyActionInstance(defaultType),
-        revision: nextActionInstanceRevision(),
-      });
+      actionInstanceModal.openAdd(createEmptyActionInstance(defaultType));
       return;
     }
 
@@ -322,42 +334,44 @@ export const useSidebarManager = (): SidebarManager => {
     });
   };
 
+  /**
+   * opens the parameter type modal in edit mode with a cloned payload.
+   * @param index index of the parameter type within the list
+   * @param currentValue parameter type currently selected for editing
+   */
   const openEditParameterType = (
     index: number,
     currentValue: ParameterType
   ) => {
-    setParameterTypeModalState({
-      isOpen: true,
-      mode: "edit",
-      index,
-      initialValue: cloneParameterType(currentValue),
-      revision: nextParameterTypeRevision(),
-    });
+    parameterTypeModal.openEdit(index, cloneParameterType(currentValue));
   };
 
+  /**
+   * opens the predicate type modal in edit mode with a cloned payload.
+   * @param index index of the predicate type within the list
+   * @param currentValue predicate type currently selected for editing
+   */
   const openEditPredicateType = (
     index: number,
     currentValue: PredicateType
   ) => {
-    setPredicateTypeModalState({
-      isOpen: true,
-      mode: "edit",
-      index,
-      initialValue: clonePredicateType(currentValue),
-      revision: nextPredicateTypeRevision(),
-    });
+    predicateTypeModal.openEdit(index, clonePredicateType(currentValue));
   };
 
+  /**
+   * opens the action type modal in edit mode with a cloned payload.
+   * @param index index of the action type within the list
+   * @param currentValue action type currently selected for editing
+   */
   const openEditActionType = (index: number, currentValue: ActionType) => {
-    setActionTypeModalState({
-      isOpen: true,
-      mode: "edit",
-      index,
-      initialValue: cloneActionType(currentValue),
-      revision: nextActionTypeRevision(),
-    });
+    actionTypeModal.openEdit(index, cloneActionType(currentValue));
   };
 
+  /**
+   * opens the parameter instance modal in edit mode with reconciled values.
+   * @param index index of the parameter instance within the list
+   * @param currentValue instance currently selected for editing
+   */
   const openEditParameterInstance = (
     index: number,
     currentValue: ParameterInstance
@@ -373,15 +387,14 @@ export const useSidebarManager = (): SidebarManager => {
       );
     }
 
-    setParameterInstanceModalState({
-      isOpen: true,
-      mode: "edit",
-      index,
-      initialValue: initialEntry,
-      revision: nextParameterInstanceRevision(),
-    });
+    parameterInstanceModal.openEdit(index, initialEntry);
   };
 
+  /**
+   * opens the predicate instance modal in edit mode with reconciled values.
+   * @param index index of the predicate instance within the list
+   * @param currentValue instance currently selected for editing
+   */
   const openEditPredicateInstance = (
     index: number,
     currentValue: PredicateInstance
@@ -397,15 +410,14 @@ export const useSidebarManager = (): SidebarManager => {
       );
     }
 
-    setPredicateInstanceModalState({
-      isOpen: true,
-      mode: "edit",
-      index,
-      initialValue: initialEntry,
-      revision: nextPredicateInstanceRevision(),
-    });
+    predicateInstanceModal.openEdit(index, initialEntry);
   };
 
+  /**
+   * opens the action instance modal in edit mode with reconciled values.
+   * @param index index of the action instance within the list
+   * @param currentValue instance currently selected for editing
+   */
   const openEditActionInstance = (
     index: number,
     currentValue: ActionInstance
@@ -421,13 +433,7 @@ export const useSidebarManager = (): SidebarManager => {
       );
     }
 
-    setActionInstanceModalState({
-      isOpen: true,
-      mode: "edit",
-      index,
-      initialValue: initialEntry,
-      revision: nextActionInstanceRevision(),
-    });
+    actionInstanceModal.openEdit(index, initialEntry);
   };
 
   /**
@@ -512,79 +518,54 @@ export const useSidebarManager = (): SidebarManager => {
     closeModal();
   };
 
+  /**
+   * closes the parameter type modal and restores its default state.
+   */
   const closeParameterTypeModal = () => {
-    setParameterTypeModalState({
-      isOpen: false,
-      mode: "add",
-      index: null,
-      initialValue: createEmptyParameterType(),
-      revision: nextParameterTypeRevision(),
-    });
+    parameterTypeModal.close();
   };
 
+  /**
+   * closes the predicate type modal and restores its default state.
+   */
   const closePredicateTypeModal = () => {
-    setPredicateTypeModalState({
-      isOpen: false,
-      mode: "add",
-      index: null,
-      initialValue: createEmptyPredicateType(),
-      revision: nextPredicateTypeRevision(),
-    });
+    predicateTypeModal.close();
   };
 
+  /**
+   * closes the action type modal and restores its default state.
+   */
   const closeActionTypeModal = () => {
-    setActionTypeModalState({
-      isOpen: false,
-      mode: "add",
-      index: null,
-      initialValue: createEmptyActionType(),
-      revision: nextActionTypeRevision(),
-    });
+    actionTypeModal.close();
   };
 
+  /**
+   * closes the parameter instance modal and restores its default state.
+   */
   const closeParameterInstanceModal = () => {
-    setParameterInstanceModalState({
-      isOpen: false,
-      mode: "add",
-      index: null,
-      initialValue: createEmptyParameterInstance(),
-      revision: nextParameterInstanceRevision(),
-    });
+    parameterInstanceModal.close();
   };
 
+  /**
+   * closes the predicate instance modal and restores its default state.
+   */
   const closePredicateInstanceModal = () => {
-    setPredicateInstanceModalState({
-      isOpen: false,
-      mode: "add",
-      index: null,
-      initialValue: createEmptyPredicateInstance(),
-      revision: nextPredicateInstanceRevision(),
-    });
+    predicateInstanceModal.close();
   };
 
+  /**
+   * closes the action instance modal and restores its default state.
+   */
   const closeActionInstanceModal = () => {
-    setActionInstanceModalState({
-      isOpen: false,
-      mode: "add",
-      index: null,
-      initialValue: createEmptyActionInstance(),
-      revision: nextActionInstanceRevision(),
-    });
+    actionInstanceModal.close();
   };
 
+  /**
+   * persists the provided parameter type and reconciles linked instances.
+   * @param value parameter type collected from the modal form
+   */
   const handleSaveParameterType = (value: ParameterType) => {
-    const normalized: ParameterType = {
-      ...value,
-      id: value.id || createEmptyParameterType().id,
-      name: value.name.trim(),
-      type: value.type.trim(),
-      properties: value.properties.map((property) => ({
-        ...property,
-        id: property.id || generatePropertyId(),
-        name: property.name.trim(),
-        valueType: property.valueType.trim(),
-      })),
-    };
+    const normalized = normalizeType(value, createEmptyParameterType);
 
     setData((prev) => {
       const existingTypes =
@@ -627,19 +608,12 @@ export const useSidebarManager = (): SidebarManager => {
     closeParameterTypeModal();
   };
 
+  /**
+   * persists the provided predicate type and reconciles linked instances.
+   * @param value predicate type collected from the modal form
+   */
   const handleSavePredicateType = (value: PredicateType) => {
-    const normalized: PredicateType = {
-      ...value,
-      id: value.id || createEmptyPredicateType().id,
-      name: value.name.trim(),
-      type: value.type.trim(),
-      properties: value.properties.map((property) => ({
-        ...property,
-        id: property.id || generatePropertyId(),
-        name: property.name.trim(),
-        valueType: property.valueType.trim(),
-      })),
-    };
+    const normalized = normalizeType(value, createEmptyPredicateType);
 
     setData((prev) => {
       const existingTypes =
@@ -683,19 +657,12 @@ export const useSidebarManager = (): SidebarManager => {
     closePredicateTypeModal();
   };
 
+  /**
+   * persists the provided action type and reconciles linked instances.
+   * @param value action type collected from the modal form
+   */
   const handleSaveActionType = (value: ActionType) => {
-    const normalized: ActionType = {
-      ...value,
-      id: value.id || createEmptyActionType().id,
-      name: value.name.trim(),
-      type: value.type.trim(),
-      properties: value.properties.map((property) => ({
-        ...property,
-        id: property.id || generatePropertyId(),
-        name: property.name.trim(),
-        valueType: property.valueType.trim(),
-      })),
-    };
+    const normalized = normalizeType(value, createEmptyActionType);
 
     setData((prev) => {
       const existingTypes =
@@ -738,6 +705,10 @@ export const useSidebarManager = (): SidebarManager => {
     closeActionTypeModal();
   };
 
+  /**
+   * stores the provided parameter instance after validating its type binding.
+   * @param value parameter instance captured from the modal form
+   */
   const handleSaveParameterInstance = (value: ParameterInstance) => {
     const parameterType = parameterTypeMap.get(value.typeId);
     if (!parameterType) {
@@ -785,6 +756,10 @@ export const useSidebarManager = (): SidebarManager => {
     closeParameterInstanceModal();
   };
 
+  /**
+   * stores the provided predicate instance after validating its type binding.
+   * @param value predicate instance captured from the modal form
+   */
   const handleSavePredicateInstance = (value: PredicateInstance) => {
     const predicateType = predicateTypeMap.get(value.typeId);
     if (!predicateType) {
@@ -834,6 +809,10 @@ export const useSidebarManager = (): SidebarManager => {
     closePredicateInstanceModal();
   };
 
+  /**
+   * stores the provided action instance after validating its type binding.
+   * @param value action instance captured from the modal form
+   */
   const handleSaveActionInstance = (value: ActionInstance) => {
     const actionType = actionTypeMap.get(value.typeId);
     if (!actionType) {
@@ -881,6 +860,11 @@ export const useSidebarManager = (): SidebarManager => {
     closeActionInstanceModal();
   };
 
+  /**
+   * removes an item from the requested category and cleans up dependent state.
+   * @param category category key hosting the targeted item
+   * @param index position of the item inside the category list
+   */
   const handleDeleteItem = (category: DataCategory, index: number) => {
     if (!window.confirm("Delete this item?")) {
       return;
@@ -1003,6 +987,9 @@ export const useSidebarManager = (): SidebarManager => {
     }
   };
 
+  /**
+   * opens the category modal in add mode with a blank payload.
+   */
   const openCategoryModal = () => {
     setCategoryModalState({
       isOpen: true,
@@ -1012,6 +999,10 @@ export const useSidebarManager = (): SidebarManager => {
     });
   };
 
+  /**
+   * opens the category modal prefilled for renaming the provided key.
+   * @param categoryKey identifier of the category being renamed
+   */
   const openRenameCategoryModal = (categoryKey: DataCategory) => {
     const currentTitle = categoryTitles[categoryKey] ?? categoryKey;
     setCategoryModalState({
@@ -1025,6 +1016,9 @@ export const useSidebarManager = (): SidebarManager => {
     });
   };
 
+  /**
+   * closes the category modal and restores its default payload.
+   */
   const closeCategoryModal = () => {
     setCategoryModalState({
       isOpen: false,
@@ -1034,6 +1028,11 @@ export const useSidebarManager = (): SidebarManager => {
     });
   };
 
+  /**
+   * transforms a category label into a unique slug identifier.
+   * @param label human readable category label supplied by the user
+   * @returns slugified category key guaranteed to be unique
+   */
   const createCategoryKey = (label: string) => {
     const baseKey = label
       .toLowerCase()
@@ -1053,6 +1052,10 @@ export const useSidebarManager = (): SidebarManager => {
     return candidate;
   };
 
+  /**
+   * persists category changes either by creating a new section or renaming.
+   * @param value structured payload captured from the category modal
+   */
   const handleSaveCategory = (value: StructuredItem) => {
     const displayName = value.name.trim();
     if (!displayName) {
@@ -1079,6 +1082,10 @@ export const useSidebarManager = (): SidebarManager => {
     closeCategoryModal();
   };
 
+  /**
+   * removes an entire category and clears all nested data and modals.
+   * @param categoryKey identifier of the category to remove
+   */
   const handleDeleteCategory = (categoryKey: DataCategory) => {
     const displayName = categoryTitles[categoryKey] ?? categoryKey;
     if (
@@ -1144,15 +1151,30 @@ export const useSidebarManager = (): SidebarManager => {
     }
   };
 
+  /**
+   * retrieves the items for a given category with a memoized lookup.
+   * @param category category key used to look up stored items
+   * @returns array of structured items for the provided category
+   */
   const getItemsForCategory = useCallback(
     (category: DataCategory) => data[category] ?? [],
     [data]
   );
 
+  /**
+   * updates the search query string for the specified category.
+   * @param category category key whose search filter should update
+   * @param value new search string entered by the user
+   */
   const handleSearchChange = (category: DataCategory, value: string) => {
     setSearchQueries((prev) => ({ ...prev, [category]: value }));
   };
 
+  /**
+   * resolves the localized add button label for the supplied category key.
+   * @param category category key whose label should be retrieved
+   * @returns translated add button label
+   */
   const addLabelFor = (category: DataCategory) =>
     ADD_LABELS[category] ?? "Add Item";
 
