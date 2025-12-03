@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { BASIC_TYPE_OPTIONS } from "../../../constants/basicTypes";
 import { createId } from "../../../utils/id";
 import type {
@@ -17,6 +17,52 @@ function createEmptyProperty(): TypeProperty {
     name: "",
     valueType: "",
   };
+}
+
+/**
+ * creates a deep clone of the provided property list to keep state immutable.
+ * @param properties property list that should be cloned
+ * @returns cloned property list
+ */
+function cloneProperties(properties: TypeProperty[]): TypeProperty[] {
+  return properties.map((property) => ({ ...property }));
+}
+
+/**
+ * normalizes the incoming property list for state consumption.
+ * @param properties property list originating from the initial value
+ * @returns cloned property list or an empty array when no properties exist
+ */
+function buildPropertyState(properties: TypeProperty[]): TypeProperty[] {
+  return properties.length > 0 ? cloneProperties(properties) : [];
+}
+
+/**
+ * checks whether the provided property collections differ.
+ * @param nextProperties reference list used for comparison
+ * @param currentProperties property list currently stored in state
+ * @returns true when the property sets differ
+ */
+function havePropertiesChanged(
+  nextProperties: TypeProperty[],
+  currentProperties: TypeProperty[]
+): boolean {
+  if (nextProperties.length !== currentProperties.length) {
+    return true;
+  }
+
+  return nextProperties.some((property, index) => {
+    const current = currentProperties[index];
+    if (!current) {
+      return true;
+    }
+
+    return (
+      current.id !== property.id ||
+      current.name !== property.name ||
+      current.valueType !== property.valueType
+    );
+  });
 }
 
 /**
@@ -54,45 +100,35 @@ export default function TypeDefinitionModal({
   propertyTypePlaceholder = "Select type...",
   propertyHelperText,
   baseTypeOptions = BASIC_TYPE_OPTIONS,
+  fixedBaseTypeValue,
 }: TypeDefinitionModalProps) {
   const [nameValue, setNameValue] = useState(initialValue.name);
-  const [baseType, setBaseType] = useState(initialValue.type);
-  const cloneProperties = (props: TypeProperty[]) =>
-    props.map((property) => ({ ...property }));
+  const [baseType, setBaseType] = useState(
+    fixedBaseTypeValue ?? initialValue.type
+  );
   const [properties, setProperties] = useState<TypeProperty[]>(() =>
-    initialValue.properties.length > 0
-      ? cloneProperties(initialValue.properties)
-      : []
+    buildPropertyState(initialValue.properties)
   );
   const [typeId, setTypeId] = useState(initialValue.id);
+
+  const resolvedBaseType = useMemo(
+    () => (fixedBaseTypeValue ?? baseType ?? "").trim(),
+    [baseType, fixedBaseTypeValue]
+  );
 
   useEffect(() => {
     if (nameValue !== initialValue.name) {
       setNameValue(initialValue.name);
     }
 
-    if (baseType !== initialValue.type) {
-      setBaseType(initialValue.type);
+    const nextBaseType = fixedBaseTypeValue ?? initialValue.type;
+    if (baseType !== nextBaseType) {
+      setBaseType(nextBaseType);
     }
 
-    const nextProperties =
-      initialValue.properties.length > 0
-        ? cloneProperties(initialValue.properties)
-        : [];
+    const nextProperties = buildPropertyState(initialValue.properties);
 
-    const propertiesChanged =
-      nextProperties.length !== properties.length ||
-      nextProperties.some((property, index) => {
-        const current = properties[index];
-        if (!current) return true;
-        return (
-          current.id !== property.id ||
-          current.name !== property.name ||
-          current.valueType !== property.valueType
-        );
-      });
-
-    if (propertiesChanged) {
+    if (havePropertiesChanged(nextProperties, properties)) {
       setProperties(nextProperties);
     }
 
@@ -100,7 +136,7 @@ export default function TypeDefinitionModal({
       setTypeId(initialValue.id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialValue]);
+  }, [initialValue, fixedBaseTypeValue]);
 
   const hasDuplicatePropertyNames = useMemo(() => {
     const seen = new Set<string>();
@@ -122,7 +158,7 @@ export default function TypeDefinitionModal({
     if (!trimmedName) {
       return false;
     }
-    if (showBaseTypeField && !baseType) {
+    if (showBaseTypeField && !resolvedBaseType) {
       return false;
     }
     if (
@@ -138,15 +174,11 @@ export default function TypeDefinitionModal({
     return true;
   }, [
     nameValue,
-    baseType,
     properties,
     hasDuplicatePropertyNames,
     showBaseTypeField,
+    resolvedBaseType,
   ]);
-
-  if (!isOpen) {
-    return null;
-  }
 
   const handleAddProperty = () => {
     setProperties((prev) => [...prev, createEmptyProperty()]);
@@ -158,22 +190,23 @@ export default function TypeDefinitionModal({
     );
   };
 
+  const updateProperty = useCallback(
+    (propertyId: string, updates: Partial<TypeProperty>) => {
+      setProperties((prev) =>
+        prev.map((property) =>
+          property.id === propertyId ? { ...property, ...updates } : property
+        )
+      );
+    },
+    []
+  );
+
   const handlePropertyNameChange = (propertyId: string, value: string) => {
-    setProperties((prev) =>
-      prev.map((property) =>
-        property.id === propertyId ? { ...property, name: value } : property
-      )
-    );
+    updateProperty(propertyId, { name: value });
   };
 
   const handlePropertyTypeChange = (propertyId: string, value: string) => {
-    setProperties((prev) =>
-      prev.map((property) =>
-        property.id === propertyId
-          ? { ...property, valueType: value }
-          : property
-      )
-    );
+    updateProperty(propertyId, { valueType: value });
   };
 
   const handleSubmit = (event: React.FormEvent) => {
@@ -187,7 +220,7 @@ export default function TypeDefinitionModal({
       ...initialValue,
       id: typeId || createId("param-type"),
       name: nameValue.trim(),
-      type: baseType,
+      type: resolvedBaseType,
       properties: sanitized.map((property) => ({
         ...property,
         id: property.id || createId("property"),
@@ -196,6 +229,10 @@ export default function TypeDefinitionModal({
 
     onSave(next);
   };
+
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div className="modal-overlay type-modal-overlay">
@@ -227,24 +264,37 @@ export default function TypeDefinitionModal({
 
           {showBaseTypeField && (
             <div className="form-group">
-              <label className="modal-label" htmlFor="type-base-select">
+              <label
+                className="modal-label"
+                htmlFor={fixedBaseTypeValue ? undefined : "type-base-select"}
+              >
                 {baseTypeLabel}
               </label>
-              <select
-                id="type-base-select"
-                className="modal-select"
-                value={baseType}
-                onChange={(event) => setBaseType(event.target.value)}
-              >
-                <option value="" disabled>
-                  {baseTypePlaceholder}
-                </option>
-                {baseTypeOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
+              {fixedBaseTypeValue ? (
+                <div
+                  className="modal-static-value"
+                  role="textbox"
+                  aria-readonly="true"
+                >
+                  {fixedBaseTypeValue}
+                </div>
+              ) : (
+                <select
+                  id="type-base-select"
+                  className="modal-select"
+                  value={baseType}
+                  onChange={(event) => setBaseType(event.target.value)}
+                >
+                  <option value="" disabled>
+                    {baseTypePlaceholder}
                   </option>
-                ))}
-              </select>
+                  {baseTypeOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           )}
 

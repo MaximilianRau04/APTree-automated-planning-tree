@@ -42,6 +42,7 @@ export const createEmptyParameterType = (): ParameterType => ({
 export const createEmptyPredicateType = (): PredicateType => ({
   ...createEmptyStructuredItem(),
   id: createId("predicate-type"),
+  type: "predicate",
   properties: [],
 });
 
@@ -52,6 +53,7 @@ export const createEmptyPredicateType = (): PredicateType => ({
 export const createEmptyActionType = (): ActionType => ({
   ...createEmptyStructuredItem(),
   id: createId("action-type"),
+  type: "GenericBTAction",
   properties: [],
 });
 
@@ -72,6 +74,7 @@ export const cloneParameterType = (entry: ParameterType): ParameterType => ({
  */
 export const clonePredicateType = (entry: PredicateType): PredicateType => ({
   ...entry,
+  type: entry.type || "predicate",
   properties: entry.properties.map((property) => ({ ...property })),
 });
 

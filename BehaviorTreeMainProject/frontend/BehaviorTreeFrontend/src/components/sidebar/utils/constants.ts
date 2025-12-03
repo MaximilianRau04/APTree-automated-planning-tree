@@ -1,4 +1,103 @@
-import type { AppData, CategoryConfig, DataCategory } from "./types";
+import type {
+  AppData,
+  BehaviorNodeOption,
+  CategoryConfig,
+  DataCategory,
+  DecoratorNodeOption,
+  FlowNodeOption,
+  ServiceNodeOption,
+} from "./types";
+
+/** canonical flow-node definitions displayed in the BT node wizard. */
+export const FLOW_NODE_OPTIONS: FlowNodeOption[] = [
+  {
+    id: "sequence",
+    label: "Sequence",
+    typeLabel: "Flow Node",
+    description:
+      "Execute children in order and fail on the first child that fails.",
+    kind: "flow",
+  },
+  {
+    id: "selector",
+    label: "Selector",
+    typeLabel: "Flow Node",
+    description:
+      "Pick the first child that succeeds, falling back to the next on failure.",
+    kind: "flow",
+  },
+  {
+    id: "parallel",
+    label: "Parallel",
+    typeLabel: "Flow Node",
+    description: "Run all children simultaneously and gather their results.",
+    kind: "flow",
+  },
+];
+
+/** canonical decorator-node definitions made available to users. */
+export const DECORATOR_NODE_OPTIONS: DecoratorNodeOption[] = [
+  {
+    id: "inverter",
+    label: "Inverter",
+    typeLabel: "Decorator",
+    description:
+      "Flip the child node result from success to failure and vice versa.",
+    kind: "decorator",
+  },
+  {
+    id: "repeat-until-success",
+    label: "Repeat Until Success",
+    typeLabel: "Decorator",
+    description:
+      "Retry the child node until it succeeds or reaches a retry limit.",
+    kind: "decorator",
+  },
+  {
+    id: "cooldown",
+    label: "Cooldown",
+    typeLabel: "Decorator",
+    description:
+      "Ensure the child node executes only after a specified cooldown period.",
+    kind: "decorator",
+  },
+];
+
+/** canonical service-node definitions exposed in the sidebar. */
+export const SERVICE_NODE_OPTIONS: ServiceNodeOption[] = [
+  {
+    id: "sensing-service",
+    label: "Sensing Service",
+    typeLabel: "Service",
+    description:
+      "Run periodic sensor checks alongside the behavior tree branch.",
+    kind: "service",
+  },
+  {
+    id: "blackboard-sync",
+    label: "Blackboard Sync",
+    typeLabel: "Service",
+    description:
+      "Continuously synchronize key values into the blackboard while active.",
+    kind: "service",
+  },
+];
+
+/** combined behavior-node catalog leveraged by the sidebar and canvas. */
+export const BEHAVIOR_NODE_OPTIONS: BehaviorNodeOption[] = [
+  ...FLOW_NODE_OPTIONS,
+  ...DECORATOR_NODE_OPTIONS,
+  ...SERVICE_NODE_OPTIONS,
+];
+
+/** constant-time lookup table for behavior node templates by id. */
+export const BEHAVIOR_NODE_OPTION_MAP = new Map<string, BehaviorNodeOption>(
+  BEHAVIOR_NODE_OPTIONS.map((option) => [option.id, option])
+);
+
+export const BT_NODES_KEY: DataCategory = "nodes";
+export const DECORATOR_NODES_KEY: DataCategory = "decorators";
+export const SERVICE_NODES_KEY: DataCategory = "services";
 
 /**
  * central configuration describing each sidebar category including labels and defaults.
@@ -13,6 +112,11 @@ export const CATEGORY_CONFIG: CategoryConfig[] = [
       { id: "variable-health", name: "health", type: "Integer" },
       { id: "variable-target", name: "target", type: "Agent" },
     ],
+  },
+  {
+    key: BT_NODES_KEY,
+    title: "Behavior Tree Nodes",
+    addLabel: "Add Behavior Node",
   },
   {
     key: "paramTypes",
@@ -40,7 +144,6 @@ export const CATEGORY_CONFIG: CategoryConfig[] = [
     title: "Action Instances",
     addLabel: "Add Action Instance",
   },
-  { key: "nodes", title: "Behavior Tree Nodes", addLabel: "Add Node" },
 ];
 
 /**
@@ -86,15 +189,13 @@ export const ADD_LABELS = CATEGORY_CONFIG.reduce<Record<string, string>>(
  */
 export const DEFAULT_ORDER = CATEGORY_CONFIG.map((section) => section.key);
 
-/** sidebar key pointing to parameter-type entries. */
 export const PARAM_TYPES_KEY: DataCategory = "paramTypes";
-/** sidebar key pointing to parameter-instance entries. */
 export const PARAM_INSTANCES_KEY: DataCategory = "paramInstances";
-/** sidebar key pointing to predicate-type entries. */
 export const PREDICATE_TYPES_KEY: DataCategory = "predTypes";
-/** sidebar key pointing to predicate-instance entries. */
 export const PREDICATE_INSTANCES_KEY: DataCategory = "predInstances";
-/** sidebar key pointing to action-type entries. */
 export const ACTION_TYPES_KEY: DataCategory = "actions";
-/** sidebar key pointing to action-instance entries. */
 export const ACTION_INSTANCES_KEY: DataCategory = "actionInstances";
+export const FLOW_NODES_KEY: DataCategory = "flowNodes";
+export const DRAGGABLE_NODE_CATEGORIES: readonly DataCategory[] = [
+  ACTION_INSTANCES_KEY,
+];

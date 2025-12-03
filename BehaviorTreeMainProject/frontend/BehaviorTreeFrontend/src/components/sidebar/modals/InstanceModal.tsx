@@ -10,6 +10,19 @@ import type {
   TypedInstanceModalProps,
 } from "../utils/types";
 
+const IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const ATTRIBUTE_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$/;
+
+const isValidPredicateArgument = (value: string): boolean => {
+  if (value === "true" || value === "false") {
+    return true;
+  }
+
+  return (
+    IDENTIFIER_PATTERN.test(value) || ATTRIBUTE_PATTERN.test(value)
+  );
+};
+
 type AnyInstance = ParameterInstance | PredicateInstance | ActionInstance;
 
 /** shared modal rendering logic used by all typed instance modals. */
@@ -35,6 +48,8 @@ function BaseInstanceModal<TInstance extends AnyInstance>(
     baseTypePrefixLabel = "Base type",
     enableNegationToggle = false,
     negationLabel = "Negate",
+    validatePropertyValue,
+    propertyValidationHint,
   } = props;
 
   const [nameValue, setNameValue] = useState(initialValue.name);
@@ -54,6 +69,7 @@ function BaseInstanceModal<TInstance extends AnyInstance>(
     }
     return false;
   });
+  const [showValidation, setShowValidation] = useState(false);
 
   useEffect(() => {
     if (nameValue !== initialValue.name) {
@@ -79,8 +95,15 @@ function BaseInstanceModal<TInstance extends AnyInstance>(
     if (enableNegationToggle && "isNegated" in initialValue) {
       setIsNegated(Boolean(initialValue.isNegated));
     }
+    setShowValidation(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialValue, typeDefinitions, enableNegationToggle]);
+
+  useEffect(() => {
+    if (!isOpen && showValidation) {
+      setShowValidation(false);
+    }
+  }, [isOpen, showValidation]);
 
   const selectedType = useMemo(
     () => typeDefinitions.find((type) => type.id === typeId) ?? null,
@@ -101,18 +124,51 @@ function BaseInstanceModal<TInstance extends AnyInstance>(
     );
   }, [selectedType, propertyValues]);
 
+  const propertyValidationState = useMemo(() => {
+    if (!selectedType) {
+      return {
+        missing: new Set<string>(),
+        invalid: new Set<string>(),
+      };
+    }
+
+    const missing = new Set<string>();
+    const invalid = new Set<string>();
+
+    selectedType.properties.forEach((property) => {
+      const rawValue = resolvedPropertyValues[property.id] ?? "";
+      const trimmedValue = rawValue.trim();
+
+      if (!trimmedValue) {
+        missing.add(property.id);
+        return;
+      }
+
+      if (
+        validatePropertyValue &&
+        !validatePropertyValue(trimmedValue, property)
+      ) {
+        invalid.add(property.id);
+      }
+    });
+
+    return { missing, invalid };
+  }, [selectedType, resolvedPropertyValues, validatePropertyValue]);
+
+  const { missing: missingPropertyIds, invalid: invalidPropertyIds } =
+    propertyValidationState;
+
   if (!isOpen) {
     return null;
   }
 
   const isFormDisabled = typeDefinitions.length === 0 || !selectedType;
   const trimmedName = nameValue.trim();
-  const allPropertiesFilled = selectedType
-    ? selectedType.properties.every((property) =>
-        (resolvedPropertyValues[property.id] ?? "").trim()
-      )
+  const arePropertiesValid = selectedType
+    ? missingPropertyIds.size === 0 && invalidPropertyIds.size === 0
     : false;
-  const isFormValid = !isFormDisabled && trimmedName && allPropertiesFilled;
+  const isFormValid =
+    !isFormDisabled && Boolean(trimmedName) && arePropertiesValid;
 
   const emptyStateMessage = propertyEmptyMessage
     ? propertyEmptyMessage
@@ -124,6 +180,7 @@ function BaseInstanceModal<TInstance extends AnyInstance>(
     const nextTypeId = event.target.value;
     setTypeId(nextTypeId);
     setPropertyValues({});
+    setShowValidation(false);
   };
 
   const handlePropertyValueChange = (propertyId: string, value: string) => {
@@ -133,8 +190,10 @@ function BaseInstanceModal<TInstance extends AnyInstance>(
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!isFormValid || !selectedType) {
+      setShowValidation(true);
       return;
     }
+    setShowValidation(false);
 
     const sanitizedValues = selectedType.properties.reduce<
       Record<string, string>
@@ -233,6 +292,10 @@ function BaseInstanceModal<TInstance extends AnyInstance>(
               <div className="instance-properties">
                 {selectedType.properties.map((property) => {
                   const fieldId = `instance-${property.id}`;
+                  const hasInvalidPattern = invalidPropertyIds.has(property.id);
+                  const isMissingValue = missingPropertyIds.has(property.id);
+                  const shouldHighlight =
+                    showValidation && (hasInvalidPattern || isMissingValue);
                   return (
                     <div key={property.id} className="instance-property-row">
                       <label
@@ -246,7 +309,7 @@ function BaseInstanceModal<TInstance extends AnyInstance>(
                       </label>
                       <input
                         id={fieldId}
-                        className="modal-input instance-property-input"
+                        className={`modal-input instance-property-input${shouldHighlight ? " input-invalid" : ""}`}
                         type="text"
                         value={resolvedPropertyValues[property.id] ?? ""}
                         onChange={(event) =>
@@ -256,7 +319,16 @@ function BaseInstanceModal<TInstance extends AnyInstance>(
                           )
                         }
                         placeholder={`Enter ${property.valueType}`}
+                        aria-invalid={shouldHighlight || undefined}
                       />
+                      {showValidation && hasInvalidPattern && propertyValidationHint ? (
+                        <p className="input-error-message">
+                          {propertyValidationHint}
+                        </p>
+                      ) : null}
+                      {showValidation && !hasInvalidPattern && isMissingValue ? (
+                        <p className="input-error-message">Value required.</p>
+                      ) : null}
                     </div>
                   );
                 })}
@@ -300,18 +372,25 @@ export function PredicateInstanceModal(props: PredicateInstanceModalProps) {
         props.namePlaceholder ?? "e.g., target_location_is_visible"
       }
       typeLabel={props.typeLabel ?? "Predicate Type"}
-      negationLabel={props.negationLabel ?? "Negate predicate"}
+      negationLabel={props.negationLabel ?? "isNegated"}
       typePlaceholder={props.typePlaceholder ?? "Select a predicate type..."}
       propertyEmptyMessage={
         props.propertyEmptyMessage ??
         "This predicate type does not define any properties."
       }
-      propertyValuesLabel={props.propertyValuesLabel ?? "Predicate Property Values"}
-      baseTypePrefixLabel={props.baseTypePrefixLabel ?? "Base predicate"}
+      propertyValuesLabel={props.propertyValuesLabel ?? "Predicate Arguments"}
+      baseTypePrefixLabel={props.baseTypePrefixLabel ?? "Predicate base type"}
       createButtonLabel={
         props.createButtonLabel ?? "Create Predicate Instance"
       }
       saveButtonLabel={props.saveButtonLabel ?? "Save Predicate Instance"}
+      validatePropertyValue={
+        props.validatePropertyValue ?? isValidPredicateArgument
+      }
+      propertyValidationHint={
+        props.propertyValidationHint ??
+        "Use identifiers (e.g., target), attribute access (entity.location), or boolean literals true/false."
+      }
     />
   );
 }

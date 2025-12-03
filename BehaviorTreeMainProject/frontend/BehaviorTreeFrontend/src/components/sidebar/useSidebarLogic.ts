@@ -613,7 +613,10 @@ export const useSidebarManager = (): SidebarManager => {
    * @param value predicate type collected from the modal form
    */
   const handleSavePredicateType = (value: PredicateType) => {
-    const normalized = normalizeType(value, createEmptyPredicateType);
+    const normalized = {
+      ...normalizeType(value, createEmptyPredicateType),
+      type: "predicate",
+    } as PredicateType;
 
     setData((prev) => {
       const existingTypes =
@@ -662,7 +665,10 @@ export const useSidebarManager = (): SidebarManager => {
    * @param value action type collected from the modal form
    */
   const handleSaveActionType = (value: ActionType) => {
-    const normalized = normalizeType(value, createEmptyActionType);
+    const normalized = {
+      ...normalizeType(value, createEmptyActionType),
+      type: "GenericBTAction",
+    } as ActionType;
 
     setData((prev) => {
       const existingTypes =

@@ -1,6 +1,7 @@
 import {
   ACTION_INSTANCES_KEY,
   ACTION_TYPES_KEY,
+  BT_NODES_KEY,
   PARAM_INSTANCES_KEY,
   PARAM_TYPES_KEY,
   PREDICATE_INSTANCES_KEY,
@@ -18,6 +19,7 @@ export type DragEntityKind =
   | "predicateInstance"
   | "actionType"
   | "actionInstance"
+  | "behaviorNode"
   | "generic";
 
 // defines the structure of the data payload when dragging an item from the sidebar
@@ -50,6 +52,8 @@ export function resolveDragEntityKind(category: DataCategory): DragEntityKind {
       return "predicateInstance";
     case ACTION_INSTANCES_KEY:
       return "actionInstance";
+    case BT_NODES_KEY:
+      return "behaviorNode";
     default:
       return "generic";
   }

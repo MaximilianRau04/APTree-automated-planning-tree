@@ -14,6 +14,8 @@ export interface EditorCanvasProps {
     position: { x: number; y: number }
   ) => void;
   onRemoveNode?: (nodeId: string) => void;
+  onAddActionPrecondition?: (nodeId: string) => void;
+  onAddActionEffect?: (nodeId: string) => void;
 }
 
 /**
@@ -26,6 +28,8 @@ export default function EditorCanvas({
   onDropNode,
   onMoveNode,
   onRemoveNode,
+  onAddActionPrecondition,
+  onAddActionEffect,
 }: EditorCanvasProps) {
   const [isActive, setIsActive] = useState(false);
   const dragOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -200,6 +204,41 @@ export default function EditorCanvas({
               <span className="canvas-node-badge" aria-label="Negated predicate">
                 NOT
               </span>
+            ) : null}
+            {(node.kind === "actionType" || node.kind === "actionInstance") &&
+            (onAddActionPrecondition || onAddActionEffect) ? (
+              <div className="canvas-node-actions">
+                {onAddActionPrecondition ? (
+                  <button
+                    type="button"
+                    className="canvas-node-action-btn"
+                    onMouseDown={(event) => {
+                      event.stopPropagation();
+                    }}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onAddActionPrecondition(node.id);
+                    }}
+                  >
+                    + Precondition
+                  </button>
+                ) : null}
+                {onAddActionEffect ? (
+                  <button
+                    type="button"
+                    className="canvas-node-action-btn"
+                    onMouseDown={(event) => {
+                      event.stopPropagation();
+                    }}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onAddActionEffect(node.id);
+                    }}
+                  >
+                    + Effect
+                  </button>
+                ) : null}
+              </div>
             ) : null}
           </div>
         ))

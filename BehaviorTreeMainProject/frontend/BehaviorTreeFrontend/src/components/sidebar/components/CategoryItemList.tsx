@@ -13,10 +13,12 @@ import type {
 import {
   ACTION_INSTANCES_KEY,
   ACTION_TYPES_KEY,
+  BT_NODES_KEY,
   PARAM_INSTANCES_KEY,
   PARAM_TYPES_KEY,
   PREDICATE_INSTANCES_KEY,
   PREDICATE_TYPES_KEY,
+  DRAGGABLE_NODE_CATEGORIES,
 } from "../utils/constants";
 import {
   DRAG_DATA_FORMAT,
@@ -164,6 +166,8 @@ export function CategoryItemList({
   const isParameterInstanceCategory = category === PARAM_INSTANCES_KEY;
   const isPredicateInstanceCategory = category === PREDICATE_INSTANCES_KEY;
   const isActionInstanceCategory = category === ACTION_INSTANCES_KEY;
+  const isBehaviorNodeCategory = category === BT_NODES_KEY;
+  const isDraggableCategory = DRAGGABLE_NODE_CATEGORIES.includes(category);
   const filteredItems = trimmedQuery
     ? items.filter((item) =>
         matchesSearch(
@@ -205,23 +209,31 @@ export function CategoryItemList({
           dragTypeId = actionInstance.typeId;
         }
 
-        const dragPayload: DraggedSidebarItem = {
-          id: item.id,
-          name: item.name,
-          type: badgeLabel,
-          category,
-          kind: resolveDragEntityKind(category),
-        };
+        let dragPayload: DraggedSidebarItem | null = null;
 
-        if (dragTypeId) {
-          dragPayload.typeId = dragTypeId;
-        }
+        if (isDraggableCategory) {
+          dragPayload = {
+            id: item.id,
+            name: item.name,
+            type: badgeLabel,
+            category,
+            kind: resolveDragEntityKind(category),
+          };
 
-        if (typeof dragIsNegated === "boolean") {
-          dragPayload.isNegated = dragIsNegated;
+          if (dragTypeId) {
+            dragPayload.typeId = dragTypeId;
+          }
+
+          if (typeof dragIsNegated === "boolean") {
+            dragPayload.isNegated = dragIsNegated;
+          }
         }
 
         const handleDragStart = (event: DragEvent<HTMLSpanElement>) => {
+          if (!dragPayload) {
+            return;
+          }
+
           const serializedPayload = JSON.stringify(dragPayload);
           event.dataTransfer.setData("text/plain", item.name);
           event.dataTransfer.setData(DRAG_DATA_FORMAT, serializedPayload);
@@ -229,6 +241,10 @@ export function CategoryItemList({
         };
 
         const handleDragEnd = (event: DragEvent<HTMLSpanElement>) => {
+          if (!dragPayload) {
+            return;
+          }
+
           const dataTransfer = event.dataTransfer;
           if (dataTransfer) {
             dataTransfer.clearData(DRAG_DATA_FORMAT);
@@ -242,10 +258,10 @@ export function CategoryItemList({
           >
             <span
               className="list-item-text"
-              draggable
+              draggable={isDraggableCategory}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
-              data-drag-kind={dragPayload.kind}
+              data-drag-kind={dragPayload?.kind}
             >
               <span className="item-name">{item.name}</span>
               <span className="item-meta">
@@ -290,6 +306,8 @@ export function CategoryItemList({
             ? "Create a predicate type before adding instances."
             : isActionInstanceCategory && actionTypes.length === 0
             ? "Create an action type before adding instances."
+            : isBehaviorNodeCategory
+            ? "Use the Add Behavior Node wizard to create new flow, decorator, or service templates."
             : "No items defined."}
         </p>
       )}

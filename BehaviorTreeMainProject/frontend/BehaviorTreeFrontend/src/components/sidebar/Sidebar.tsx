@@ -1,19 +1,34 @@
+import { useState } from "react";
 import EditModal from "./modals/EditModal";
 import ParameterInstanceModal, {
   ActionInstanceModal,
   PredicateInstanceModal,
 } from "./modals/InstanceModal";
 import TypeDefinitionModal from "./modals/TypeDefinitionModal";
+import BtNodeWizardModal from "./modals/BtNodeWizardModal";
 import "./Sidebar.css";
 import { CategoryItemList } from "./components/CategoryItemList";
 import SidebarSection from "./components/SidebarSection";
 import { useSidebarManager } from "./useSidebarLogic";
+import {
+  ACTION_INSTANCES_KEY,
+  ACTION_TYPES_KEY,
+  BT_NODES_KEY,
+  DECORATOR_NODE_OPTIONS,
+  FLOW_NODE_OPTIONS,
+  SERVICE_NODE_OPTIONS,
+} from "./utils/constants";
+import type { BehaviorNodeOption } from "./utils/types";
+
+interface SidebarProps {
+  onCreateBehaviorNode?: (option: BehaviorNodeOption) => void;
+}
 
 /**
  * assembles the full planner sidebar, wiring state-driven modals and section content together.
  * @returns sidebar layout containing sections, search inputs, and supporting modals
  */
-export default function Sidebar() {
+export default function Sidebar({ onCreateBehaviorNode }: SidebarProps) {
   const {
     addLabelFor,
     categoryModal,
@@ -59,6 +74,11 @@ export default function Sidebar() {
     actionTypeModalState,
   } = useSidebarManager();
 
+  const [isBtNodeWizardOpen, setBtNodeWizardOpen] = useState(false);
+  const flowOptions = FLOW_NODE_OPTIONS;
+  const decoratorOptions = DECORATOR_NODE_OPTIONS;
+  const serviceOptions = SERVICE_NODE_OPTIONS;
+
   const categoryModalTitle =
     categoryModal.mode === "add" ? "Add Section" : "Rename Section";
   const categoryModalHelper =
@@ -67,6 +87,18 @@ export default function Sidebar() {
       : undefined;
   const categoryModalSaveLabel =
     categoryModal.mode === "add" ? "Create Section" : "Save";
+
+  const openBtNodeWizard = () => {
+    setBtNodeWizardOpen(true);
+  };
+
+  const closeBtNodeWizard = () => {
+    setBtNodeWizardOpen(false);
+  };
+
+  const handleWizardSelectBehaviorOption = (option: BehaviorNodeOption) => {
+    onCreateBehaviorNode?.(option);
+  };
 
   return (
     <div className="sidebar">
@@ -80,6 +112,17 @@ export default function Sidebar() {
           + Add Section
         </button>
       </div>
+
+      <BtNodeWizardModal
+        isOpen={isBtNodeWizardOpen}
+        flowOptions={flowOptions}
+        decoratorOptions={decoratorOptions}
+        serviceOptions={serviceOptions}
+        onClose={closeBtNodeWizard}
+        onSelectActionType={() => openAddModal(ACTION_TYPES_KEY)}
+        onSelectActionInstance={() => openAddModal(ACTION_INSTANCES_KEY)}
+        onSelectBehaviorOption={handleWizardSelectBehaviorOption}
+      />
 
       <TypeDefinitionModal
         key={`${parameterTypeModalState.mode}-${
@@ -97,6 +140,11 @@ export default function Sidebar() {
         initialValue={parameterTypeModalState.initialValue}
         onClose={closeParameterTypeModal}
         onSave={handleSaveParameterType}
+        baseTypeLabel="Basic Type"
+        baseTypePlaceholder="Select basic type..."
+        propertyLabel="Parameter Properties"
+        propertyNamePlaceholder="parameter name"
+        propertyTypePlaceholder="Select basic type..."
       />
 
       <TypeDefinitionModal
@@ -119,9 +167,10 @@ export default function Sidebar() {
         namePlaceholder="e.g., is_reachable"
         baseTypeLabel="Predicate Base Type"
         baseTypePlaceholder="Select a base type..."
-        propertyLabel="Predicate Properties"
-        propertyNamePlaceholder="e.g., target_location"
-        propertyTypePlaceholder="e.g., string"
+        propertyLabel="Predicate Parameters"
+        propertyNamePlaceholder="predicate parameter name"
+        propertyTypePlaceholder="Select basic type..."
+        fixedBaseTypeValue="predicate"
       />
 
       <TypeDefinitionModal
@@ -144,9 +193,10 @@ export default function Sidebar() {
         namePlaceholder="e.g., pick_up"
         baseTypeLabel="Action Base Type"
         baseTypePlaceholder="Select a base type..."
-        propertyLabel="Action Properties"
-        propertyNamePlaceholder="e.g., required_tool"
-        propertyTypePlaceholder="e.g., Tool"
+        propertyLabel="Action Parameters"
+        propertyNamePlaceholder="action parameter name"
+        propertyTypePlaceholder="Select basic type..."
+        fixedBaseTypeValue="GenericBTAction"
       />
 
       <ParameterInstanceModal
@@ -245,6 +295,9 @@ export default function Sidebar() {
         const buttonLabel = addLabelFor(categoryKey);
         const searchQuery = searchQueries[categoryKey] ?? "";
         const items = getItemsForCategory(categoryKey);
+        const isBehaviorNodeCategory = categoryKey === BT_NODES_KEY;
+        const isActionCategory =
+          categoryKey === ACTION_TYPES_KEY || categoryKey === ACTION_INSTANCES_KEY;
 
         return (
           <SidebarSection
@@ -255,13 +308,27 @@ export default function Sidebar() {
             onEdit={() => openRenameCategoryModal(categoryKey)}
             onDelete={() => handleDeleteCategory(categoryKey)}
           >
-            <button
-              className="add-button"
-              onClick={() => openAddModal(categoryKey)}
-              type="button"
-            >
-              + {buttonLabel}
-            </button>
+            {isBehaviorNodeCategory ? (
+              <button
+                className="add-button"
+                onClick={openBtNodeWizard}
+                type="button"
+              >
+                + {buttonLabel}
+              </button>
+            ) : isActionCategory ? (
+              <div className="add-button-placeholder">
+                Use "Add Behavior Node" in the Behavior Tree Nodes section to create action nodes.
+              </div>
+            ) : (
+              <button
+                className="add-button"
+                onClick={() => openAddModal(categoryKey)}
+                type="button"
+              >
+                + {buttonLabel}
+              </button>
+            )}
             <div className="section-search">
               <input
                 type="search"

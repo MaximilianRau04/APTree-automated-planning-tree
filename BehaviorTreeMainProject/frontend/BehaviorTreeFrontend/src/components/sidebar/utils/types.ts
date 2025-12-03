@@ -163,15 +163,17 @@ export interface TypedInstanceModalProps<
   baseTypePrefixLabel?: string;
   enableNegationToggle?: boolean;
   negationLabel?: string;
+  validatePropertyValue?: (
+    value: string,
+    property: TypeProperty
+  ) => boolean;
+  propertyValidationHint?: string;
 }
 
-/** specialized props for the parameter instance modal. */
 export type ParameterInstanceModalProps = TypedInstanceModalProps<ParameterInstance>;
 
-/** specialized props for the predicate instance modal. */
 export type PredicateInstanceModalProps = TypedInstanceModalProps<PredicateInstance>;
 
-/** specialized props for the action instance modal. */
 export type ActionInstanceModalProps = TypedInstanceModalProps<ActionInstance>;
 
 /** props consumed by the type-definition modal component. */
@@ -192,6 +194,7 @@ export interface TypeDefinitionModalProps {
   propertyTypePlaceholder?: string;
   propertyHelperText?: string;
   baseTypeOptions?: string[];
+  fixedBaseTypeValue?: string;
 }
 
 /** public api returned by the useSidebarManager hook. */
@@ -262,3 +265,19 @@ export interface CategoryItemListProps {
   ) => void;
   onDelete: (category: DataCategory, index: number) => void;
 }
+
+export type BehaviorNodeKind = "flow" | "decorator" | "service";
+
+/** describes a selectable behavior-tree node template surfaced in the sidebar. */
+export interface BehaviorNodeOption {
+  id: string;
+  label: string;
+  typeLabel: string;
+  description?: string;
+  kind: BehaviorNodeKind;
+}
+
+/** convenience aliases for the specific node kinds. */
+export type FlowNodeOption = BehaviorNodeOption & { kind: "flow" };
+export type DecoratorNodeOption = BehaviorNodeOption & { kind: "decorator" };
+export type ServiceNodeOption = BehaviorNodeOption & { kind: "service" };

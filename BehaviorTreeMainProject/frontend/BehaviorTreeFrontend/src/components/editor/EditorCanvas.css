@@ -154,6 +154,39 @@
   letter-spacing: 0.08em;
 }
 
+.canvas-node-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.canvas-node-action-btn {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-panel-alt) 88%);
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.canvas-node-action-btn:hover {
+  background: color-mix(in srgb, var(--accent) 20%, var(--surface-panel-alt) 80%);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.canvas-node-action-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .canvas-node-parameterType {
   border-color: color-mix(in srgb, var(--accent) 85%, transparent);
   background: color-mix(in srgb, var(--accent-soft) 60%, var(--surface-panel) 40%);
@@ -179,4 +212,9 @@
 
 .canvas-node-actionInstance {
   border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.canvas-node-behaviorNode {
+  border-color: color-mix(in srgb, var(--accent) 65%, transparent);
+  background: color-mix(in srgb, var(--accent-soft) 45%, var(--surface-panel-alt) 55%);
 }
