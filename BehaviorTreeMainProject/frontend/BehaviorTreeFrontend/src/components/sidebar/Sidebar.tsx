@@ -5,7 +5,7 @@ import ParameterInstanceModal, {
   PredicateInstanceModal,
 } from "./modals/InstanceModal";
 import TypeDefinitionModal from "./modals/TypeDefinitionModal";
-import BtNodeWizardModal from "./modals/BtNodeWizardModal";
+import BtNodeWizardModal, { type WizardStage } from "./modals/BtNodeWizardModal";
 import "./Sidebar.css";
 import { CategoryItemList } from "./components/CategoryItemList";
 import SidebarSection from "./components/SidebarSection";
@@ -75,9 +75,17 @@ export default function Sidebar({ onCreateBehaviorNode }: SidebarProps) {
   } = useSidebarManager();
 
   const [isBtNodeWizardOpen, setBtNodeWizardOpen] = useState(false);
+  const [wizardHighlightStage, setWizardHighlightStage] = useState<WizardStage | null>(null);
   const flowOptions = FLOW_NODE_OPTIONS;
   const decoratorOptions = DECORATOR_NODE_OPTIONS;
   const serviceOptions = SERVICE_NODE_OPTIONS;
+
+  const buildStatefulModalKey = (
+    mode: "add" | "edit",
+    index: number | null,
+    id: string,
+    revision: number
+  ) => `${mode}-${index ?? "new"}-${id}-${revision}`;
 
   const categoryModalTitle =
     categoryModal.mode === "add" ? "Add Section" : "Rename Section";
@@ -88,11 +96,13 @@ export default function Sidebar({ onCreateBehaviorNode }: SidebarProps) {
   const categoryModalSaveLabel =
     categoryModal.mode === "add" ? "Create Section" : "Save";
 
-  const openBtNodeWizard = () => {
+  const openBtNodeWizard = (highlightStage: WizardStage | null = null) => {
+    setWizardHighlightStage(highlightStage === "root" ? null : highlightStage);
     setBtNodeWizardOpen(true);
   };
 
   const closeBtNodeWizard = () => {
+    setWizardHighlightStage(null);
     setBtNodeWizardOpen(false);
   };
 
@@ -122,14 +132,20 @@ export default function Sidebar({ onCreateBehaviorNode }: SidebarProps) {
         onSelectActionType={() => openAddModal(ACTION_TYPES_KEY)}
         onSelectActionInstance={() => openAddModal(ACTION_INSTANCES_KEY)}
         onSelectBehaviorOption={handleWizardSelectBehaviorOption}
+        emphasizedStage={
+          wizardHighlightStage && wizardHighlightStage !== "root"
+            ? wizardHighlightStage
+            : null
+        }
       />
 
       <TypeDefinitionModal
-        key={`${parameterTypeModalState.mode}-${
-          parameterTypeModalState.index ?? "new"
-        }-${parameterTypeModalState.initialValue.id}-${
+        key={buildStatefulModalKey(
+          parameterTypeModalState.mode,
+          parameterTypeModalState.index,
+          parameterTypeModalState.initialValue.id,
           parameterTypeModalState.revision
-        }`}
+        )}
         isOpen={parameterTypeModalState.isOpen}
         mode={parameterTypeModalState.mode}
         title={
@@ -148,11 +164,12 @@ export default function Sidebar({ onCreateBehaviorNode }: SidebarProps) {
       />
 
       <TypeDefinitionModal
-        key={`${predicateTypeModalState.mode}-${
-          predicateTypeModalState.index ?? "new"
-        }-${predicateTypeModalState.initialValue.id}-${
+        key={buildStatefulModalKey(
+          predicateTypeModalState.mode,
+          predicateTypeModalState.index,
+          predicateTypeModalState.initialValue.id,
           predicateTypeModalState.revision
-        }`}
+        )}
         isOpen={predicateTypeModalState.isOpen}
         mode={predicateTypeModalState.mode}
         title={
@@ -174,11 +191,12 @@ export default function Sidebar({ onCreateBehaviorNode }: SidebarProps) {
       />
 
       <TypeDefinitionModal
-        key={`${actionTypeModalState.mode}-${
-          actionTypeModalState.index ?? "new"
-        }-${actionTypeModalState.initialValue.id}-${
+        key={buildStatefulModalKey(
+          actionTypeModalState.mode,
+          actionTypeModalState.index,
+          actionTypeModalState.initialValue.id,
           actionTypeModalState.revision
-        }`}
+        )}
         isOpen={actionTypeModalState.isOpen}
         mode={actionTypeModalState.mode}
         title={
@@ -200,11 +218,12 @@ export default function Sidebar({ onCreateBehaviorNode }: SidebarProps) {
       />
 
       <ParameterInstanceModal
-        key={`${parameterInstanceModalState.mode}-${
-          parameterInstanceModalState.index ?? "new"
-        }-${parameterInstanceModalState.initialValue.id}-${
+        key={buildStatefulModalKey(
+          parameterInstanceModalState.mode,
+          parameterInstanceModalState.index,
+          parameterInstanceModalState.initialValue.id,
           parameterInstanceModalState.revision
-        }`}
+        )}
         isOpen={parameterInstanceModalState.isOpen}
         mode={parameterInstanceModalState.mode}
         title={
@@ -227,11 +246,12 @@ export default function Sidebar({ onCreateBehaviorNode }: SidebarProps) {
       />
 
       <PredicateInstanceModal
-        key={`${predicateInstanceModalState.mode}-${
-          predicateInstanceModalState.index ?? "new"
-        }-${predicateInstanceModalState.initialValue.id}-${
+        key={buildStatefulModalKey(
+          predicateInstanceModalState.mode,
+          predicateInstanceModalState.index,
+          predicateInstanceModalState.initialValue.id,
           predicateInstanceModalState.revision
-        }`}
+        )}
         isOpen={predicateInstanceModalState.isOpen}
         mode={predicateInstanceModalState.mode}
         title={
@@ -246,11 +266,12 @@ export default function Sidebar({ onCreateBehaviorNode }: SidebarProps) {
       />
 
       <ActionInstanceModal
-        key={`${actionInstanceModalState.mode}-${
-          actionInstanceModalState.index ?? "new"
-        }-${actionInstanceModalState.initialValue.id}-${
+        key={buildStatefulModalKey(
+          actionInstanceModalState.mode,
+          actionInstanceModalState.index,
+          actionInstanceModalState.initialValue.id,
           actionInstanceModalState.revision
-        }`}
+        )}
         isOpen={actionInstanceModalState.isOpen}
         mode={actionInstanceModalState.mode}
         title={
@@ -311,15 +332,19 @@ export default function Sidebar({ onCreateBehaviorNode }: SidebarProps) {
             {isBehaviorNodeCategory ? (
               <button
                 className="add-button"
-                onClick={openBtNodeWizard}
+                onClick={() => openBtNodeWizard(null)}
                 type="button"
               >
                 + {buttonLabel}
               </button>
             ) : isActionCategory ? (
-              <div className="add-button-placeholder">
-                Use "Add Behavior Node" in the Behavior Tree Nodes section to create action nodes.
-              </div>
+              <button
+                className="add-button"
+                onClick={() => openBtNodeWizard("action")}
+                type="button"
+              >
+                + Open BT Node Wizard
+              </button>
             ) : (
               <button
                 className="add-button"

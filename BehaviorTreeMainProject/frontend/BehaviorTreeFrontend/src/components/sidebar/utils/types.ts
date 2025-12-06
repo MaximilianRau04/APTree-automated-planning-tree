@@ -1,5 +1,15 @@
 import type { ReactNode } from "react";
 
+export const FLOW_SUCCESS_TYPES = [
+  "ALL",
+  "ANY",
+  "COUNT",
+  "PERCENTAGE",
+  "SIGNAL",
+] as const;
+
+export type FlowSuccessType = (typeof FLOW_SUCCESS_TYPES)[number];
+
 /** represents a base entity displayed within sidebar lists. */
 export interface StructuredItem {
   id: string;
@@ -71,6 +81,7 @@ export interface SectionProps {
   disableDelete?: boolean;
 }
 
+/** Props for the edit modal component. */
 export interface EditModalProps {
   isOpen: boolean;
   title: string;
@@ -275,6 +286,7 @@ export interface BehaviorNodeOption {
   typeLabel: string;
   description?: string;
   kind: BehaviorNodeKind;
+  defaultSuccessType?: FlowSuccessType;
 }
 
 /** convenience aliases for the specific node kinds. */

@@ -11,6 +11,7 @@ import {
   BEHAVIOR_NODE_OPTION_MAP,
   BT_NODES_KEY,
 } from "./components/sidebar/utils/constants";
+import { FLOW_SUCCESS_TYPES } from "./components/sidebar/utils/types";
 import type { BehaviorNodeOption } from "./components/sidebar/utils/types";
 
 type ThemeMode = "light" | "dark";
@@ -140,18 +141,55 @@ function App() {
     []
   );
 
+  /**
+   * handles removing a node from the editor canvas.
+   */
   const handleRemoveNode = useCallback((nodeId: string) => {
     setCanvasNodes((prev) => prev.filter((node) => node.id !== nodeId));
   }, []);
 
+  /**
+   * handles adding a precondition to an action node.
+   */
   const handleAddActionPrecondition = useCallback((nodeId: string) => {
     console.info("Add precondition for action node", nodeId);
   }, []);
 
+  /**
+   * handles adding an effect to an action node.
+   */
   const handleAddActionEffect = useCallback((nodeId: string) => {
     console.info("Add effect for action node", nodeId);
   }, []);
 
+  /**
+   * handles cycling the flow success type for a flow node.
+   */
+  const handleCycleFlowSuccessType = useCallback((nodeId: string) => {
+    setCanvasNodes((prev) =>
+      prev.map((node) => {
+        if (node.id !== nodeId || !node.successType) {
+          return node;
+        }
+
+        const currentIndex = Math.max(
+          0,
+          FLOW_SUCCESS_TYPES.indexOf(node.successType)
+        );
+        const nextType =
+          FLOW_SUCCESS_TYPES[(currentIndex + 1) % FLOW_SUCCESS_TYPES.length];
+
+        return {
+          ...node,
+          successType: nextType,
+        };
+      })
+    );
+  }, []);
+
+  /**
+   * handles creating a new behavior node on the canvas.
+   */
   const handleCreateBehaviorNode = useCallback((option: BehaviorNodeOption) => {
     setCanvasNodes((prev) => {
       const nextIndex = prev.length;
@@ -177,6 +215,7 @@ function App() {
             onRemoveNode={handleRemoveNode}
             onAddActionPrecondition={handleAddActionPrecondition}
             onAddActionEffect={handleAddActionEffect}
+            onCycleFlowSuccessType={handleCycleFlowSuccessType}
           />
         </div>
       </div>

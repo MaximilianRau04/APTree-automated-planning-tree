@@ -82,6 +82,7 @@
   transform: translate(calc(-50% + 0px), calc(-50% + 0px)) scale(1);
   cursor: grab;
   user-select: none;
+  overflow: visible;
   transition: border-color var(--transition-fast),
     box-shadow var(--transition-fast), transform var(--transition-fast),
     background var(--transition-fast);
@@ -101,6 +102,45 @@
   font-weight: 600;
   font-size: 0.95rem;
   overflow-wrap: anywhere;
+}
+
+.canvas-node-success {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translate(-50%, -150%);
+  padding: 4px 12px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid color-mix(in srgb, var(--accent) 65%, transparent);
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface-panel) 82%);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 6px 12px rgba(14, 165, 233, 0.18);
+  transition: background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.canvas-node-success:hover {
+  background: color-mix(in srgb, var(--accent) 28%, var(--surface-panel) 72%);
+  border-color: var(--accent);
+  box-shadow: 0 8px 18px rgba(14, 165, 233, 0.22);
+}
+
+.canvas-node-success:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.canvas-node-success[aria-hidden="true"] {
+  cursor: default;
+  box-shadow: none;
 }
 
 .canvas-node-remove {
@@ -137,6 +177,7 @@
   opacity: 1;
 }
 
+
 .canvas-node-meta {
   font-size: 0.85rem;
   color: var(--text-secondary);
@@ -154,20 +195,123 @@
   letter-spacing: 0.08em;
 }
 
+.canvas-node-state {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.canvas-node-state-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.canvas-node-state-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.canvas-node-state-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.canvas-node-state-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.canvas-node-state-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-panel-alt) 88%);
+}
+
+.canvas-node-state-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.canvas-node-state-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.canvas-node-state-meta {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.canvas-node-state-args {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.canvas-node-state-actions {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.canvas-node-state-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface-panel-alt) 82%);
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.canvas-node-state-btn:hover {
+  background: color-mix(in srgb, var(--accent) 25%, var(--surface-panel-alt) 75%);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.canvas-node-state-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.canvas-node-state-empty {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
 .canvas-node-actions {
   display: flex;
-  gap: 8px;
-  margin-top: 6px;
-  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
 }
 
 .canvas-node-action-btn {
-  padding: 6px 10px;
+  padding: 4px 10px;
   border-radius: var(--radius-sm);
   border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
   background: color-mix(in srgb, var(--accent) 12%, var(--surface-panel-alt) 88%);
   color: var(--accent);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
   transition: background var(--transition-fast),

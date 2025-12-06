@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type {
   BehaviorNodeOption,
   DecoratorNodeOption,
@@ -6,7 +6,9 @@ import type {
   ServiceNodeOption,
 } from "../utils/types";
 
-type WizardStage = "root" | "action" | "flow" | "decorator" | "service";
+export type WizardStage = "root" | "action" | "flow" | "decorator" | "service";
+
+type HighlightableStage = Exclude<WizardStage, "root">;
 
 interface BtNodeWizardModalProps {
   isOpen: boolean;
@@ -17,6 +19,7 @@ interface BtNodeWizardModalProps {
   onSelectActionType: () => void;
   onSelectActionInstance: () => void;
   onSelectBehaviorOption: (option: BehaviorNodeOption) => void;
+  emphasizedStage?: HighlightableStage | null;
 }
 
 export default function BtNodeWizardModal({
@@ -28,8 +31,16 @@ export default function BtNodeWizardModal({
   onSelectActionType,
   onSelectActionInstance,
   onSelectBehaviorOption,
+  emphasizedStage = null,
 }: BtNodeWizardModalProps) {
   const [stage, setStage] = useState<WizardStage>("root");
+
+  const highlightedStage = useMemo(() => {
+    if (!emphasizedStage || stage !== "root") {
+      return null;
+    }
+    return emphasizedStage;
+  }, [emphasizedStage, stage]);
 
   if (!isOpen) {
     return null;
@@ -53,9 +64,14 @@ export default function BtNodeWizardModal({
         <div className="wizard-body">
           {stage === "root" ? (
             <div className="wizard-step-grid">
+              {highlightedStage ? (
+                <p className="wizard-hint" role="status">
+                  Start by selecting the highlighted node category to continue.
+                </p>
+              ) : null}
               <button
                 type="button"
-                className="wizard-card"
+                className={`wizard-card${highlightedStage === "action" ? " wizard-card--highlighted" : ""}`}
                 onClick={() => setStage("action")}
               >
                 <span className="wizard-card-title">Action Node</span>
@@ -65,7 +81,7 @@ export default function BtNodeWizardModal({
               </button>
               <button
                 type="button"
-                className="wizard-card"
+                className={`wizard-card${highlightedStage === "flow" ? " wizard-card--highlighted" : ""}`}
                 onClick={() => setStage("flow")}
               >
                 <span className="wizard-card-title">Flow Node</span>
@@ -75,7 +91,7 @@ export default function BtNodeWizardModal({
               </button>
               <button
                 type="button"
-                className="wizard-card"
+                className={`wizard-card${highlightedStage === "decorator" ? " wizard-card--highlighted" : ""}`}
                 onClick={() => setStage("decorator")}
               >
                 <span className="wizard-card-title">Decorator Node</span>
@@ -85,7 +101,7 @@ export default function BtNodeWizardModal({
               </button>
               <button
                 type="button"
-                className="wizard-card"
+                className={`wizard-card${highlightedStage === "service" ? " wizard-card--highlighted" : ""}`}
                 onClick={() => setStage("service")}
               >
                 <span className="wizard-card-title">Service Node</span>

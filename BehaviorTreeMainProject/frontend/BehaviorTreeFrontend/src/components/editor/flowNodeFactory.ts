@@ -1,5 +1,6 @@
 import type { CanvasNode } from "./types";
 import type { BehaviorNodeOption } from "../sidebar/utils/types";
+import { FLOW_SUCCESS_TYPES } from "../sidebar/utils/types";
 import { createId } from "../../utils/id";
 import {
   DECORATOR_NODES_KEY,
@@ -7,12 +8,14 @@ import {
   SERVICE_NODES_KEY,
 } from "../sidebar/utils/constants";
 
+/** maps sidebar option kind to the target sidebar category stored on the node. */
 const categoryByKind = {
   flow: FLOW_NODES_KEY,
   decorator: DECORATOR_NODES_KEY,
   service: SERVICE_NODES_KEY,
 } as const;
 
+/** defines input data required to instantiate a behavior node on the canvas. */
 interface BehaviorNodeFactoryParams {
   option: BehaviorNodeOption;
   position?: { x: number; y: number };
@@ -26,6 +29,10 @@ export function createBehaviorNode({
   position = { x: 120, y: 120 },
 }: BehaviorNodeFactoryParams): CanvasNode {
   const category = categoryByKind[option.kind];
+  const successType =
+    option.kind === "flow"
+      ? option.defaultSuccessType ?? FLOW_SUCCESS_TYPES[0]
+      : undefined;
 
   return {
     id: createId("bt-node"),
@@ -36,5 +43,6 @@ export function createBehaviorNode({
     kind: "behaviorNode",
     x: position.x,
     y: position.y,
+    successType,
   };
 }

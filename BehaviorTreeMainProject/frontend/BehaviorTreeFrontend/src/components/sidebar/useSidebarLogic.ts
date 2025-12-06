@@ -272,6 +272,21 @@ export const useSidebarManager = (): SidebarManager => {
    *
    * @param category The category for which to add a new item.
    */
+  const openInstanceModalWithDefault = <TType, TInstance>(
+    definitions: TType[],
+    createEmpty: (type?: TType) => TInstance,
+    openModal: (initialValue?: TInstance) => void,
+    emptyMessage: string
+  ) => {
+    if (definitions.length === 0) {
+      window.alert(emptyMessage);
+      return;
+    }
+
+    const defaultDefinition = definitions[0];
+    openModal(createEmpty(defaultDefinition));
+  };
+
   const openAddModal = (category: DataCategory) => {
     if (category === PARAM_TYPES_KEY) {
       parameterTypeModal.openAdd();
@@ -289,39 +304,32 @@ export const useSidebarManager = (): SidebarManager => {
     }
 
     if (category === PARAM_INSTANCES_KEY) {
-      if (parameterTypes.length === 0) {
-        window.alert("Create a parameter type before adding instances.");
-        return;
-      }
-
-      const defaultType = parameterTypes[0];
-      parameterInstanceModal.openAdd(
-        createEmptyParameterInstance(defaultType)
+      openInstanceModalWithDefault(
+        parameterTypes,
+        createEmptyParameterInstance,
+        parameterInstanceModal.openAdd,
+        "Create a parameter type before adding instances."
       );
       return;
     }
 
     if (category === PREDICATE_INSTANCES_KEY) {
-      if (predicateTypes.length === 0) {
-        window.alert("Create a predicate type before adding instances.");
-        return;
-      }
-
-      const defaultType = predicateTypes[0];
-      predicateInstanceModal.openAdd(
-        createEmptyPredicateInstance(defaultType)
+      openInstanceModalWithDefault(
+        predicateTypes,
+        createEmptyPredicateInstance,
+        predicateInstanceModal.openAdd,
+        "Create a predicate type before adding instances."
       );
       return;
     }
 
     if (category === ACTION_INSTANCES_KEY) {
-      if (actionTypes.length === 0) {
-        window.alert("Create an action type before adding instances.");
-        return;
-      }
-
-      const defaultType = actionTypes[0];
-      actionInstanceModal.openAdd(createEmptyActionInstance(defaultType));
+      openInstanceModalWithDefault(
+        actionTypes,
+        createEmptyActionInstance,
+        actionInstanceModal.openAdd,
+        "Create an action type before adding instances."
+      );
       return;
     }
 
@@ -914,83 +922,81 @@ export const useSidebarManager = (): SidebarManager => {
       return nextData;
     });
 
-    if (
-      category === PARAM_INSTANCES_KEY &&
-      parameterInstanceModalState.isOpen &&
-      parameterInstanceModalState.index === index
-    ) {
-      closeParameterInstanceModal();
-    }
+    const closeModalEditingIndex = (
+      targetCategory: DataCategory,
+      modalState: { isOpen: boolean; index: number | null },
+      close: () => void
+    ) => {
+      if (category === targetCategory && modalState.isOpen && modalState.index === index) {
+        close();
+      }
+    };
 
-    if (
-      category === PREDICATE_INSTANCES_KEY &&
-      predicateInstanceModalState.isOpen &&
-      predicateInstanceModalState.index === index
-    ) {
-      closePredicateInstanceModal();
-    }
+    const closeInstanceModalIfOrphaned = (
+      typeCategory: DataCategory,
+      removedType: StructuredItem | undefined,
+      modalState: { isOpen: boolean; initialValue: { typeId: string } },
+      close: () => void
+    ) => {
+      if (
+        category === typeCategory &&
+        removedType &&
+        modalState.isOpen &&
+        modalState.initialValue.typeId === removedType.id
+      ) {
+        close();
+      }
+    };
 
-    if (
-      category === ACTION_INSTANCES_KEY &&
-      actionInstanceModalState.isOpen &&
-      actionInstanceModalState.index === index
-    ) {
-      closeActionInstanceModal();
-    }
+    closeModalEditingIndex(
+      PARAM_INSTANCES_KEY,
+      parameterInstanceModalState,
+      closeParameterInstanceModal
+    );
+    closeModalEditingIndex(
+      PREDICATE_INSTANCES_KEY,
+      predicateInstanceModalState,
+      closePredicateInstanceModal
+    );
+    closeModalEditingIndex(
+      ACTION_INSTANCES_KEY,
+      actionInstanceModalState,
+      closeActionInstanceModal
+    );
+    closeModalEditingIndex(
+      PARAM_TYPES_KEY,
+      parameterTypeModalState,
+      closeParameterTypeModal
+    );
+    closeModalEditingIndex(
+      PREDICATE_TYPES_KEY,
+      predicateTypeModalState,
+      closePredicateTypeModal
+    );
+    closeModalEditingIndex(
+      ACTION_TYPES_KEY,
+      actionTypeModalState,
+      closeActionTypeModal
+    );
 
-    if (
-      category === PARAM_TYPES_KEY &&
-      parameterTypeModalState.isOpen &&
-      parameterTypeModalState.index === index
-    ) {
-      closeParameterTypeModal();
-    }
-
-    if (
-      category === PREDICATE_TYPES_KEY &&
-      predicateTypeModalState.isOpen &&
-      predicateTypeModalState.index === index
-    ) {
-      closePredicateTypeModal();
-    }
-
-    if (
-      category === ACTION_TYPES_KEY &&
-      actionTypeModalState.isOpen &&
-      actionTypeModalState.index === index
-    ) {
-      closeActionTypeModal();
-    }
-
-    if (
-      category === PARAM_TYPES_KEY &&
-      removedEntry &&
-      parameterInstanceModalState.isOpen &&
-      parameterInstanceModalState.initialValue.typeId ===
-        (removedEntry as ParameterType).id
-    ) {
-      closeParameterInstanceModal();
-    }
-
-    if (
-      category === PREDICATE_TYPES_KEY &&
-      removedEntry &&
-      predicateInstanceModalState.isOpen &&
-      predicateInstanceModalState.initialValue.typeId ===
-        (removedEntry as PredicateType).id
-    ) {
-      closePredicateInstanceModal();
-    }
-
-    if (
-      category === ACTION_TYPES_KEY &&
-      removedEntry &&
-      actionInstanceModalState.isOpen &&
-      actionInstanceModalState.initialValue.typeId ===
-        (removedEntry as ActionType).id
-    ) {
-      closeActionInstanceModal();
-    }
+    closeInstanceModalIfOrphaned(
+      PARAM_TYPES_KEY,
+      removedEntry,
+      parameterInstanceModalState,
+      closeParameterInstanceModal
+    );
+    closeInstanceModalIfOrphaned(
+      PREDICATE_TYPES_KEY,
+      removedEntry,
+      predicateInstanceModalState,
+      closePredicateInstanceModal
+    );
+    closeInstanceModalIfOrphaned(
+      ACTION_TYPES_KEY,
+      removedEntry,
+      actionInstanceModalState,
+      closeActionInstanceModal
+    );
   };
 
   /**

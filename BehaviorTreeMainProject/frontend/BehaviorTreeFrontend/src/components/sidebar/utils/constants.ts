@@ -17,6 +17,7 @@ export const FLOW_NODE_OPTIONS: FlowNodeOption[] = [
     description:
       "Execute children in order and fail on the first child that fails.",
     kind: "flow",
+    defaultSuccessType: "ALL",
   },
   {
     id: "selector",
@@ -25,6 +26,7 @@ export const FLOW_NODE_OPTIONS: FlowNodeOption[] = [
     description:
       "Pick the first child that succeeds, falling back to the next on failure.",
     kind: "flow",
+    defaultSuccessType: "ANY",
   },
   {
     id: "parallel",
@@ -32,6 +34,7 @@ export const FLOW_NODE_OPTIONS: FlowNodeOption[] = [
     typeLabel: "Flow Node",
     description: "Run all children simultaneously and gather their results.",
     kind: "flow",
+    defaultSuccessType: "ALL",
   },
 ];
 

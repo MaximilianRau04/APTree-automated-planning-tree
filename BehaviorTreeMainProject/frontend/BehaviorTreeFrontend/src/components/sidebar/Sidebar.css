@@ -15,6 +15,10 @@
 }
 
 .sidebar-title {
+  .wizard-card--highlighted {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-sm);
+  }
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -72,6 +76,7 @@
 
 .wizard-step-grid {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
 }
 
@@ -87,16 +92,28 @@
   cursor: pointer;
   gap: 8px;
   transition: border-color var(--transition-fast),
-    background var(--transition-fast),
-    transform var(--transition-fast),
+    background var(--transition-fast), transform var(--transition-fast),
     box-shadow var(--transition-fast);
 }
 
-.wizard-card:hover {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent-soft) 60%, var(--surface-panel) 40%);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
+.wizard-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background-color: #f1f8ff;
+  color: #0a3069;
+  font-size: 0.9rem;
+  .wizard-card:hover {
+    border-color: var(--accent);
+    background: color-mix(
+      in srgb,
+      var(--accent-soft) 60%,
+      var(--surface-panel) 40%
+    );
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+  }
 }
 
 .wizard-card:focus-visible {
@@ -141,7 +158,8 @@
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
-  transition: background var(--transition-fast), border-color var(--transition-fast);
+  transition: background var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .btn-secondary:hover {
@@ -152,16 +170,6 @@
 .btn-secondary:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-}
-
-.add-button-placeholder {
-  margin-bottom: 12px;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  border: 1px dashed var(--border-subtle);
-  background: var(--surface-panel-alt);
-  color: var(--text-muted);
-  font-size: 0.85rem;
 }
 
 /* Collapsible sections */
