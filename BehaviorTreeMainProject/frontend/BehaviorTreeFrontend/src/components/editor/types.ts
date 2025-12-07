@@ -23,9 +23,19 @@ export interface CanvasNode {
   effects?: PredicateInstance[];
 }
 
+/** represents a connection between two nodes. */
+export interface NodeConnection {
+  id: string;
+  sourceNodeId: string;
+  targetNodeId: string;
+  sourcePort?: 'top' | 'right' | 'bottom' | 'left';
+  targetPort?: 'top' | 'right' | 'bottom' | 'left';
+}
+
 /** contract for the editor canvas so the parent app can control interactions. */
 export interface EditorCanvasProps {
   nodes: CanvasNode[];
+  connections?: NodeConnection[];
   onDropNode: (
     item: DraggedSidebarItem,
     position: { x: number; y: number }
@@ -35,6 +45,13 @@ export interface EditorCanvasProps {
     position: { x: number; y: number }
   ) => void;
   onRemoveNode?: (nodeId: string) => void;
+  onAddConnection?: (
+    sourceNodeId: string,
+    targetNodeId: string,
+    sourcePort: 'top' | 'right' | 'bottom' | 'left',
+    targetPort: 'top' | 'right' | 'bottom' | 'left'
+  ) => void;
+  onRemoveConnection?: (connectionId: string) => void;
   onAddActionPrecondition?: (nodeId: string) => void;
   onAddActionEffect?: (nodeId: string) => void;
   onCycleFlowSuccessType?: (nodeId: string) => void;

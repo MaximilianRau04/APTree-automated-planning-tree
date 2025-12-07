@@ -3,7 +3,7 @@ import "./App.css";
 import Header from "./components/header/Header.tsx";
 import Sidebar from "./components/sidebar/Sidebar.tsx";
 import EditorCanvas from "./components/editor/EditorCanvas.tsx";
-import type { CanvasNode } from "./components/editor/types";
+import type { CanvasNode, NodeConnection } from "./components/editor/types";
 import type { DraggedSidebarItem } from "./components/editor/dragTypes";
 import { createId } from "./utils/id";
 import { createBehaviorNode } from "./components/editor/flowNodeFactory";
@@ -45,6 +45,7 @@ function App() {
     return savedTheme === "light" || savedTheme === "dark";
   });
   const [canvasNodes, setCanvasNodes] = useState<CanvasNode[]>([]);
+  const [connections, setConnections] = useState<NodeConnection[]>([]);
 
   /**
    * applies the current theme to the document root and persists the preference.
@@ -146,6 +147,55 @@ function App() {
    */
   const handleRemoveNode = useCallback((nodeId: string) => {
     setCanvasNodes((prev) => prev.filter((node) => node.id !== nodeId));
+    // Also remove all connections involving this node
+    setConnections((prev) => 
+      prev.filter(
+        (conn) => conn.sourceNodeId !== nodeId && conn.targetNodeId !== nodeId
+      )
+    );
+  }, []);
+
+  /**
+   * handles adding a connection between two nodes.
+   */
+  const handleAddConnection = useCallback((
+    sourceNodeId: string,
+    targetNodeId: string,
+    sourcePort: 'top' | 'right' | 'bottom' | 'left',
+    targetPort: 'top' | 'right' | 'bottom' | 'left'
+  ) => {
+    // Check if connection already exists
+    setConnections((prev) => {
+      const exists = prev.some(
+        (conn) =>
+          conn.sourceNodeId === sourceNodeId && 
+          conn.targetNodeId === targetNodeId &&
+          conn.sourcePort === sourcePort &&
+          conn.targetPort === targetPort
+      );
+      
+      if (exists) {
+        return prev;
+      }
+
+      return [
+        ...prev,
+        {
+          id: createId("connection"),
+          sourceNodeId,
+          targetNodeId,
+          sourcePort,
+          targetPort,
+        },
+      ];
+    });
+  }, []);
+
+  /**
+   * handles removing a connection between nodes.
+   */
+  const handleRemoveConnection = useCallback((connectionId: string) => {
+    setConnections((prev) => prev.filter((conn) => conn.id !== connectionId));
   }, []);
 
   /**
@@ -210,9 +260,12 @@ function App() {
         <div className="editor" role="main">
           <EditorCanvas
             nodes={canvasNodes}
+            connections={connections}
             onDropNode={handleDropOnCanvas}
             onMoveNode={handleMoveNode}
             onRemoveNode={handleRemoveNode}
+            onAddConnection={handleAddConnection}
+            onRemoveConnection={handleRemoveConnection}
             onAddActionPrecondition={handleAddActionPrecondition}
             onAddActionEffect={handleAddActionEffect}
             onCycleFlowSuccessType={handleCycleFlowSuccessType}

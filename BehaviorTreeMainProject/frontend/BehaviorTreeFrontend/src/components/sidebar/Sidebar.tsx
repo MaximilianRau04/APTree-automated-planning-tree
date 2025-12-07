@@ -310,7 +310,7 @@ export default function Sidebar({ onCreateBehaviorNode }: SidebarProps) {
         saveLabel={categoryModalSaveLabel}
       />
 
-      {categoryOrder.map((categoryKey, index) => {
+      {categoryOrder.map((categoryKey) => {
         const displayTitle = categoryTitles[categoryKey] ?? categoryKey;
         const iconLabel = displayTitle.charAt(0).toUpperCase();
         const buttonLabel = addLabelFor(categoryKey);
@@ -324,7 +324,7 @@ export default function Sidebar({ onCreateBehaviorNode }: SidebarProps) {
           <SidebarSection
             key={categoryKey}
             title={displayTitle}
-            isOpen={index === 0}
+            isOpen={false}
             iconLabel={iconLabel}
             onEdit={() => openRenameCategoryModal(categoryKey)}
             onDelete={() => handleDeleteCategory(categoryKey)}

@@ -362,3 +362,170 @@
   border-color: color-mix(in srgb, var(--accent) 65%, transparent);
   background: color-mix(in srgb, var(--accent-soft) 45%, var(--surface-panel-alt) 55%);
 }
+
+/* Connection Ports */
+.canvas-node-port {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: var(--surface-panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: crosshair;
+  opacity: 0;
+  transition: opacity var(--transition-fast), 
+    transform var(--transition-fast),
+    background var(--transition-fast),
+    box-shadow var(--transition-fast),
+    border-color var(--transition-fast);
+  z-index: 10;
+}
+
+.canvas-node:hover .canvas-node-port {
+  opacity: 0.7;
+}
+
+.canvas-node-port:hover,
+.canvas-node-port.is-hovered {
+  opacity: 1;
+  background: var(--accent);
+  transform: scale(1.4);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 30%, transparent);
+  border-color: white;
+}
+
+.canvas-node-port:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.canvas-node-port-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  transition: background var(--transition-fast);
+}
+
+.canvas-node-port:hover .canvas-node-port-dot,
+.canvas-node-port.is-hovered .canvas-node-port-dot {
+  background: white;
+}
+
+/* Port positions at four edges */
+.canvas-node-port-top {
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.canvas-node-port-top:hover,
+.canvas-node-port-top.is-hovered {
+  transform: translateX(-50%) scale(1.4);
+}
+
+.canvas-node-port-right {
+  top: 50%;
+  right: -8px;
+  transform: translateY(-50%);
+}
+
+.canvas-node-port-right:hover,
+.canvas-node-port-right.is-hovered {
+  transform: translateY(-50%) scale(1.4);
+}
+
+.canvas-node-port-bottom {
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.canvas-node-port-bottom:hover,
+.canvas-node-port-bottom.is-hovered {
+  transform: translateX(-50%) scale(1.4);
+}
+
+.canvas-node-port-left {
+  top: 50%;
+  left: -8px;
+  transform: translateY(-50%);
+}
+
+.canvas-node-port-left:hover,
+.canvas-node-port-left.is-hovered {
+  transform: translateY(-50%) scale(1.4);
+}
+
+/* Connections Layer */
+.canvas-connections-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.canvas-connection {
+  stroke: white;
+  stroke-width: 2;
+  fill: none;
+  opacity: 0.8;
+  transition: opacity var(--transition-fast), stroke-width var(--transition-fast);
+}
+
+.canvas-connection:hover {
+  opacity: 1;
+  stroke-width: 3;
+}
+
+.canvas-connection.is-temp {
+  stroke: white;
+  stroke-width: 2;
+  stroke-dasharray: 8 4;
+  opacity: 0.6;
+  animation: connection-dash 0.5s linear infinite;
+}
+
+.canvas-connection-arrow {
+  fill: white;
+  opacity: 0.8;
+  transition: opacity var(--transition-fast);
+}
+
+.canvas-connection-arrow.is-temp {
+  fill: white;
+  opacity: 0.6;
+}
+
+.canvas-connection:hover ~ .canvas-connection-arrow {
+  opacity: 1;
+}
+
+@keyframes connection-dash {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+
+.canvas-connection-remove {
+  fill: var(--danger, #f44336);
+  font-size: 24px;
+  font-weight: bold;
+  opacity: 0.7;
+  cursor: pointer;
+  pointer-events: all;
+  transition: opacity var(--transition-fast);
+  user-select: none;
+}
+
+.canvas-connection-remove:hover {
+  opacity: 1;
+}
+

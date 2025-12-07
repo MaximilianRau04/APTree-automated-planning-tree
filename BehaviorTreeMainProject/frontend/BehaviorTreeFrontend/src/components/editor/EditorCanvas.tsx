@@ -56,9 +56,12 @@ function isActionNode(node: CanvasNode) {
  */
 export default function EditorCanvas({
   nodes,
+  connections = [],
   onDropNode,
   onMoveNode,
   onRemoveNode,
+  onAddConnection,
+  onRemoveConnection,
   onAddActionPrecondition,
   onAddActionEffect,
   onCycleFlowSuccessType,
@@ -67,6 +70,9 @@ export default function EditorCanvas({
   predicateTypes,
 }: EditorCanvasProps) {
   const [isActive, setIsActive] = useState(false);
+  const [connectingFrom, setConnectingFrom] = useState<{ nodeId: string; port: 'top' | 'right' | 'bottom' | 'left' } | null>(null);
+  const [tempConnectionEnd, setTempConnectionEnd] = useState<{ x: number; y: number } | null>(null);
+  const [hoveredPort, setHoveredPort] = useState<{ nodeId: string; port: 'top' | 'right' | 'bottom' | 'left' } | null>(null);
   const dragOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
   const nodeRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -239,6 +245,160 @@ export default function EditorCanvas({
     }
   }, []);
 
+  /**
+   * calculates the port position for a given node and port side.
+   */
+  const getPortPosition = useCallback((nodeId: string, port: 'top' | 'right' | 'bottom' | 'left'): { x: number; y: number } | null => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) {
+      return null;
+    }
+
+    // Minimal offsets - arrows directly at node edge
+    const horizontalOffset = 90; // Distance to left/right edge
+    const verticalOffset = 58; // Distance to top/bottom edge
+    
+    switch (port) {
+      case 'top':
+        return { x: node.x, y: node.y - verticalOffset };
+      case 'right':
+        return { x: node.x + horizontalOffset, y: node.y };
+      case 'bottom':
+        return { x: node.x, y: node.y + verticalOffset };
+      case 'left':
+        return { x: node.x - horizontalOffset, y: node.y };
+    }
+  }, [nodes]);
+
+  /**
+   * handles starting a connection from a node's port.
+   */
+  const handlePortMouseDown = useCallback((nodeId: string, port: 'top' | 'right' | 'bottom' | 'left', event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    event.preventDefault();
+    setConnectingFrom({ nodeId, port });
+  }, []);
+
+  /**
+   * handles mouse entering a port for snap effect.
+   */
+  const handlePortMouseEnter = useCallback((nodeId: string, port: 'top' | 'right' | 'bottom' | 'left') => {
+    if (connectingFrom) {
+      setHoveredPort({ nodeId, port });
+    }
+  }, [connectingFrom]);
+
+  /**
+   * handles mouse leaving a port.
+   */
+  const handlePortMouseLeave = useCallback(() => {
+    setHoveredPort(null);
+  }, []);
+
+  /**
+   * handles mouse movement during connection creation.
+   */
+  const handleCanvasMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (connectingFrom && canvasRef.current) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      
+      // Snap to hovered port if available
+      if (hoveredPort) {
+        const portPos = getPortPosition(hoveredPort.nodeId, hoveredPort.port);
+        if (portPos) {
+          setTempConnectionEnd(portPos);
+          return;
+        }
+      }
+      
+      setTempConnectionEnd({
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      });
+    }
+  }, [connectingFrom, hoveredPort, getPortPosition]);
+
+  /**
+   * handles mouse up to complete or cancel connection.
+   */
+  const handleCanvasMouseUp = useCallback(() => {
+    if (connectingFrom && hoveredPort && onAddConnection) {
+      // Complete connection if dropped on a valid port
+      if (connectingFrom.nodeId !== hoveredPort.nodeId) {
+        onAddConnection(
+          connectingFrom.nodeId,
+          hoveredPort.nodeId,
+          connectingFrom.port,
+          hoveredPort.port
+        );
+      }
+    }
+    
+    setConnectingFrom(null);
+    setTempConnectionEnd(null);
+    setHoveredPort(null);
+  }, [connectingFrom, hoveredPort, onAddConnection]);
+
+  /**
+   * renders a straight arrow between two points.
+   */
+  const renderConnection = (
+    start: { x: number; y: number },
+    end: { x: number; y: number },
+    id?: string,
+    isTemp = false
+  ) => {
+    // Calculate angle for arrowhead
+    const angle = Math.atan2(end.y - start.y, end.x - start.x);
+    const arrowSize = 10;
+    
+    // Arrowhead points
+    const arrowPoint1 = {
+      x: end.x - arrowSize * Math.cos(angle - Math.PI / 6),
+      y: end.y - arrowSize * Math.sin(angle - Math.PI / 6),
+    };
+    const arrowPoint2 = {
+      x: end.x - arrowSize * Math.cos(angle + Math.PI / 6),
+      y: end.y - arrowSize * Math.sin(angle + Math.PI / 6),
+    };
+
+    return (
+      <g key={id || "temp"}>
+        {/* Main line */}
+        <line
+          x1={start.x}
+          y1={start.y}
+          x2={end.x}
+          y2={end.y}
+          className={`canvas-connection${isTemp ? " is-temp" : ""}`}
+          strokeWidth="2"
+        />
+        {/* Arrowhead */}
+        <polygon
+          points={`${end.x},${end.y} ${arrowPoint1.x},${arrowPoint1.y} ${arrowPoint2.x},${arrowPoint2.y}`}
+          className={`canvas-connection-arrow${isTemp ? " is-temp" : ""}`}
+        />
+        {/* Delete button */}
+        {!isTemp && onRemoveConnection && id && (
+          <text
+            x={(start.x + end.x) / 2}
+            y={(start.y + end.y) / 2}
+            className="canvas-connection-remove"
+            textAnchor="middle"
+            dominantBaseline="central"
+            style={{ cursor: 'pointer', pointerEvents: 'all' }}
+            onClick={(event) => {
+              event.stopPropagation();
+              onRemoveConnection(id);
+            }}
+          >
+            ×
+          </text>
+        )}
+      </g>
+    );
+  };
+
   return (
     <div
       ref={canvasRef}
@@ -247,8 +407,37 @@ export default function EditorCanvas({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      onMouseMove={handleCanvasMouseMove}
+      onMouseUp={handleCanvasMouseUp}
       role="presentation"
     >
+      {/* SVG layer for connections */}
+      <svg className="canvas-connections-layer">
+        {/* Render existing connections */}
+        {connections.map((connection) => {
+          // Use stored port information, fallback to right/left
+          const sourcePort = connection.sourcePort || 'right';
+          const targetPort = connection.targetPort || 'left';
+          const start = getPortPosition(connection.sourceNodeId, sourcePort);
+          const end = getPortPosition(connection.targetNodeId, targetPort);
+          
+          if (!start || !end) {
+            return null;
+          }
+
+          return renderConnection(start, end, connection.id);
+        })}
+
+        {/* Render temporary connection being drawn */}
+        {connectingFrom && tempConnectionEnd && (() => {
+          const start = getPortPosition(connectingFrom.nodeId, connectingFrom.port);
+          if (!start) {
+            return null;
+          }
+          return renderConnection(start, tempConnectionEnd, undefined, true);
+        })()}
+      </svg>
+
       {nodes.length === 0
         ? null
         : nodes.map((node) => {
@@ -368,6 +557,66 @@ export default function EditorCanvas({
                     NOT
                   </span>
                 ) : null}
+
+                {onAddConnection && (
+                  <>
+                    <button
+                      type="button"
+                      className={`canvas-node-port canvas-node-port-top${
+                        hoveredPort?.nodeId === node.id && hoveredPort?.port === 'top' ? ' is-hovered' : ''
+                      }`}
+                      onMouseDown={(event) => handlePortMouseDown(node.id, 'top', event)}
+                      onMouseEnter={() => handlePortMouseEnter(node.id, 'top')}
+                      onMouseLeave={handlePortMouseLeave}
+                      title="Connection port"
+                      aria-label="Top connection port"
+                    >
+                      <span className="canvas-node-port-dot" />
+                    </button>
+                    {/* Right port */}
+                    <button
+                      type="button"
+                      className={`canvas-node-port canvas-node-port-right${
+                        hoveredPort?.nodeId === node.id && hoveredPort?.port === 'right' ? ' is-hovered' : ''
+                      }`}
+                      onMouseDown={(event) => handlePortMouseDown(node.id, 'right', event)}
+                      onMouseEnter={() => handlePortMouseEnter(node.id, 'right')}
+                      onMouseLeave={handlePortMouseLeave}
+                      title="Connection port"
+                      aria-label="Right connection port"
+                    >
+                      <span className="canvas-node-port-dot" />
+                    </button>
+                    {/* Bottom port */}
+                    <button
+                      type="button"
+                      className={`canvas-node-port canvas-node-port-bottom${
+                        hoveredPort?.nodeId === node.id && hoveredPort?.port === 'bottom' ? ' is-hovered' : ''
+                      }`}
+                      onMouseDown={(event) => handlePortMouseDown(node.id, 'bottom', event)}
+                      onMouseEnter={() => handlePortMouseEnter(node.id, 'bottom')}
+                      onMouseLeave={handlePortMouseLeave}
+                      title="Connection port"
+                      aria-label="Bottom connection port"
+                    >
+                      <span className="canvas-node-port-dot" />
+                    </button>
+                    {/* Left port */}
+                    <button
+                      type="button"
+                      className={`canvas-node-port canvas-node-port-left${
+                        hoveredPort?.nodeId === node.id && hoveredPort?.port === 'left' ? ' is-hovered' : ''
+                      }`}
+                      onMouseDown={(event) => handlePortMouseDown(node.id, 'left', event)}
+                      onMouseEnter={() => handlePortMouseEnter(node.id, 'left')}
+                      onMouseLeave={handlePortMouseLeave}
+                      title="Connection port"
+                      aria-label="Left connection port"
+                    >
+                      <span className="canvas-node-port-dot" />
+                    </button>
+                  </>
+                )}
 
                 {isActionNode(node) ? (
                   <div className="canvas-node-state">
