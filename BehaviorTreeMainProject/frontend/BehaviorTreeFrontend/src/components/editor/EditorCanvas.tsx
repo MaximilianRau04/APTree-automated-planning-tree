@@ -12,6 +12,28 @@ import type {
   PredicateType,
 } from "../sidebar/utils/types";
 
+/** enumerates the sides on which connection ports can appear. */
+type PortSide = "top" | "right" | "bottom" | "left";
+
+/**
+ * declarative metadata for connection ports so rendering logic can stay compact.
+ * tweaking the offsets or accessibility labels in one place updates all ports.
+ */
+type PortMetadata = { label: string; className: string };
+
+const PORT_METADATA: Record<PortSide, PortMetadata> = {
+  top: { label: "Top connection port", className: "canvas-node-port-top" },
+  right: { label: "Right connection port", className: "canvas-node-port-right" },
+  bottom: { label: "Bottom connection port", className: "canvas-node-port-bottom" },
+  left: { label: "Left connection port", className: "canvas-node-port-left" },
+};
+
+/** centralized offsets so arrows terminate exactly at the node edges. */
+const PORT_OFFSETS = {
+  horizontal: 90,
+  vertical: 58,
+} as const;
+
 /**
  * builds a lookup table so predicate instances can resolve their type metadata quickly.
  */
@@ -70,9 +92,9 @@ export default function EditorCanvas({
   predicateTypes,
 }: EditorCanvasProps) {
   const [isActive, setIsActive] = useState(false);
-  const [connectingFrom, setConnectingFrom] = useState<{ nodeId: string; port: 'top' | 'right' | 'bottom' | 'left' } | null>(null);
+  const [connectingFrom, setConnectingFrom] = useState<{ nodeId: string; port: PortSide } | null>(null);
   const [tempConnectionEnd, setTempConnectionEnd] = useState<{ x: number; y: number } | null>(null);
-  const [hoveredPort, setHoveredPort] = useState<{ nodeId: string; port: 'top' | 'right' | 'bottom' | 'left' } | null>(null);
+  const [hoveredPort, setHoveredPort] = useState<{ nodeId: string; port: PortSide } | null>(null);
   const dragOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
   const nodeRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -237,6 +259,9 @@ export default function EditorCanvas({
     }
   };
 
+  /**
+   * stores a reference to a node element for position calculations.
+   */
   const setNodeRef = useCallback((nodeId: string, element: HTMLDivElement | null) => {
     if (element) {
       nodeRefs.current.set(nodeId, element);
@@ -248,32 +273,30 @@ export default function EditorCanvas({
   /**
    * calculates the port position for a given node and port side.
    */
-  const getPortPosition = useCallback((nodeId: string, port: 'top' | 'right' | 'bottom' | 'left'): { x: number; y: number } | null => {
+  const getPortPosition = useCallback((nodeId: string, port: PortSide): { x: number; y: number } | null => {
     const node = nodes.find(n => n.id === nodeId);
     if (!node) {
       return null;
     }
 
-    // Minimal offsets - arrows directly at node edge
-    const horizontalOffset = 90; // Distance to left/right edge
-    const verticalOffset = 58; // Distance to top/bottom edge
-    
+    const { horizontal, vertical } = PORT_OFFSETS;
+
     switch (port) {
       case 'top':
-        return { x: node.x, y: node.y - verticalOffset };
+        return { x: node.x, y: node.y - vertical };
       case 'right':
-        return { x: node.x + horizontalOffset, y: node.y };
+        return { x: node.x + horizontal, y: node.y };
       case 'bottom':
-        return { x: node.x, y: node.y + verticalOffset };
+        return { x: node.x, y: node.y + vertical };
       case 'left':
-        return { x: node.x - horizontalOffset, y: node.y };
+        return { x: node.x - horizontal, y: node.y };
     }
   }, [nodes]);
 
   /**
    * handles starting a connection from a node's port.
    */
-  const handlePortMouseDown = useCallback((nodeId: string, port: 'top' | 'right' | 'bottom' | 'left', event: MouseEvent<HTMLButtonElement>) => {
+  const handlePortMouseDown = useCallback((nodeId: string, port: PortSide, event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     event.preventDefault();
     setConnectingFrom({ nodeId, port });
@@ -282,7 +305,7 @@ export default function EditorCanvas({
   /**
    * handles mouse entering a port for snap effect.
    */
-  const handlePortMouseEnter = useCallback((nodeId: string, port: 'top' | 'right' | 'bottom' | 'left') => {
+  const handlePortMouseEnter = useCallback((nodeId: string, port: PortSide) => {
     if (connectingFrom) {
       setHoveredPort({ nodeId, port });
     }
@@ -302,7 +325,6 @@ export default function EditorCanvas({
     if (connectingFrom && canvasRef.current) {
       const rect = canvasRef.current.getBoundingClientRect();
       
-      // Snap to hovered port if available
       if (hoveredPort) {
         const portPos = getPortPosition(hoveredPort.nodeId, hoveredPort.port);
         if (portPos) {
@@ -323,7 +345,6 @@ export default function EditorCanvas({
    */
   const handleCanvasMouseUp = useCallback(() => {
     if (connectingFrom && hoveredPort && onAddConnection) {
-      // Complete connection if dropped on a valid port
       if (connectingFrom.nodeId !== hoveredPort.nodeId) {
         onAddConnection(
           connectingFrom.nodeId,
@@ -348,11 +369,9 @@ export default function EditorCanvas({
     id?: string,
     isTemp = false
   ) => {
-    // Calculate angle for arrowhead
     const angle = Math.atan2(end.y - start.y, end.x - start.x);
     const arrowSize = 10;
     
-    // Arrowhead points
     const arrowPoint1 = {
       x: end.x - arrowSize * Math.cos(angle - Math.PI / 6),
       y: end.y - arrowSize * Math.sin(angle - Math.PI / 6),
@@ -364,7 +383,6 @@ export default function EditorCanvas({
 
     return (
       <g key={id || "temp"}>
-        {/* Main line */}
         <line
           x1={start.x}
           y1={start.y}
@@ -415,7 +433,6 @@ export default function EditorCanvas({
       <svg className="canvas-connections-layer">
         {/* Render existing connections */}
         {connections.map((connection) => {
-          // Use stored port information, fallback to right/left
           const sourcePort = connection.sourcePort || 'right';
           const targetPort = connection.targetPort || 'left';
           const start = getPortPosition(connection.sourceNodeId, sourcePort);
@@ -558,65 +575,30 @@ export default function EditorCanvas({
                   </span>
                 ) : null}
 
-                {onAddConnection && (
-                  <>
-                    <button
-                      type="button"
-                      className={`canvas-node-port canvas-node-port-top${
-                        hoveredPort?.nodeId === node.id && hoveredPort?.port === 'top' ? ' is-hovered' : ''
-                      }`}
-                      onMouseDown={(event) => handlePortMouseDown(node.id, 'top', event)}
-                      onMouseEnter={() => handlePortMouseEnter(node.id, 'top')}
-                      onMouseLeave={handlePortMouseLeave}
-                      title="Connection port"
-                      aria-label="Top connection port"
-                    >
-                      <span className="canvas-node-port-dot" />
-                    </button>
-                    {/* Right port */}
-                    <button
-                      type="button"
-                      className={`canvas-node-port canvas-node-port-right${
-                        hoveredPort?.nodeId === node.id && hoveredPort?.port === 'right' ? ' is-hovered' : ''
-                      }`}
-                      onMouseDown={(event) => handlePortMouseDown(node.id, 'right', event)}
-                      onMouseEnter={() => handlePortMouseEnter(node.id, 'right')}
-                      onMouseLeave={handlePortMouseLeave}
-                      title="Connection port"
-                      aria-label="Right connection port"
-                    >
-                      <span className="canvas-node-port-dot" />
-                    </button>
-                    {/* Bottom port */}
-                    <button
-                      type="button"
-                      className={`canvas-node-port canvas-node-port-bottom${
-                        hoveredPort?.nodeId === node.id && hoveredPort?.port === 'bottom' ? ' is-hovered' : ''
-                      }`}
-                      onMouseDown={(event) => handlePortMouseDown(node.id, 'bottom', event)}
-                      onMouseEnter={() => handlePortMouseEnter(node.id, 'bottom')}
-                      onMouseLeave={handlePortMouseLeave}
-                      title="Connection port"
-                      aria-label="Bottom connection port"
-                    >
-                      <span className="canvas-node-port-dot" />
-                    </button>
-                    {/* Left port */}
-                    <button
-                      type="button"
-                      className={`canvas-node-port canvas-node-port-left${
-                        hoveredPort?.nodeId === node.id && hoveredPort?.port === 'left' ? ' is-hovered' : ''
-                      }`}
-                      onMouseDown={(event) => handlePortMouseDown(node.id, 'left', event)}
-                      onMouseEnter={() => handlePortMouseEnter(node.id, 'left')}
-                      onMouseLeave={handlePortMouseLeave}
-                      title="Connection port"
-                      aria-label="Left connection port"
-                    >
-                      <span className="canvas-node-port-dot" />
-                    </button>
-                  </>
-                )}
+                {onAddConnection &&
+                  (Object.entries(PORT_METADATA) as [PortSide, PortMetadata][]).map(
+                    ([side, meta]) => {
+                      const isHovered =
+                        hoveredPort?.nodeId === node.id && hoveredPort?.port === side;
+
+                      return (
+                        <button
+                          key={`${node.id}-${side}`}
+                          type="button"
+                          className={`canvas-node-port ${meta.className}${
+                            isHovered ? " is-hovered" : ""
+                          }`}
+                          onMouseDown={(event) => handlePortMouseDown(node.id, side, event)}
+                          onMouseEnter={() => handlePortMouseEnter(node.id, side)}
+                          onMouseLeave={handlePortMouseLeave}
+                          title={meta.label}
+                          aria-label={meta.label}
+                        >
+                          <span className="canvas-node-port-dot" />
+                        </button>
+                      );
+                    }
+                  )}
 
                 {isActionNode(node) ? (
                   <div className="canvas-node-state">

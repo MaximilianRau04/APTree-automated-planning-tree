@@ -42,6 +42,12 @@ const matchesTypeDefinition = (typeItem: ParameterType, query: string) =>
     includesQuery(`${property.name} ${property.valueType}`, query)
   );
 
+  /**
+   * collects property strings for matching against the search query.
+   * @param typeDefinition 
+   * @param propertyValues 
+   * @returns array of concatenated property name/value strings
+   */
 const collectPropertyStrings = (
   typeDefinition: ParameterType | PredicateType | ActionType | undefined,
   propertyValues: Record<string, string> | undefined
@@ -57,6 +63,13 @@ const collectPropertyStrings = (
   });
 };
 
+/**
+ * matches a parameter instance against the search query.
+ * @param instance 
+ * @param query 
+ * @param parameterTypeMap 
+ * @returns true when a match is found
+ */
 const matchesParameterInstance = (
   instance: ParameterInstance,
   query: string,
@@ -73,6 +86,13 @@ const matchesParameterInstance = (
   );
 };
 
+/**
+ * matches a predicate instance against the search query.
+ * @param instance 
+ * @param query 
+ * @param predicateTypeMap 
+ * @returns true when a match is found
+ */
 const matchesPredicateInstance = (
   instance: PredicateInstance,
   query: string,
@@ -98,6 +118,13 @@ const matchesPredicateInstance = (
   );
 };
 
+/**
+ * matches an action instance against the search query.
+ * @param instance 
+ * @param query 
+ * @param actionTypeMap 
+ * @returns true when a match is found
+ */
 const matchesActionInstance = (
   instance: ActionInstance,
   query: string,
@@ -172,6 +199,13 @@ interface ItemPresentation {
   dragIsNegated?: boolean;
 }
 
+/**
+ * resolves the presentation details for a sidebar item based on its category.
+ * @param category 
+ * @param item 
+ * @param lookups 
+ * @returns 
+ */
 const resolveItemPresentation = (
   category: DataCategory,
   item: StructuredItem,
@@ -210,6 +244,13 @@ const resolveItemPresentation = (
   return { badgeLabel: item.type };
 };
 
+/**
+ * builds the drag payload for a sidebar item based on its category and presentation.
+ * @param category 
+ * @param item 
+ * @param presentation 
+ * @returns drag payload or null when the category is not draggable
+ */
 const buildDragPayload = (
   category: DataCategory,
   item: StructuredItem,
@@ -238,6 +279,17 @@ const buildDragPayload = (
   return payload;
 };
 
+/**
+ * resolves the appropriate empty-state message based on context.
+ * @param category 
+ * @param trimmedQuery 
+ * @param parameterTypes 
+ * @param predicateTypes 
+ * @param actionTypes 
+ * @param isActionCategory 
+ * @param isBehaviorNodeCategory 
+ * @returns contextual empty-state message
+ */
 const resolveEmptyStateMessage = (
   category: DataCategory,
   trimmedQuery: string,

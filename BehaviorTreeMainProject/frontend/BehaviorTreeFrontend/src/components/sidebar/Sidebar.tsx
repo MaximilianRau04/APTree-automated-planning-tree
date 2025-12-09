@@ -320,6 +320,8 @@ export default function Sidebar({ onCreateBehaviorNode }: SidebarProps) {
         const isActionCategory =
           categoryKey === ACTION_TYPES_KEY || categoryKey === ACTION_INSTANCES_KEY;
 
+        // Sections now start collapsed to keep the sidebar compact. Individual
+        // sections will remember their expanded state once the manager supports it.
         return (
           <SidebarSection
             key={categoryKey}
