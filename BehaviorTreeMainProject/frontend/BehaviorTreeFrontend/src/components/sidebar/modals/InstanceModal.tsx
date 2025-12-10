@@ -71,6 +71,10 @@ function BaseInstanceModal<TInstance extends AnyInstance>(
   });
   const [showValidation, setShowValidation] = useState(false);
 
+  /**
+   * synchronize internal state when initialValue or typeDefinitions change.
+   * @returns void
+   */
   useEffect(() => {
     if (nameValue !== initialValue.name) {
       setNameValue(initialValue.name);
@@ -176,6 +180,10 @@ function BaseInstanceModal<TInstance extends AnyInstance>(
     ? "This type has no properties."
     : "Define a type to provide property values.";
 
+    /**
+     * handles changes to the selected type.
+     * @param event change event from the type select field
+     */
   const handleTypeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const nextTypeId = event.target.value;
     setTypeId(nextTypeId);
@@ -183,10 +191,19 @@ function BaseInstanceModal<TInstance extends AnyInstance>(
     setShowValidation(false);
   };
 
+  /**
+   * handles changes to a property value.
+   * @param propertyId ID of the property being updated 
+   * @param value new value for the property 
+   */
   const handlePropertyValueChange = (propertyId: string, value: string) => {
     setPropertyValues((prev) => ({ ...prev, [propertyId]: value }));
   };
 
+  /**
+   * handles the form submission.
+   * @param event form submission event 
+   */
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!isFormValid || !selectedType) {

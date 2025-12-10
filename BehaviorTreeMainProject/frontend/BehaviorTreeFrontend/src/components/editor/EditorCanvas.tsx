@@ -1,54 +1,123 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import type { MouseEvent } from "react";
+import type { CSSProperties } from "react";
+import {
+  Background,
+  BackgroundVariant,
+  BaseEdge,
+  EdgeLabelRenderer,
+  getSmoothStepPath,
+  Handle,
+  MarkerType,
+  NodeResizer,
+  type Connection,
+  ConnectionLineType,
+  type Edge as FlowEdge,
+  type EdgeProps,
+  type EdgeTypes,
+  ReactFlow,
+  ReactFlowProvider,
+  type Node as FlowNode,
+  type NodeProps,
+  type NodeTypes,
+  Position,
+  useReactFlow,
+} from "reactflow";
+import "reactflow/dist/style.css";
 import {
   DRAG_DATA_FORMAT,
   isSidebarDrag,
   type DraggedSidebarItem,
 } from "./dragTypes";
 import type { CanvasNode, EditorCanvasProps } from "./types";
-import "./EditorCanvas.css";
+import {
+  DEFAULT_CANVAS_NODE_HEIGHT,
+  DEFAULT_CANVAS_NODE_WIDTH,
+} from "./types";
 import type {
   PredicateInstance,
   PredicateType,
 } from "../sidebar/utils/types";
+import "./EditorCanvas.css";
 
-/** enumerates the sides on which connection ports can appear. */
 type PortSide = "top" | "right" | "bottom" | "left";
 
-/**
- * declarative metadata for connection ports so rendering logic can stay compact.
- * tweaking the offsets or accessibility labels in one place updates all ports.
- */
-type PortMetadata = { label: string; className: string };
+interface BehaviorNodeData {
+  node: CanvasNode;
+  predicateTypeMap: Map<string, PredicateType>;
+  onRemoveNode?: (nodeId: string) => void;
+  onCycleFlowSuccessType?: (nodeId: string) => void;
+  onAddActionPrecondition?: (nodeId: string) => void;
+  onAddActionEffect?: (nodeId: string) => void;
+  onEditActionPredicate?: (
+    nodeId: string,
+    predicateId: string,
+    collection: "precondition" | "effect"
+  ) => void;
+  onRemoveActionPredicate?: (
+    nodeId: string,
+    predicateId: string,
+    collection: "precondition" | "effect"
+  ) => void;
+  onResizeNode?: (nodeId: string, size: { width: number; height: number }) => void;
+  onMoveNode?: (nodeId: string, position: { x: number; y: number }) => void;
+}
 
-const PORT_METADATA: Record<PortSide, PortMetadata> = {
-  top: { label: "Top connection port", className: "canvas-node-port-top" },
-  right: { label: "Right connection port", className: "canvas-node-port-right" },
-  bottom: { label: "Bottom connection port", className: "canvas-node-port-bottom" },
-  left: { label: "Left connection port", className: "canvas-node-port-left" },
+interface BehaviorEdgeData {
+  onRemoveConnection?: (connectionId: string) => void;
+}
+
+const portPositions: Record<PortSide, Position> = {
+  top: Position.Top,
+  right: Position.Right,
+  bottom: Position.Bottom,
+  left: Position.Left,
 };
 
-/** centralized offsets so arrows terminate exactly at the node edges. */
-const PORT_OFFSETS = {
-  horizontal: 90,
-  vertical: 58,
-} as const;
+const PORT_STYLES: Record<PortSide, CSSProperties> = {
+  top: { top: -6, left: "50%", transform: "translate(-50%, 0)" },
+  right: { right: -6, top: "50%", transform: "translate(0, -50%)" },
+  bottom: { bottom: -6, left: "50%", transform: "translate(-50%, 0)" },
+  left: { left: -6, top: "50%", transform: "translate(0, -50%)" },
+};
 
-/**
- * builds a lookup table so predicate instances can resolve their type metadata quickly.
- */
+const SOURCE_HANDLE_STYLES: Record<PortSide, CSSProperties> = {
+  top: { top: -16, left: "50%", transform: "translate(-50%, 0)" },
+  right: { right: -16, top: "50%", transform: "translate(0, -50%)" },
+  bottom: { bottom: -16, left: "50%", transform: "translate(-50%, 0)" },
+  left: { left: -16, top: "50%", transform: "translate(0, -50%)" },
+};
+
+const TARGET_HANDLE_STYLES: Record<PortSide, CSSProperties> = {
+  top: { top: -8, left: "50%", transform: "translate(-50%, 0)" },
+  right: { right: -8, top: "50%", transform: "translate(0, -50%)" },
+  bottom: { bottom: -8, left: "50%", transform: "translate(-50%, 0)" },
+  left: { left: -8, top: "50%", transform: "translate(0, -50%)" },
+};
+
+function resolvePortFromHandle(
+  handleId: string | null | undefined,
+  fallback: PortSide
+): PortSide {
+  if (!handleId) {
+    return fallback;
+  }
+
+  const match = handleId.match(/(top|right|bottom|left)$/);
+  if (!match) {
+    return fallback;
+  }
+
+  return match[1] as PortSide;
+}
+
 function createPredicateTypeMap(predicateTypes?: PredicateType[]) {
   return new Map(predicateTypes?.map((type) => [type.id, type]) ?? []);
 }
 
-/**
- * Creates a short, human friendly description for a predicate instance.
- * Includes resolved property names when the predicate type definition is available.
- */
 function formatPredicateSummary(
   predicate: PredicateInstance,
   predicateTypeMap: Map<string, PredicateType>
-): string {
+) {
   const type = predicateTypeMap.get(predicate.typeId);
   const entries = Object.entries(predicate.propertyValues ?? {});
 
@@ -66,588 +135,564 @@ function formatPredicateSummary(
     .join(", ");
 }
 
-/** returns true when the node represents an action (type or instance). */
 function isActionNode(node: CanvasNode) {
   return node.kind === "actionType" || node.kind === "actionInstance";
 }
 
-/**
- * renders the central editor canvas and accepts sidebar items via drag-and-drop.
- * @param props rendered nodes and drop callback supplied by the parent
- * @returns interactive canvas surface populated with dropped nodes
- */
-export default function EditorCanvas({
-  nodes,
-  connections = [],
-  onDropNode,
-  onMoveNode,
-  onRemoveNode,
-  onAddConnection,
-  onRemoveConnection,
-  onAddActionPrecondition,
-  onAddActionEffect,
-  onCycleFlowSuccessType,
-  onEditActionPredicate,
-  onRemoveActionPredicate,
-  predicateTypes,
-}: EditorCanvasProps) {
+function PredicateCollection({
+  nodeId,
+  items,
+  collection,
+  predicateTypeMap,
+  onEdit,
+  onRemove,
+}: {
+  nodeId: string;
+  items: PredicateInstance[];
+  collection: "precondition" | "effect";
+  predicateTypeMap: Map<string, PredicateType>;
+  onEdit?: BehaviorNodeData["onEditActionPredicate"];
+  onRemove?: BehaviorNodeData["onRemoveActionPredicate"];
+}) {
+  if (items.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="canvas-node-state-group">
+      <div className="canvas-node-state-list">
+        {items.map((predicate) => {
+          const summary = formatPredicateSummary(predicate, predicateTypeMap);
+
+          return (
+            <div key={predicate.id} className="canvas-node-state-item">
+              <div className="canvas-node-state-body">
+                <span className="canvas-node-state-name">
+                  {predicate.isNegated ? "NOT " : ""}
+                  {predicate.name || predicate.type}
+                </span>
+                <span className="canvas-node-state-meta">{predicate.type}</span>
+                {summary ? (
+                  <span className="canvas-node-state-args">{summary}</span>
+                ) : null}
+              </div>
+              <div className="canvas-node-state-actions">
+                {onEdit ? (
+                  <button
+                    type="button"
+                    className="canvas-node-state-btn"
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onEdit(nodeId, predicate.id, collection);
+                    }}
+                    title={`Edit ${collection}`}
+                    aria-label={`Edit ${collection}`}
+                  >
+                    E
+                  </button>
+                ) : null}
+                {onRemove ? (
+                  <button
+                    type="button"
+                    className="canvas-node-state-btn"
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onRemove(nodeId, predicate.id, collection);
+                    }}
+                    title={`Remove ${collection}`}
+                    aria-label={`Remove ${collection}`}
+                  >
+                    X
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
+  const { node } = data;
+  const preconditions = node.preconditions ?? [];
+  const effects = node.effects ?? [];
+
+  return (
+    <div className={`canvas-node canvas-node-${node.kind}`}>
+      <NodeResizer
+        isVisible={selected}
+        minWidth={180}
+        minHeight={120}
+        onResizeEnd={(_event, params) => {
+          if (!data.onResizeNode && !data.onMoveNode) {
+            return;
+          }
+
+          const previousWidth = data.node.width ?? DEFAULT_CANVAS_NODE_WIDTH;
+          const previousHeight = data.node.height ?? DEFAULT_CANVAS_NODE_HEIGHT;
+          const nextWidth = params.width ?? previousWidth;
+          const nextHeight = params.height ?? previousHeight;
+
+          const previousTopLeft = {
+            x: data.node.x - previousWidth / 2,
+            y: data.node.y - previousHeight / 2,
+          };
+
+          const nextTopLeft = {
+            x: params.x ?? previousTopLeft.x,
+            y: params.y ?? previousTopLeft.y,
+          };
+
+          data.onResizeNode?.(id, {
+            width: nextWidth,
+            height: nextHeight,
+          });
+
+          data.onMoveNode?.(id, {
+            x: nextTopLeft.x + nextWidth / 2,
+            y: nextTopLeft.y + nextHeight / 2,
+          });
+        }}
+        handleClassName="canvas-node-resizer-handle"
+        lineClassName="canvas-node-resizer-line"
+      />
+
+      {node.successType ? (
+        data.onCycleFlowSuccessType ? (
+          <button
+            type="button"
+            className="canvas-node-success"
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              data.onCycleFlowSuccessType?.(id);
+            }}
+            title="Click to cycle success type"
+            aria-label={`Success type ${node.successType}. Click to cycle.`}
+          >
+            {node.successType}
+          </button>
+        ) : (
+          <span className="canvas-node-success" aria-hidden="true">
+            {node.successType}
+          </span>
+        )
+      ) : null}
+
+      {data.onRemoveNode ? (
+        <button
+          type="button"
+          className="canvas-node-remove"
+          onMouseDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            data.onRemoveNode?.(id);
+          }}
+          aria-label={`Remove ${node.name}`}
+        >
+          ×
+        </button>
+      ) : null}
+
+      <span className="canvas-node-label">{node.name}</span>
+      <span className="canvas-node-meta">{node.typeLabel}</span>
+      {node.isNegated ? (
+        <span className="canvas-node-badge" aria-label="Negated predicate">
+          NOT
+        </span>
+      ) : null}
+
+      {isActionNode(node) ? (
+        <div className="canvas-node-state">
+          {(data.onAddActionPrecondition || data.onAddActionEffect) && (
+            <div className="canvas-node-actions">
+              {data.onAddActionPrecondition ? (
+                <button
+                  type="button"
+                  className="canvas-node-action-btn"
+                  onMouseDown={(event) => event.stopPropagation()}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    data.onAddActionPrecondition?.(id);
+                  }}
+                  title="Add precondition"
+                  aria-label="Add precondition"
+                >
+                  Preconditions +
+                </button>
+              ) : null}
+              {data.onAddActionEffect ? (
+                <button
+                  type="button"
+                  className="canvas-node-action-btn"
+                  onMouseDown={(event) => event.stopPropagation()}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    data.onAddActionEffect?.(id);
+                  }}
+                  title="Add effect"
+                  aria-label="Add effect"
+                >
+                  Effects +
+                </button>
+              ) : null}
+            </div>
+          )}
+
+          <PredicateCollection
+            nodeId={id}
+            items={preconditions}
+            predicateTypeMap={data.predicateTypeMap}
+            collection="precondition"
+            onEdit={data.onEditActionPredicate}
+            onRemove={data.onRemoveActionPredicate}
+          />
+          <PredicateCollection
+            nodeId={id}
+            items={effects}
+            predicateTypeMap={data.predicateTypeMap}
+            collection="effect"
+            onEdit={data.onEditActionPredicate}
+            onRemove={data.onRemoveActionPredicate}
+          />
+        </div>
+      ) : null}
+
+      {(Object.keys(portPositions) as PortSide[]).map((side) => (
+        <span
+          key={`port-${side}`}
+          className={`canvas-node-port canvas-node-port-${side}`}
+          style={PORT_STYLES[side]}
+        />
+      ))}
+      {(Object.keys(portPositions) as PortSide[]).map((side) => (
+        <Handle
+          key={`source-${side}`}
+          type="source"
+          position={portPositions[side]}
+          id={`source-${side}`}
+          className="canvas-node-handle canvas-node-handle-hitbox canvas-node-handle-source"
+          style={SOURCE_HANDLE_STYLES[side]}
+          isConnectableEnd={false}
+        />
+      ))}
+      {(Object.keys(portPositions) as PortSide[]).map((side) => (
+        <Handle
+          key={`target-${side}`}
+          type="target"
+          position={portPositions[side]}
+          id={`target-${side}`}
+          className="canvas-node-handle canvas-node-handle-hitbox canvas-node-handle-target"
+          style={TARGET_HANDLE_STYLES[side]}
+          isConnectableStart={false}
+        />
+      ))}
+    </div>
+  );
+}
+
+function BehaviorEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  markerEnd,
+  style,
+  data,
+}: EdgeProps<BehaviorEdgeData>) {
+  const [edgePath, midX, midY] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+  });
+
+  return (
+    <>
+      <BaseEdge
+        id={id}
+        path={edgePath}
+        markerEnd={markerEnd}
+        style={{
+          stroke: "#fff",
+          strokeWidth: 2,
+          ...style,
+        }}
+      />
+      {data?.onRemoveConnection ? (
+        <EdgeLabelRenderer>
+          <button
+            type="button"
+            className="canvas-connection-remove-btn"
+            style={{
+              position: "absolute",
+              transform: `translate(-50%, -50%) translate(${midX}px, ${midY}px)`,
+              pointerEvents: "all",
+            }}
+            onClick={(event) => {
+              event.stopPropagation();
+              data.onRemoveConnection?.(id);
+            }}
+            aria-label="Remove connection"
+          >
+            ×
+          </button>
+        </EdgeLabelRenderer>
+      ) : null}
+    </>
+  );
+}
+
+const nodeTypes: NodeTypes = { btNode: BehaviorTreeNode };
+const edgeTypes: EdgeTypes = { btEdge: BehaviorEdge };
+
+function EditorCanvasInner(props: EditorCanvasProps) {
+  const {
+    nodes,
+    connections = [],
+    onDropNode,
+    onMoveNode,
+    onResizeNode,
+    onRemoveNode,
+    onAddConnection,
+    onRemoveConnection,
+    onAddActionPrecondition,
+    onAddActionEffect,
+    onCycleFlowSuccessType,
+    onEditActionPredicate,
+    onRemoveActionPredicate,
+    predicateTypes,
+  } = props;
+
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const { project } = useReactFlow();
   const [isActive, setIsActive] = useState(false);
-  const [connectingFrom, setConnectingFrom] = useState<{ nodeId: string; port: PortSide } | null>(null);
-  const [tempConnectionEnd, setTempConnectionEnd] = useState<{ x: number; y: number } | null>(null);
-  const [hoveredPort, setHoveredPort] = useState<{ nodeId: string; port: PortSide } | null>(null);
-  const dragOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const nodeRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
   const predicateTypeMap = useMemo(
     () => createPredicateTypeMap(predicateTypes),
     [predicateTypes]
   );
 
-  /** prevents drag interference and delegates predicate edit/remove requests. */
-  const handlePredicateAction = (
-    event: MouseEvent<HTMLButtonElement>,
-    handler:
-      | EditorCanvasProps["onEditActionPredicate"]
-      | EditorCanvasProps["onRemoveActionPredicate"],
-    nodeId: string,
-    predicateId: string,
-    collection: "precondition" | "effect"
-  ) => {
-    event.stopPropagation();
+  const flowNodes = useMemo<FlowNode<BehaviorNodeData>[]>(
+    () =>
+      nodes.map((node) => {
+        const width = node.width ?? DEFAULT_CANVAS_NODE_WIDTH;
+        const height = node.height ?? DEFAULT_CANVAS_NODE_HEIGHT;
 
-    if (!handler) {
-      return;
-    }
+        return {
+          id: node.id,
+          type: "btNode" as const,
+          position: { x: node.x - width / 2, y: node.y - height / 2 },
+          data: {
+            node,
+            predicateTypeMap,
+            onRemoveNode,
+            onCycleFlowSuccessType,
+            onAddActionPrecondition,
+            onAddActionEffect,
+            onEditActionPredicate,
+            onRemoveActionPredicate,
+            onResizeNode,
+            onMoveNode,
+          },
+          width,
+          height,
+        } satisfies FlowNode<BehaviorNodeData>;
+      }),
+    [
+      nodes,
+      predicateTypeMap,
+      onRemoveNode,
+      onCycleFlowSuccessType,
+      onAddActionPrecondition,
+      onAddActionEffect,
+      onEditActionPredicate,
+      onRemoveActionPredicate,
+      onResizeNode,
+      onMoveNode,
+    ]
+  );
 
-    handler(nodeId, predicateId, collection);
-  };
+  const flowEdges = useMemo<FlowEdge<BehaviorEdgeData>[]>(
+    () =>
+      connections.map((connection) => ({
+        id: connection.id,
+        source: connection.sourceNodeId,
+        target: connection.targetNodeId,
+        sourceHandle: connection.sourcePort
+          ? `source-${connection.sourcePort}`
+          : undefined,
+        targetHandle: connection.targetPort
+          ? `target-${connection.targetPort}`
+          : undefined,
+        type: "btEdge" as const,
+        animated: false,
+        data: {
+          onRemoveConnection,
+        },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: "#fff",
+          width: 16,
+          height: 16,
+        },
+      })),
+    [connections, onRemoveConnection]
+  );
 
-  /** renders a predicate collection (preconditions or effects) for a node. */
-  const renderPredicateCollection = (
-    nodeId: string,
-    items: PredicateInstance[],
-    collection: "precondition" | "effect"
-  ) => {
-    if (items.length === 0) {
-      return null;
-    }
+  const handleDragOver: React.DragEventHandler<HTMLDivElement> = useCallback(
+    (event) => {
+      if (!isSidebarDrag(event.dataTransfer.types)) {
+        return;
+      }
 
-    return (
-      <div className="canvas-node-state-group">
-        <div className="canvas-node-state-list">
-          {items.map((predicate) => {
-            const summary = formatPredicateSummary(predicate, predicateTypeMap);
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+      setIsActive(true);
+    },
+    []
+  );
 
-            return (
-              <div key={predicate.id} className="canvas-node-state-item">
-                <div className="canvas-node-state-body">
-                  <span className="canvas-node-state-name">
-                    {predicate.isNegated ? "NOT " : ""}
-                    {predicate.name || predicate.type}
-                  </span>
-                  <span className="canvas-node-state-meta">{predicate.type}</span>
-                  {summary ? (
-                    <span className="canvas-node-state-args">{summary}</span>
-                  ) : null}
-                </div>
-                <div className="canvas-node-state-actions">
-                  {onEditActionPredicate ? (
-                    <button
-                      type="button"
-                      className="canvas-node-state-btn"
-                      onMouseDown={(event) => {
-                        event.stopPropagation();
-                      }}
-                      onClick={(event) =>
-                        handlePredicateAction(
-                          event,
-                          onEditActionPredicate,
-                          nodeId,
-                          predicate.id,
-                          collection
-                        )
-                      }
-                      title={`Edit ${collection}`}
-                      aria-label={`Edit ${collection}`}
-                    >
-                      E
-                    </button>
-                  ) : null}
-                  {onRemoveActionPredicate ? (
-                    <button
-                      type="button"
-                      className="canvas-node-state-btn"
-                      onMouseDown={(event) => {
-                        event.stopPropagation();
-                      }}
-                      onClick={(event) =>
-                        handlePredicateAction(
-                          event,
-                          onRemoveActionPredicate,
-                          nodeId,
-                          predicate.id,
-                          collection
-                        )
-                      }
-                      title={`Remove ${collection}`}
-                      aria-label={`Remove ${collection}`}
-                    >
-                      X
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
+  const handleDragLeave: React.DragEventHandler<HTMLDivElement> = useCallback(
+    (event) => {
+      const nextTarget = event.relatedTarget;
+      if (
+        nextTarget instanceof Element &&
+        wrapperRef.current?.contains(nextTarget)
+      ) {
+        return;
+      }
 
-  /** handles drag enter events on the canvas area. */
-  const handleDragEnter: React.DragEventHandler<HTMLDivElement> = (event) => {
-    if (!isSidebarDrag(event.dataTransfer.types)) {
-      return;
-    }
+      setIsActive(false);
+    },
+    []
+  );
 
-    event.preventDefault();
-    setIsActive(true);
-  };
+  const handleDrop: React.DragEventHandler<HTMLDivElement> = useCallback(
+    (event) => {
+      if (!isSidebarDrag(event.dataTransfer.types)) {
+        return;
+      }
 
-  /** handles drag over events on the canvas area. */
-  const handleDragOver: React.DragEventHandler<HTMLDivElement> = (event) => {
-    if (!isSidebarDrag(event.dataTransfer.types)) {
-      return;
-    }
+      event.preventDefault();
+      setIsActive(false);
 
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "copy";
-  };
+      const rawPayload = event.dataTransfer.getData(DRAG_DATA_FORMAT);
+      if (!rawPayload) {
+        return;
+      }
 
-  /** handles drag leave events on the canvas area. */
-  const handleDragLeave: React.DragEventHandler<HTMLDivElement> = (event) => {
-    if (event.currentTarget.contains(event.relatedTarget as Node)) {
-      return;
-    }
-
-    setIsActive(false);
-  };
-
-  /** handles drop events on the canvas area. */
-  const handleDrop: React.DragEventHandler<HTMLDivElement> = (event) => {
-    if (!isSidebarDrag(event.dataTransfer.types)) {
-      return;
-    }
-
-    event.preventDefault();
-    setIsActive(false);
-
-    const rawPayload = event.dataTransfer.getData(DRAG_DATA_FORMAT);
-    if (!rawPayload) {
-      return;
-    }
-
-    try {
-      const payload = JSON.parse(rawPayload) as DraggedSidebarItem;
-      const canvasRect = event.currentTarget.getBoundingClientRect();
-      onDropNode(payload, {
-        x: event.clientX - canvasRect.left,
-        y: event.clientY - canvasRect.top,
-      });
-    } catch (error) {
-      console.error("Failed to parse sidebar drag payload", error);
-    }
-  };
-
-  /**
-   * stores a reference to a node element for position calculations.
-   */
-  const setNodeRef = useCallback((nodeId: string, element: HTMLDivElement | null) => {
-    if (element) {
-      nodeRefs.current.set(nodeId, element);
-    } else {
-      nodeRefs.current.delete(nodeId);
-    }
-  }, []);
-
-  /**
-   * calculates the port position for a given node and port side.
-   */
-  const getPortPosition = useCallback((nodeId: string, port: PortSide): { x: number; y: number } | null => {
-    const node = nodes.find(n => n.id === nodeId);
-    if (!node) {
-      return null;
-    }
-
-    const { horizontal, vertical } = PORT_OFFSETS;
-
-    switch (port) {
-      case 'top':
-        return { x: node.x, y: node.y - vertical };
-      case 'right':
-        return { x: node.x + horizontal, y: node.y };
-      case 'bottom':
-        return { x: node.x, y: node.y + vertical };
-      case 'left':
-        return { x: node.x - horizontal, y: node.y };
-    }
-  }, [nodes]);
-
-  /**
-   * handles starting a connection from a node's port.
-   */
-  const handlePortMouseDown = useCallback((nodeId: string, port: PortSide, event: MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    event.preventDefault();
-    setConnectingFrom({ nodeId, port });
-  }, []);
-
-  /**
-   * handles mouse entering a port for snap effect.
-   */
-  const handlePortMouseEnter = useCallback((nodeId: string, port: PortSide) => {
-    if (connectingFrom) {
-      setHoveredPort({ nodeId, port });
-    }
-  }, [connectingFrom]);
-
-  /**
-   * handles mouse leaving a port.
-   */
-  const handlePortMouseLeave = useCallback(() => {
-    setHoveredPort(null);
-  }, []);
-
-  /**
-   * handles mouse movement during connection creation.
-   */
-  const handleCanvasMouseMove = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    if (connectingFrom && canvasRef.current) {
-      const rect = canvasRef.current.getBoundingClientRect();
-      
-      if (hoveredPort) {
-        const portPos = getPortPosition(hoveredPort.nodeId, hoveredPort.port);
-        if (portPos) {
-          setTempConnectionEnd(portPos);
+      try {
+        const payload = JSON.parse(rawPayload) as DraggedSidebarItem;
+        const bounds = wrapperRef.current?.getBoundingClientRect();
+        if (!bounds) {
           return;
         }
+
+        const position = project({
+          x: event.clientX - bounds.left,
+          y: event.clientY - bounds.top,
+        });
+
+        onDropNode(payload, position);
+      } catch (error) {
+        console.error("Failed to parse sidebar drag payload", error);
       }
-      
-      setTempConnectionEnd({
-        x: event.clientX - rect.left,
-        y: event.clientY - rect.top,
+    },
+    [onDropNode, project]
+  );
+
+  const handleConnect = useCallback(
+    (connection: Connection) => {
+      if (!onAddConnection || !connection.source || !connection.target) {
+        return;
+      }
+
+      const sourcePort = resolvePortFromHandle(connection.sourceHandle, "right");
+      const targetPort = resolvePortFromHandle(connection.targetHandle, "left");
+      onAddConnection(
+        connection.source,
+        connection.target,
+        sourcePort,
+        targetPort
+      );
+    },
+    [onAddConnection]
+  );
+
+  const handleNodeDrag = useCallback(
+    (_event: React.MouseEvent, node: FlowNode<BehaviorNodeData>) => {
+      const width = node.width ?? DEFAULT_CANVAS_NODE_WIDTH;
+      const height = node.height ?? DEFAULT_CANVAS_NODE_HEIGHT;
+      onMoveNode?.(node.id, {
+        x: node.position.x + width / 2,
+        y: node.position.y + height / 2,
       });
-    }
-  }, [connectingFrom, hoveredPort, getPortPosition]);
+    },
+    [onMoveNode]
+  );
 
-  /**
-   * handles mouse up to complete or cancel connection.
-   */
-  const handleCanvasMouseUp = useCallback(() => {
-    if (connectingFrom && hoveredPort && onAddConnection) {
-      if (connectingFrom.nodeId !== hoveredPort.nodeId) {
-        onAddConnection(
-          connectingFrom.nodeId,
-          hoveredPort.nodeId,
-          connectingFrom.port,
-          hoveredPort.port
-        );
-      }
-    }
-    
-    setConnectingFrom(null);
-    setTempConnectionEnd(null);
-    setHoveredPort(null);
-  }, [connectingFrom, hoveredPort, onAddConnection]);
-
-  /**
-   * renders a straight arrow between two points.
-   */
-  const renderConnection = (
-    start: { x: number; y: number },
-    end: { x: number; y: number },
-    id?: string,
-    isTemp = false
-  ) => {
-    const angle = Math.atan2(end.y - start.y, end.x - start.x);
-    const arrowSize = 10;
-    
-    const arrowPoint1 = {
-      x: end.x - arrowSize * Math.cos(angle - Math.PI / 6),
-      y: end.y - arrowSize * Math.sin(angle - Math.PI / 6),
-    };
-    const arrowPoint2 = {
-      x: end.x - arrowSize * Math.cos(angle + Math.PI / 6),
-      y: end.y - arrowSize * Math.sin(angle + Math.PI / 6),
-    };
-
-    return (
-      <g key={id || "temp"}>
-        <line
-          x1={start.x}
-          y1={start.y}
-          x2={end.x}
-          y2={end.y}
-          className={`canvas-connection${isTemp ? " is-temp" : ""}`}
-          strokeWidth="2"
-        />
-        {/* Arrowhead */}
-        <polygon
-          points={`${end.x},${end.y} ${arrowPoint1.x},${arrowPoint1.y} ${arrowPoint2.x},${arrowPoint2.y}`}
-          className={`canvas-connection-arrow${isTemp ? " is-temp" : ""}`}
-        />
-        {/* Delete button */}
-        {!isTemp && onRemoveConnection && id && (
-          <text
-            x={(start.x + end.x) / 2}
-            y={(start.y + end.y) / 2}
-            className="canvas-connection-remove"
-            textAnchor="middle"
-            dominantBaseline="central"
-            style={{ cursor: 'pointer', pointerEvents: 'all' }}
-            onClick={(event) => {
-              event.stopPropagation();
-              onRemoveConnection(id);
-            }}
-          >
-            ×
-          </text>
-        )}
-      </g>
-    );
-  };
+  const handleNodeDragStop = useCallback(
+    (_event: React.MouseEvent, node: FlowNode<BehaviorNodeData>) => {
+      const width = node.width ?? DEFAULT_CANVAS_NODE_WIDTH;
+      const height = node.height ?? DEFAULT_CANVAS_NODE_HEIGHT;
+      onMoveNode?.(node.id, {
+        x: node.position.x + width / 2,
+        y: node.position.y + height / 2,
+      });
+    },
+    [onMoveNode]
+  );
 
   return (
     <div
-      ref={canvasRef}
+      ref={wrapperRef}
       className={`editor-canvas${isActive ? " is-active" : ""}`}
-      onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      onMouseMove={handleCanvasMouseMove}
-      onMouseUp={handleCanvasMouseUp}
-      role="presentation"
     >
-      {/* SVG layer for connections */}
-      <svg className="canvas-connections-layer">
-        {/* Render existing connections */}
-        {connections.map((connection) => {
-          const sourcePort = connection.sourcePort || 'right';
-          const targetPort = connection.targetPort || 'left';
-          const start = getPortPosition(connection.sourceNodeId, sourcePort);
-          const end = getPortPosition(connection.targetNodeId, targetPort);
-          
-          if (!start || !end) {
-            return null;
-          }
-
-          return renderConnection(start, end, connection.id);
-        })}
-
-        {/* Render temporary connection being drawn */}
-        {connectingFrom && tempConnectionEnd && (() => {
-          const start = getPortPosition(connectingFrom.nodeId, connectingFrom.port);
-          if (!start) {
-            return null;
-          }
-          return renderConnection(start, tempConnectionEnd, undefined, true);
-        })()}
-      </svg>
-
-      {nodes.length === 0
-        ? null
-        : nodes.map((node) => {
-            const preconditions = node.preconditions ?? [];
-            const effects = node.effects ?? [];
-
-            return (
-              <div
-                key={node.id}
-                className={`canvas-node canvas-node-${node.kind}`}
-                style={{ left: node.x, top: node.y }}
-                draggable
-                ref={(element) => setNodeRef(node.id, element)}
-                data-node-id={node.id}
-                onDragStart={(event) => {
-                  if (!onMoveNode) {
-                    event.preventDefault();
-                    return;
-                  }
-
-                  const rect = event.currentTarget.getBoundingClientRect();
-                  dragOffset.current = {
-                    x: event.clientX - rect.left,
-                    y: event.clientY - rect.top,
-                  };
-                  event.dataTransfer.setData("text/plain", node.name);
-                  event.dataTransfer.effectAllowed = "move";
-                }}
-                onDrag={(event) => {
-                  if (!onMoveNode) {
-                    return;
-                  }
-
-                  const canvas = event.currentTarget.parentElement;
-                  if (!canvas) {
-                    return;
-                  }
-
-                  const canvasRect = canvas.getBoundingClientRect();
-                  const nodeRect = event.currentTarget.getBoundingClientRect();
-
-                  const nextPosition = {
-                    x:
-                      event.clientX - canvasRect.left - dragOffset.current.x +
-                      nodeRect.width / 2,
-                    y:
-                      event.clientY - canvasRect.top - dragOffset.current.y +
-                      nodeRect.height / 2,
-                  };
-
-                  onMoveNode(node.id, nextPosition);
-                }}
-                onDragEnd={(event) => {
-                  if (!onMoveNode) {
-                    return;
-                  }
-
-                  const canvas = event.currentTarget.parentElement;
-                  if (!canvas) {
-                    return;
-                  }
-
-                  const canvasRect = canvas.getBoundingClientRect();
-                  const nextPosition = {
-                    x:
-                      event.clientX - canvasRect.left - dragOffset.current.x +
-                      event.currentTarget.offsetWidth / 2,
-                    y:
-                      event.clientY - canvasRect.top - dragOffset.current.y +
-                      event.currentTarget.offsetHeight / 2,
-                  };
-
-                  onMoveNode(node.id, nextPosition);
-                }}
-              >
-                {node.successType ? (
-                  onCycleFlowSuccessType ? (
-                    <button
-                      type="button"
-                      className="canvas-node-success"
-                      onMouseDown={(event) => event.stopPropagation()}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onCycleFlowSuccessType(node.id);
-                      }}
-                      title="Click to cycle success type"
-                      aria-label={`Success type ${node.successType}. Click to cycle.`}
-                    >
-                      {node.successType}
-                    </button>
-                  ) : (
-                    <span className="canvas-node-success" aria-hidden="true">
-                      {node.successType}
-                    </span>
-                  )
-                ) : null}
-                {onRemoveNode ? (
-                  <button
-                    type="button"
-                    className="canvas-node-remove"
-                    onMouseDown={(event) => {
-                      event.stopPropagation();
-                    }}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onRemoveNode(node.id);
-                    }}
-                    aria-label={`Remove ${node.name}`}
-                  >
-                    X
-                  </button>
-                ) : null}
-                <span className="canvas-node-label">{node.name}</span>
-                <span className="canvas-node-meta">{node.typeLabel}</span>
-                {node.isNegated ? (
-                  <span className="canvas-node-badge" aria-label="Negated predicate">
-                    NOT
-                  </span>
-                ) : null}
-
-                {onAddConnection &&
-                  (Object.entries(PORT_METADATA) as [PortSide, PortMetadata][]).map(
-                    ([side, meta]) => {
-                      const isHovered =
-                        hoveredPort?.nodeId === node.id && hoveredPort?.port === side;
-
-                      return (
-                        <button
-                          key={`${node.id}-${side}`}
-                          type="button"
-                          className={`canvas-node-port ${meta.className}${
-                            isHovered ? " is-hovered" : ""
-                          }`}
-                          onMouseDown={(event) => handlePortMouseDown(node.id, side, event)}
-                          onMouseEnter={() => handlePortMouseEnter(node.id, side)}
-                          onMouseLeave={handlePortMouseLeave}
-                          title={meta.label}
-                          aria-label={meta.label}
-                        >
-                          <span className="canvas-node-port-dot" />
-                        </button>
-                      );
-                    }
-                  )}
-
-                {isActionNode(node) ? (
-                  <div className="canvas-node-state">
-                    {(onAddActionPrecondition || onAddActionEffect) && (
-                      <div className="canvas-node-actions">
-                        {onAddActionPrecondition ? (
-                          <button
-                            type="button"
-                            className="canvas-node-action-btn"
-                            onMouseDown={(event) => {
-                              event.stopPropagation();
-                            }}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onAddActionPrecondition(node.id);
-                            }}
-                            title="Add precondition"
-                            aria-label="Add precondition"
-                          >
-                            Preconditions +
-                          </button>
-                        ) : null}
-                        {onAddActionEffect ? (
-                          <button
-                            type="button"
-                            className="canvas-node-action-btn"
-                            onMouseDown={(event) => {
-                              event.stopPropagation();
-                            }}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onAddActionEffect(node.id);
-                            }}
-                            title="Add effect"
-                            aria-label="Add effect"
-                          >
-                            Effects +
-                          </button>
-                        ) : null}
-                      </div>
-                    )}
-
-                    {renderPredicateCollection(node.id, preconditions, "precondition")}
-                    {renderPredicateCollection(node.id, effects, "effect")}
-                  </div>
-                ) : null}
-              </div>
-            );
-          })}
+      <ReactFlow
+        nodes={flowNodes}
+        edges={flowEdges}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        onConnect={handleConnect}
+        onNodeDrag={handleNodeDrag}
+        onNodeDragStop={handleNodeDragStop}
+        connectionLineType={ConnectionLineType.SmoothStep}
+        proOptions={{ hideAttribution: true }}
+        panOnDrag
+        fitView
+        nodesDraggable
+        nodesConnectable
+        nodesFocusable
+        elementsSelectable
+      >
+        <Background
+          variant={BackgroundVariant.Cross}
+          gap={32}
+          size={2}
+          color="rgba(99, 102, 241, 0.25)"
+        />
+      </ReactFlow>
     </div>
+  );
+}
+
+export default function EditorCanvas(props: EditorCanvasProps) {
+  return (
+    <ReactFlowProvider>
+      <EditorCanvasInner {...props} />
+    </ReactFlowProvider>
   );
 }

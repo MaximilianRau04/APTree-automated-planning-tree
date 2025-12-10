@@ -4,6 +4,7 @@ import Header from "./components/header/Header.tsx";
 import Sidebar from "./components/sidebar/Sidebar.tsx";
 import EditorCanvas from "./components/editor/EditorCanvas.tsx";
 import type { CanvasNode, NodeConnection } from "./components/editor/types";
+import { DEFAULT_CANVAS_NODE_HEIGHT, DEFAULT_CANVAS_NODE_WIDTH } from "./components/editor/types";
 import type { DraggedSidebarItem } from "./components/editor/dragTypes";
 import { createId } from "./utils/id";
 import { createBehaviorNode } from "./components/editor/flowNodeFactory";
@@ -185,6 +186,8 @@ function App() {
           kind: item.kind,
           x: position.x,
           y: position.y,
+          width: DEFAULT_CANVAS_NODE_WIDTH,
+          height: DEFAULT_CANVAS_NODE_HEIGHT,
           isNegated: item.isNegated,
         },
       ]);
@@ -204,6 +207,26 @@ function App() {
                 ...node,
                 x: Math.max(0, position.x),
                 y: Math.max(0, position.y),
+              }
+            : node
+        )
+      );
+    },
+    []
+  );
+
+  /**
+   * persists resize interactions emitted from the canvas.
+   */
+  const handleResizeNode = useCallback(
+    (nodeId: string, size: { width: number; height: number }) => {
+      setCanvasNodes((prev) =>
+        prev.map((node) =>
+          node.id === nodeId
+            ? {
+                ...node,
+                width: Math.max(120, size.width),
+                height: Math.max(100, size.height),
               }
             : node
         )
@@ -473,6 +496,7 @@ function App() {
               connections={connections}
               onDropNode={handleDropOnCanvas}
               onMoveNode={handleMoveNode}
+              onResizeNode={handleResizeNode}
               onRemoveNode={handleRemoveNode}
               onAddConnection={handleAddConnection}
               onRemoveConnection={handleRemoveConnection}

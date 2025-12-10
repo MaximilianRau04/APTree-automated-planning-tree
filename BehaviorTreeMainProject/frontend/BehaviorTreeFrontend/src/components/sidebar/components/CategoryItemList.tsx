@@ -193,6 +193,7 @@ const matchesSearch = (
   }
 };
 
+/** presentation details for a sidebar item. */
 interface ItemPresentation {
   badgeLabel: string;
   dragTypeId?: string;

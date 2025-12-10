@@ -1,4 +1,5 @@
 import type { CanvasNode } from "./types";
+import { DEFAULT_CANVAS_NODE_HEIGHT, DEFAULT_CANVAS_NODE_WIDTH } from "./types";
 import type { BehaviorNodeOption } from "../sidebar/utils/types";
 import { FLOW_SUCCESS_TYPES } from "../sidebar/utils/types";
 import { createId } from "../../utils/id";
@@ -43,6 +44,8 @@ export function createBehaviorNode({
     kind: "behaviorNode",
     x: position.x,
     y: position.y,
+    width: DEFAULT_CANVAS_NODE_WIDTH,
+    height: DEFAULT_CANVAS_NODE_HEIGHT,
     successType,
   };
 }

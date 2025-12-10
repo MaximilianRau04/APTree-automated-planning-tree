@@ -1,65 +1,27 @@
-@keyframes canvas-grid-fade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
 .editor-canvas {
-  position: relative;
   height: 100%;
   min-height: 560px;
   border-radius: var(--radius-xl, 18px);
   background: var(--surface-panel);
-  overflow: hidden;
   box-shadow: inset 0 0 0 1px var(--border-subtle);
   transition: box-shadow var(--transition-medium),
-    background var(--transition-medium), transform var(--transition-medium);
+    background var(--transition-medium);
+  position: relative;
+  overflow: hidden;
 }
 
-.editor-canvas::before,
-.editor-canvas::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-repeat: repeat;
-  pointer-events: none;
-  opacity: 0.35;
-  transition: opacity var(--transition-fast);
+.editor-canvas .react-flow {
+  width: 100%;
+  height: 100%;
+  background: transparent;
 }
 
-.editor-canvas::before {
-  background-image: linear-gradient(
-      90deg,
-      var(--border-subtle) 1px,
-      transparent 1px
-    ),
-    linear-gradient(
-      var(--border-subtle) 1px,
-      transparent 1px
-    );
-  background-size: 64px 64px;
-  animation: canvas-grid-fade 320ms ease-out forwards;
+.editor-canvas .react-flow__pane {
+  cursor: grab;
 }
 
-.editor-canvas::after {
-  background-image: linear-gradient(
-      90deg,
-      transparent 31px,
-      color-mix(in srgb, var(--accent) 25%, transparent) 31px,
-      color-mix(in srgb, var(--accent) 25%, transparent) 33px,
-      transparent 33px
-    ),
-    linear-gradient(
-      transparent 31px,
-      color-mix(in srgb, var(--accent) 25%, transparent) 31px,
-      color-mix(in srgb, var(--accent) 25%, transparent) 33px,
-      transparent 33px
-    );
-  background-size: 64px 64px;
-  opacity: 0.15;
+.editor-canvas .react-flow__handle {
+  pointer-events: all;
 }
 
 .editor-canvas.is-active {
@@ -67,9 +29,8 @@
 }
 
 .canvas-node {
-  position: absolute;
+  position: relative;
   min-width: 190px;
-  max-width: 260px;
   padding: 14px 18px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-muted, var(--border-subtle));
@@ -79,36 +40,34 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  transform: translate(calc(-50% + 0px), calc(-50% + 0px)) scale(1);
   cursor: grab;
   user-select: none;
   overflow: visible;
   transition: border-color var(--transition-fast),
-    box-shadow var(--transition-fast), transform var(--transition-fast),
+    box-shadow var(--transition-fast),
     background var(--transition-fast);
-}
-
-.canvas-node:hover {
-  border-color: var(--accent);
-  transform: translate(calc(-50% + 0px), calc(-50% + 0px)) scale(1.015);
-  box-shadow: 0 14px 32px rgba(99, 102, 241, 0.26);
 }
 
 .canvas-node:active {
   cursor: grabbing;
-  transform: translate(calc(-50% + 0px), calc(-50% + 0px)) scale(0.99);
 }
+
 .canvas-node-label {
   font-weight: 600;
   font-size: 0.95rem;
   overflow-wrap: anywhere;
 }
 
+.react-flow__node-selected .canvas-node {
+  border-color: var(--accent);
+  box-shadow: 0 14px 32px rgba(99, 102, 241, 0.24);
+}
+
 .canvas-node-success {
   position: absolute;
   top: 6px;
   left: 50%;
-  transform: translate(-50%, -150%);
+  transform: translate(-50%, -130%);
   padding: 4px 12px;
   border-radius: var(--radius-pill, 999px);
   border: 1px solid color-mix(in srgb, var(--accent) 65%, transparent);
@@ -145,8 +104,8 @@
 
 .canvas-node-remove {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 12px;
+  right: 12px;
   width: 28px;
   height: 28px;
   border: 1px solid color-mix(in srgb, var(--text-muted) 50%, transparent);
@@ -159,8 +118,13 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  opacity: 0;
+  opacity: 0.2;
   transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.react-flow__node:hover .canvas-node-remove,
+.react-flow__node-selected .canvas-node-remove {
+  opacity: 1;
 }
 
 .canvas-node-remove:hover {
@@ -172,11 +136,6 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-
-.canvas-node:hover .canvas-node-remove {
-  opacity: 1;
-}
-
 
 .canvas-node-meta {
   font-size: 0.85rem;
@@ -331,6 +290,17 @@
   outline-offset: 2px;
 }
 
+.canvas-node-resizer-line {
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.canvas-node-resizer-handle {
+  border: 2px solid var(--accent);
+  background: var(--surface-panel);
+  width: 12px;
+  height: 12px;
+}
+
 .canvas-node-parameterType {
   border-color: color-mix(in srgb, var(--accent) 85%, transparent);
   background: color-mix(in srgb, var(--accent-soft) 60%, var(--surface-panel) 40%);
@@ -363,169 +333,59 @@
   background: color-mix(in srgb, var(--accent-soft) 45%, var(--surface-panel-alt) 55%);
 }
 
-/* Connection Ports */
+
 .canvas-node-port {
   position: absolute;
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--accent);
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: var(--surface-panel);
+  background: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.react-flow__node:hover .canvas-node-port,
+.react-flow__node-selected .canvas-node-port {
+  opacity: 1;
+}
+
+.canvas-node-port-top,
+.canvas-node-port-bottom {
+  transform-origin: center;
+}
+
+.canvas-node-handle-hitbox {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  opacity: 0;
+}
+
+.canvas-connection-remove-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--danger) 65%, transparent);
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface-panel) 90%);
+  color: var(--danger, #ef4444);
+  font-size: 16px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: crosshair;
-  opacity: 0;
-  transition: opacity var(--transition-fast), 
-    transform var(--transition-fast),
-    background var(--transition-fast),
-    box-shadow var(--transition-fast),
-    border-color var(--transition-fast);
-  z-index: 10;
-}
-
-.canvas-node:hover .canvas-node-port {
-  opacity: 0.7;
-}
-
-.canvas-node-port:hover,
-.canvas-node-port.is-hovered {
-  opacity: 1;
-  background: var(--accent);
-  transform: scale(1.4);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 30%, transparent);
-  border-color: white;
-}
-
-.canvas-node-port:focus-visible {
-  opacity: 1;
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.canvas-node-port-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent);
-  transition: background var(--transition-fast);
-}
-
-.canvas-node-port:hover .canvas-node-port-dot,
-.canvas-node-port.is-hovered .canvas-node-port-dot {
-  background: white;
-}
-
-/* Port positions at four edges */
-.canvas-node-port-top {
-  top: -8px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.canvas-node-port-top:hover,
-.canvas-node-port-top.is-hovered {
-  transform: translateX(-50%) scale(1.4);
-}
-
-.canvas-node-port-right {
-  top: 50%;
-  right: -8px;
-  transform: translateY(-50%);
-}
-
-.canvas-node-port-right:hover,
-.canvas-node-port-right.is-hovered {
-  transform: translateY(-50%) scale(1.4);
-}
-
-.canvas-node-port-bottom {
-  bottom: -8px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.canvas-node-port-bottom:hover,
-.canvas-node-port-bottom.is-hovered {
-  transform: translateX(-50%) scale(1.4);
-}
-
-.canvas-node-port-left {
-  top: 50%;
-  left: -8px;
-  transform: translateY(-50%);
-}
-
-.canvas-node-port-left:hover,
-.canvas-node-port-left.is-hovered {
-  transform: translateY(-50%) scale(1.4);
-}
-
-/* Connections Layer */
-.canvas-connections-layer {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.canvas-connection {
-  stroke: white;
-  stroke-width: 2;
-  fill: none;
-  opacity: 0.8;
-  transition: opacity var(--transition-fast), stroke-width var(--transition-fast);
-}
-
-.canvas-connection:hover {
-  opacity: 1;
-  stroke-width: 3;
-}
-
-.canvas-connection.is-temp {
-  stroke: white;
-  stroke-width: 2;
-  stroke-dasharray: 8 4;
-  opacity: 0.6;
-  animation: connection-dash 0.5s linear infinite;
-}
-
-.canvas-connection-arrow {
-  fill: white;
-  opacity: 0.8;
-  transition: opacity var(--transition-fast);
-}
-
-.canvas-connection-arrow.is-temp {
-  fill: white;
-  opacity: 0.6;
-}
-
-.canvas-connection:hover ~ .canvas-connection-arrow {
-  opacity: 1;
-}
-
-@keyframes connection-dash {
-  to {
-    stroke-dashoffset: -12;
-  }
-}
-
-.canvas-connection-remove {
-  fill: var(--danger, #f44336);
-  font-size: 24px;
-  font-weight: bold;
-  opacity: 0.7;
   cursor: pointer;
-  pointer-events: all;
-  transition: opacity var(--transition-fast);
-  user-select: none;
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.28);
+  transition: background var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
-.canvas-connection-remove:hover {
-  opacity: 1;
+.canvas-connection-remove-btn:hover {
+  background: color-mix(in srgb, var(--danger) 16%, var(--surface-panel) 84%);
+  border-color: var(--danger, #ef4444);
 }
 

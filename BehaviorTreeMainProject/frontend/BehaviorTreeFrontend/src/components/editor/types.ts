@@ -17,11 +17,16 @@ export interface CanvasNode {
   kind: DragEntityKind;
   x: number;
   y: number;
+  width?: number;
+  height?: number;
   isNegated?: boolean;
   successType?: FlowSuccessType;
   preconditions?: PredicateInstance[];
   effects?: PredicateInstance[];
 }
+
+export const DEFAULT_CANVAS_NODE_WIDTH = 240;
+export const DEFAULT_CANVAS_NODE_HEIGHT = 180;
 
 /** represents a connection between two nodes. */
 export interface NodeConnection {
@@ -43,6 +48,10 @@ export interface EditorCanvasProps {
   onMoveNode?: (
     nodeId: string,
     position: { x: number; y: number }
+  ) => void;
+  onResizeNode?: (
+    nodeId: string,
+    size: { width: number; height: number }
   ) => void;
   onRemoveNode?: (nodeId: string) => void;
   onAddConnection?: (
