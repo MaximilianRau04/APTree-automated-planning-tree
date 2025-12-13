@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import "./App.css";
 import Header from "./components/header/Header.tsx";
 import Sidebar from "./components/sidebar/Sidebar.tsx";
+import { useSidebarManager } from "./components/sidebar/useSidebarLogic";
 import EditorCanvas from "./components/editor/EditorCanvas.tsx";
 import type { CanvasNode, NodeConnection } from "./components/editor/types";
 import { DEFAULT_CANVAS_NODE_HEIGHT, DEFAULT_CANVAS_NODE_WIDTH } from "./components/editor/types";
@@ -85,6 +86,12 @@ function App() {
   const [predicateModalState, setPredicateModalState] = useState<ActionPredicateModalState>(
     createInitialPredicateModalState
   );
+  const sidebarManager = useSidebarManager();
+  const {
+    importParameterInstancesFromText,
+    importPredicateInstancesFromText,
+    importActionInstancesFromText,
+  } = sidebarManager;
 
   const resetPredicateModalState = useCallback(() => {
     setPredicateModalState((prev) => ({
@@ -157,6 +164,72 @@ function App() {
     setTheme((current) => (current === "light" ? "dark" : "light"));
     setUserLockedTheme(true);
   };
+
+  const handleImportFromFile = useCallback(
+    (
+      file: File,
+      importer: (text: string) => { processed: number; imported: number; skipped: number; errors: string[] },
+      label: string
+    ) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const text = typeof reader.result === "string" ? reader.result : "";
+        const summary = importer(text);
+        if (summary.processed === 0) {
+          window.alert(`Keine ${label} in der Datei gefunden.`);
+          return;
+        }
+
+        const base = `${summary.imported} von ${summary.processed} ${label} importiert.`;
+        const skippedNote =
+          summary.skipped > 0
+            ? `\n${summary.skipped} Zeilen wurden übersprungen.`
+            : "";
+        const errorNote =
+          summary.errors.length > 0
+            ? `\nFehler:\n- ${summary.errors.join("\n- ")}`
+            : "";
+        window.alert(`${base}${skippedNote}${errorNote}`.trim());
+      };
+      reader.onerror = () => {
+        window.alert(
+          `Import für ${label} fehlgeschlagen: ${reader.error?.message ?? "Unbekannter Fehler"}`
+        );
+      };
+      reader.readAsText(file);
+    },
+    []
+  );
+
+  const handleImportParameterInstancesFile = useCallback(
+    (file: File) =>
+      handleImportFromFile(
+        file,
+        importParameterInstancesFromText,
+        "Parameter-Instanzen"
+      ),
+    [handleImportFromFile, importParameterInstancesFromText]
+  );
+
+  const handleImportPredicateInstancesFile = useCallback(
+    (file: File) =>
+      handleImportFromFile(
+        file,
+        importPredicateInstancesFromText,
+        "Prädikat-Instanzen"
+      ),
+    [handleImportFromFile, importPredicateInstancesFromText]
+  );
+
+  const handleImportActionInstancesFile = useCallback(
+    (file: File) =>
+      handleImportFromFile(
+        file,
+        importActionInstancesFromText,
+        "Action-Instanzen"
+      ),
+    [handleImportFromFile, importActionInstancesFromText]
+  );
 
   /**
    * handles dropping a sidebar item onto the editor canvas.
@@ -487,9 +560,18 @@ function App() {
   return (
     <>
       <div className="app-container">
-        <Sidebar onCreateBehaviorNode={handleCreateBehaviorNode} />
+        <Sidebar
+          manager={sidebarManager}
+          onCreateBehaviorNode={handleCreateBehaviorNode}
+        />
         <div className="main-content">
-          <Header theme={theme} onToggleTheme={handleToggleTheme} />
+          <Header
+            theme={theme}
+            onToggleTheme={handleToggleTheme}
+            onImportParameterInstances={handleImportParameterInstancesFile}
+            onImportPredicateInstances={handleImportPredicateInstancesFile}
+            onImportActionInstances={handleImportActionInstancesFile}
+          />
           <div className="editor" role="main">
             <EditorCanvas
               nodes={canvasNodes}

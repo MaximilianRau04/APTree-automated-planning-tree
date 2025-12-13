@@ -94,6 +94,12 @@ const TARGET_HANDLE_STYLES: Record<PortSide, CSSProperties> = {
   left: { left: -8, top: "50%", transform: "translate(0, -50%)" },
 };
 
+/**
+ * resolves the port side from a handle ID string.
+ * @param handleId the handle ID string from react-flow 
+ * @param fallback the fallback port side if none can be resolved 
+ * @returns the resolved port side 
+ */
 function resolvePortFromHandle(
   handleId: string | null | undefined,
   fallback: PortSide
@@ -110,10 +116,21 @@ function resolvePortFromHandle(
   return match[1] as PortSide;
 }
 
+/**
+ * creates a map of predicate type ID to predicate type for easy lookup.
+ * @param predicateTypes optional array of predicate types 
+ * @returns map of predicate type ID to predicate type 
+ */
 function createPredicateTypeMap(predicateTypes?: PredicateType[]) {
   return new Map(predicateTypes?.map((type) => [type.id, type]) ?? []);
 }
 
+/**
+ * formats a predicate instance into a summary string for display.
+ * @param predicate the predicate instance to format 
+ * @param predicateTypeMap map of predicate type ID to predicate type 
+ * @returns formatted summary string 
+ */
 function formatPredicateSummary(
   predicate: PredicateInstance,
   predicateTypeMap: Map<string, PredicateType>
@@ -135,10 +152,20 @@ function formatPredicateSummary(
     .join(", ");
 }
 
+/**
+ * checks if a canvas node is an action node.
+ * @param node the canvas node to check 
+ * @returns true if the node is an action node, false otherwise 
+ */
 function isActionNode(node: CanvasNode) {
   return node.kind === "actionType" || node.kind === "actionInstance";
 }
 
+/**
+ * presents a collection of predicates within a behavior node.
+ * @param param0 component props 
+ * @returns JSX element or null if no items 
+ */
 function PredicateCollection({
   nodeId,
   items,
@@ -216,6 +243,11 @@ function PredicateCollection({
   );
 }
 
+/**
+ * behavior tree node component for the editor canvas.
+ * @param param0 component props 
+ * @returns JSX element 
+ */
 function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
   const { node } = data;
   const preconditions = node.preconditions ?? [];
@@ -395,6 +427,11 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
   );
 }
 
+/**
+ * behavior tree edge component for the editor canvas.
+ * @param param0 component props 
+ * @returns JSX element 
+ */
 function BehaviorEdge({
   id,
   sourceX,
@@ -455,6 +492,11 @@ function BehaviorEdge({
 const nodeTypes: NodeTypes = { btNode: BehaviorTreeNode };
 const edgeTypes: EdgeTypes = { btEdge: BehaviorEdge };
 
+/**
+ * editor canvas component for behavior tree nodes and connections.
+ * @param props component props 
+ * @returns JSX element 
+ */
 function EditorCanvasInner(props: EditorCanvasProps) {
   const {
     nodes,
@@ -522,6 +564,10 @@ function EditorCanvasInner(props: EditorCanvasProps) {
     ]
   );
 
+  /**
+   * maps canvas connections to react-flow edges.
+   * @returns array of react-flow edges
+   */
   const flowEdges = useMemo<FlowEdge<BehaviorEdgeData>[]>(
     () =>
       connections.map((connection) => ({
@@ -549,6 +595,10 @@ function EditorCanvasInner(props: EditorCanvasProps) {
     [connections, onRemoveConnection]
   );
 
+  /**
+   * handles drag over events on the canvas.
+   * @param event drag event
+   */
   const handleDragOver: React.DragEventHandler<HTMLDivElement> = useCallback(
     (event) => {
       if (!isSidebarDrag(event.dataTransfer.types)) {
@@ -562,6 +612,10 @@ function EditorCanvasInner(props: EditorCanvasProps) {
     []
   );
 
+  /**
+   * handles drag leave events on the canvas.
+   * @param event drag event
+   */
   const handleDragLeave: React.DragEventHandler<HTMLDivElement> = useCallback(
     (event) => {
       const nextTarget = event.relatedTarget;
@@ -577,6 +631,10 @@ function EditorCanvasInner(props: EditorCanvasProps) {
     []
   );
 
+  /**
+   * handles drop events on the canvas.
+   * @param event drop event
+   */
   const handleDrop: React.DragEventHandler<HTMLDivElement> = useCallback(
     (event) => {
       if (!isSidebarDrag(event.dataTransfer.types)) {
@@ -611,6 +669,10 @@ function EditorCanvasInner(props: EditorCanvasProps) {
     [onDropNode, project]
   );
 
+  /**
+   * handles connection events on the canvas.
+   * @param connection connection data from react-flow
+   */
   const handleConnect = useCallback(
     (connection: Connection) => {
       if (!onAddConnection || !connection.source || !connection.target) {
@@ -629,6 +691,11 @@ function EditorCanvasInner(props: EditorCanvasProps) {
     [onAddConnection]
   );
 
+  /**
+   * handles node drag events on the canvas.
+   * @param event mouse event
+   * @param node dragged node data
+   */
   const handleNodeDrag = useCallback(
     (_event: React.MouseEvent, node: FlowNode<BehaviorNodeData>) => {
       const width = node.width ?? DEFAULT_CANVAS_NODE_WIDTH;
@@ -641,6 +708,11 @@ function EditorCanvasInner(props: EditorCanvasProps) {
     [onMoveNode]
   );
 
+  /**
+   * handles node drag stop events on the canvas.
+   * @param event mouse event
+   * @param node dragged node data
+   */
   const handleNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: FlowNode<BehaviorNodeData>) => {
       const width = node.width ?? DEFAULT_CANVAS_NODE_WIDTH;

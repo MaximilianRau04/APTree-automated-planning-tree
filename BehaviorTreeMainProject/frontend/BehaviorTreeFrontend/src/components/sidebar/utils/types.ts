@@ -15,6 +15,7 @@ export interface StructuredItem {
   id: string;
   name: string;
   type: string;
+  description?: string;
 }
 
 /** describes a parameter-type property, defining the schema fields. */
@@ -52,6 +53,13 @@ export type ActionInstance = ParameterInstance;
 export type DataCategory = string;
 
 export type AppData = Record<DataCategory, StructuredItem[]>;
+
+export interface ImportReport {
+  processed: number;
+  imported: number;
+  skipped: number;
+  errors: string[];
+}
 
 /** captures runtime state for the add/edit category modal. */
 export interface CategoryModalState {
@@ -93,6 +101,9 @@ export interface EditModalProps {
   namePlaceholder?: string;
   helperText?: string;
   saveLabel?: string;
+  enableDescriptionField?: boolean;
+  descriptionLabel?: string;
+  descriptionPlaceholder?: string;
 }
 
 /** defines configuration metadata for each sidebar category. */
@@ -252,10 +263,15 @@ export interface SidebarManager {
   predicateTypes: PredicateType[];
   actionTypeMap: Map<string, ActionType>;
   actionTypes: ActionType[];
+  decoratorNodeOptions: DecoratorNodeOption[];
+  serviceNodeOptions: ServiceNodeOption[];
   searchQueries: SearchQueries;
   parameterTypeModalState: TypeModalState;
   predicateTypeModalState: PredicateTypeModalState;
   actionTypeModalState: ActionTypeModalState;
+  importParameterInstancesFromText: (text: string) => ImportReport;
+  importPredicateInstancesFromText: (text: string) => ImportReport;
+  importActionInstancesFromText: (text: string) => ImportReport;
 }
 
 /** props consumed by the category item list component. */
@@ -275,6 +291,7 @@ export interface CategoryItemListProps {
     item: StructuredItem
   ) => void;
   onDelete: (category: DataCategory, index: number) => void;
+  readOnly?: boolean;
 }
 
 export type BehaviorNodeKind = "flow" | "decorator" | "service";

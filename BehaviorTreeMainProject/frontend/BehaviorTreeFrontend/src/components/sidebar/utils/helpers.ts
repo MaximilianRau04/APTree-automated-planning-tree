@@ -23,6 +23,7 @@ export const createEmptyStructuredItem = (): StructuredItem => ({
   id: generateItemId(),
   name: "",
   type: "",
+  description: "",
 });
 
 /**

@@ -344,6 +344,7 @@ export function CategoryItemList({
   searchQuery,
   onEdit,
   onDelete,
+  readOnly = false,
 }: CategoryItemListProps) {
   const trimmedQuery = searchQuery.trim();
   const isActionInstanceCategory = category === ACTION_INSTANCES_KEY;
@@ -371,6 +372,10 @@ export function CategoryItemList({
           ? buildDragPayload(category, item, presentation)
           : null;
 
+          /**
+           * handles the drag start event for a sidebar item.
+           * @param event drag event  
+           */
         const handleDragStart = (event: DragEvent<HTMLSpanElement>) => {
           if (!dragPayload) {
             return;
@@ -382,6 +387,10 @@ export function CategoryItemList({
           event.dataTransfer.effectAllowed = "copy";
         };
 
+        /**
+         * handles the drag end event for a sidebar item.
+         * @param event drag event 
+         */
         const handleDragEnd = (event: DragEvent<HTMLSpanElement>) => {
           if (!dragPayload) {
             return;
@@ -418,24 +427,26 @@ export function CategoryItemList({
               </span>
             </span>
 
-            <div className="list-item-actions">
-              <button
-                className="icon-btn edit-btn"
-                onClick={() => onEdit(category, index, item)}
-                title="Edit"
-                type="button"
-              >
-                ✎
-              </button>
-              <button
-                className="icon-btn delete-btn"
-                onClick={() => onDelete(category, index)}
-                title="Delete"
-                type="button"
-              >
-                ×
-              </button>
-            </div>
+            {!readOnly && (
+              <div className="list-item-actions">
+                <button
+                  className="icon-btn edit-btn"
+                  onClick={() => onEdit(category, index, item)}
+                  title="Edit"
+                  type="button"
+                >
+                  ✎
+                </button>
+                <button
+                  className="icon-btn delete-btn"
+                  onClick={() => onDelete(category, index)}
+                  title="Delete"
+                  type="button"
+                >
+                  ×
+                </button>
+              </div>
+            )}
           </div>
         );
       })}

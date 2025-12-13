@@ -6,6 +6,7 @@ import type {
   DecoratorNodeOption,
   FlowNodeOption,
   ServiceNodeOption,
+  StructuredItem,
 } from "./types";
 
 /** canonical flow-node definitions displayed in the BT node wizard. */
@@ -98,9 +99,19 @@ export const BEHAVIOR_NODE_OPTION_MAP = new Map<string, BehaviorNodeOption>(
   BEHAVIOR_NODE_OPTIONS.map((option) => [option.id, option])
 );
 
+export const BLACKBOARD_KEY: DataCategory = "variables";
 export const BT_NODES_KEY: DataCategory = "nodes";
 export const DECORATOR_NODES_KEY: DataCategory = "decorators";
 export const SERVICE_NODES_KEY: DataCategory = "services";
+
+const mapBehaviorOptionToItem = (
+  option: BehaviorNodeOption
+): StructuredItem => ({
+  id: option.id,
+  name: option.label,
+  type: option.typeLabel,
+  description: option.description ?? "",
+});
 
 /**
  * central configuration describing each sidebar category including labels and defaults.
@@ -108,8 +119,8 @@ export const SERVICE_NODES_KEY: DataCategory = "services";
  */
 export const CATEGORY_CONFIG: CategoryConfig[] = [
   {
-    key: "variables",
-    title: "Blackboard Variables",
+    key: BLACKBOARD_KEY,
+    title: "Blackboard",
     addLabel: "Add Variable",
     defaultItems: [
       { id: "variable-health", name: "health", type: "Integer" },
@@ -120,6 +131,18 @@ export const CATEGORY_CONFIG: CategoryConfig[] = [
     key: BT_NODES_KEY,
     title: "Behavior Tree Nodes",
     addLabel: "Add Behavior Node",
+  },
+  {
+    key: DECORATOR_NODES_KEY,
+    title: "Decorator Templates",
+    addLabel: "Add Decorator",
+    defaultItems: DECORATOR_NODE_OPTIONS.map(mapBehaviorOptionToItem),
+  },
+  {
+    key: SERVICE_NODES_KEY,
+    title: "Service Templates",
+    addLabel: "Add Service",
+    defaultItems: SERVICE_NODE_OPTIONS.map(mapBehaviorOptionToItem),
   },
   {
     key: "paramTypes",
@@ -142,11 +165,6 @@ export const CATEGORY_CONFIG: CategoryConfig[] = [
     addLabel: "Add Predicate Instance",
   },
   { key: "actions", title: "Action Types", addLabel: "Add Action Type" },
-  {
-    key: "actionInstances",
-    title: "Action Instances",
-    addLabel: "Add Action Instance",
-  },
 ];
 
 /**

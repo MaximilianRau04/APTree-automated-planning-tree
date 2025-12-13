@@ -9,18 +9,19 @@ import BtNodeWizardModal, { type WizardStage } from "./modals/BtNodeWizardModal"
 import "./Sidebar.css";
 import { CategoryItemList } from "./components/CategoryItemList";
 import SidebarSection from "./components/SidebarSection";
-import { useSidebarManager } from "./useSidebarLogic";
 import {
   ACTION_INSTANCES_KEY,
   ACTION_TYPES_KEY,
+  BLACKBOARD_KEY,
   BT_NODES_KEY,
-  DECORATOR_NODE_OPTIONS,
+  DECORATOR_NODES_KEY,
   FLOW_NODE_OPTIONS,
-  SERVICE_NODE_OPTIONS,
+  SERVICE_NODES_KEY,
 } from "./utils/constants";
-import type { BehaviorNodeOption } from "./utils/types";
+import type { BehaviorNodeOption, SidebarManager, StructuredItem } from "./utils/types";
 
 interface SidebarProps {
+  manager: SidebarManager;
   onCreateBehaviorNode?: (option: BehaviorNodeOption) => void;
 }
 
@@ -28,7 +29,7 @@ interface SidebarProps {
  * assembles the full planner sidebar, wiring state-driven modals and section content together.
  * @returns sidebar layout containing sections, search inputs, and supporting modals
  */
-export default function Sidebar({ onCreateBehaviorNode }: SidebarProps) {
+export default function Sidebar({ manager, onCreateBehaviorNode }: SidebarProps) {
   const {
     addLabelFor,
     categoryModal,
@@ -72,14 +73,53 @@ export default function Sidebar({ onCreateBehaviorNode }: SidebarProps) {
     parameterTypeModalState,
     predicateTypeModalState,
     actionTypeModalState,
-  } = useSidebarManager();
+    decoratorNodeOptions,
+    serviceNodeOptions,
+  } = manager;
 
   const [isBtNodeWizardOpen, setBtNodeWizardOpen] = useState(false);
   const [wizardHighlightStage, setWizardHighlightStage] = useState<WizardStage | null>(null);
   const flowOptions = FLOW_NODE_OPTIONS;
-  const decoratorOptions = DECORATOR_NODE_OPTIONS;
-  const serviceOptions = SERVICE_NODE_OPTIONS;
+  const decoratorOptions = decoratorNodeOptions;
+  const serviceOptions = serviceNodeOptions;
+  const visibleCategories = categoryOrder.filter(
+    (key) => key !== ACTION_INSTANCES_KEY
+  );
+  const isBehaviorTemplateModal =
+    modalState.category === DECORATOR_NODES_KEY ||
+    modalState.category === SERVICE_NODES_KEY;
+  const behaviorTemplateNameLabel =
+    modalState.category === DECORATOR_NODES_KEY
+      ? "Decorator Name"
+      : modalState.category === SERVICE_NODES_KEY
+      ? "Service Name"
+      : "Display Name";
+  const behaviorTemplatePlaceholder =
+    modalState.category === DECORATOR_NODES_KEY
+      ? "e.g., cooldown"
+      : modalState.category === SERVICE_NODES_KEY
+      ? "e.g., sensing_service"
+      : "e.g., target_entity";
+  const behaviorTemplateModalTitle = isBehaviorTemplateModal
+    ? modalState.mode === "add"
+      ? modalState.category === DECORATOR_NODES_KEY
+        ? "Add Decorator Template"
+        : "Add Service Template"
+      : modalState.category === DECORATOR_NODES_KEY
+      ? "Edit Decorator Template"
+      : "Edit Service Template"
+    : modalState.mode === "add"
+    ? "Add Item"
+    : "Edit Item";
 
+    /**
+     * hands builds a unique key for stateful modals to reset internal state on open.
+     * @param mode modal mode  
+     * @param index item index   
+     * @param id item id 
+     * @param revision item revision number 
+     * @returns unique modal key 
+     */
   const buildStatefulModalKey = (
     mode: "add" | "edit",
     index: number | null,
@@ -96,16 +136,27 @@ export default function Sidebar({ onCreateBehaviorNode }: SidebarProps) {
   const categoryModalSaveLabel =
     categoryModal.mode === "add" ? "Create Section" : "Save";
 
+  /**
+   * opens the behavior tree node creation wizard.
+   * @param highlightStage optional wizard stage to highlight 
+   */
   const openBtNodeWizard = (highlightStage: WizardStage | null = null) => {
     setWizardHighlightStage(highlightStage === "root" ? null : highlightStage);
     setBtNodeWizardOpen(true);
   };
 
+  /**
+   * closes the behavior tree node creation wizard.
+   */
   const closeBtNodeWizard = () => {
     setWizardHighlightStage(null);
     setBtNodeWizardOpen(false);
   };
 
+  /**
+   * handles selection of a behavior node option from the wizard.
+   * @param option selected behavior node option 
+   */
   const handleWizardSelectBehaviorOption = (option: BehaviorNodeOption) => {
     onCreateBehaviorNode?.(option);
   };
@@ -288,12 +339,15 @@ export default function Sidebar({ onCreateBehaviorNode }: SidebarProps) {
       <EditModal
         key={`${modalState.mode}-${modalState.index}`}
         isOpen={modalState.isOpen}
-        title={modalState.mode === "add" ? "Add Item" : "Edit Item"}
+        title={behaviorTemplateModalTitle}
         initialValue={modalState.initialValue}
         onClose={closeModal}
         onSave={handleSaveFromModal}
-        nameLabel="Display Name"
-        namePlaceholder="e.g., target_entity"
+        hideTypeField={isBehaviorTemplateModal}
+        nameLabel={behaviorTemplateNameLabel}
+        namePlaceholder={behaviorTemplatePlaceholder}
+        enableDescriptionField={isBehaviorTemplateModal}
+        descriptionPlaceholder="Summarize how this node behaves..."
       />
 
       <EditModal
@@ -310,28 +364,37 @@ export default function Sidebar({ onCreateBehaviorNode }: SidebarProps) {
         saveLabel={categoryModalSaveLabel}
       />
 
-      {categoryOrder.map((categoryKey) => {
+      {visibleCategories.map((categoryKey) => {
         const displayTitle = categoryTitles[categoryKey] ?? categoryKey;
         const iconLabel = displayTitle.charAt(0).toUpperCase();
         const buttonLabel = addLabelFor(categoryKey);
         const searchQuery = searchQueries[categoryKey] ?? "";
         const items = getItemsForCategory(categoryKey);
         const isBehaviorNodeCategory = categoryKey === BT_NODES_KEY;
-        const isActionCategory =
-          categoryKey === ACTION_TYPES_KEY || categoryKey === ACTION_INSTANCES_KEY;
+        const isActionCategory = categoryKey === ACTION_TYPES_KEY;
+        const isBlackboardCategory = categoryKey === BLACKBOARD_KEY;
+        const canManageCategory = !isBlackboardCategory;
+        const actionInstanceItems: StructuredItem[] = isBehaviorNodeCategory
+          ? getItemsForCategory(ACTION_INSTANCES_KEY)
+          : [];
 
-        // Sections now start collapsed to keep the sidebar compact. Individual
-        // sections will remember their expanded state once the manager supports it.
         return (
           <SidebarSection
             key={categoryKey}
             title={displayTitle}
             isOpen={false}
             iconLabel={iconLabel}
-            onEdit={() => openRenameCategoryModal(categoryKey)}
-            onDelete={() => handleDeleteCategory(categoryKey)}
+            onEdit=
+              {canManageCategory
+                ? () => openRenameCategoryModal(categoryKey)
+                : undefined}
+            onDelete=
+              {canManageCategory
+                ? () => handleDeleteCategory(categoryKey)
+                : undefined}
           >
-            {isBehaviorNodeCategory ? (
+            {canManageCategory &&
+              (isBehaviorNodeCategory ? (
               <button
                 className="add-button"
                 onClick={() => openBtNodeWizard(null)}
@@ -339,7 +402,7 @@ export default function Sidebar({ onCreateBehaviorNode }: SidebarProps) {
               >
                 + {buttonLabel}
               </button>
-            ) : isActionCategory ? (
+              ) : isActionCategory ? (
               <button
                 className="add-button"
                 onClick={() => openBtNodeWizard("action")}
@@ -347,7 +410,7 @@ export default function Sidebar({ onCreateBehaviorNode }: SidebarProps) {
               >
                 + Open BT Node Wizard
               </button>
-            ) : (
+              ) : (
               <button
                 className="add-button"
                 onClick={() => openAddModal(categoryKey)}
@@ -355,7 +418,7 @@ export default function Sidebar({ onCreateBehaviorNode }: SidebarProps) {
               >
                 + {buttonLabel}
               </button>
-            )}
+              ))}
             <div className="section-search">
               <input
                 type="search"
@@ -380,7 +443,26 @@ export default function Sidebar({ onCreateBehaviorNode }: SidebarProps) {
               searchQuery={searchQuery}
               onEdit={openEditModal}
               onDelete={handleDeleteItem}
+              readOnly={isBlackboardCategory}
             />
+            {isBehaviorNodeCategory && (
+              <div className="section-subgroup">
+                <p className="section-subheading">Action Instances</p>
+                <CategoryItemList
+                  category={ACTION_INSTANCES_KEY}
+                  items={actionInstanceItems}
+                  parameterTypes={parameterTypes}
+                  parameterTypeMap={parameterTypeMap}
+                  predicateTypes={predicateTypes}
+                  predicateTypeMap={predicateTypeMap}
+                  actionTypes={actionTypes}
+                  actionTypeMap={actionTypeMap}
+                  searchQuery={searchQuery}
+                  onEdit={openEditModal}
+                  onDelete={handleDeleteItem}
+                />
+              </div>
+            )}
           </SidebarSection>
         );
       })}

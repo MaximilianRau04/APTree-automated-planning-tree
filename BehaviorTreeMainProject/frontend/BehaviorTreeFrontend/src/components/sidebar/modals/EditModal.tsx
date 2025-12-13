@@ -37,18 +37,37 @@ export default function EditModal({
   namePlaceholder = "e.g., target_entity",
   helperText,
   saveLabel = "Save",
+  enableDescriptionField = false,
+  descriptionLabel = "Description",
+  descriptionPlaceholder = "Describe this item...",
 }: EditModalProps) {
   const [nameValue, setNameValue] = useState(initialValue.name);
   const [typeValue, setTypeValue] = useState(initialValue.type);
+  const [descriptionValue, setDescriptionValue] = useState(initialValue.description ?? "");
   const [itemId, setItemId] = useState(initialValue.id);
 
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setNameValue(initialValue.name);
-    setTypeValue(initialValue.type);
-    setItemId(initialValue.id);
-  }, [initialValue]);
+    if (!isOpen) {
+      return undefined;
+    }
+
+    const frame = requestAnimationFrame(() => {
+      setNameValue(initialValue.name);
+      setTypeValue(initialValue.type);
+      setDescriptionValue(initialValue.description ?? "");
+      setItemId(initialValue.id);
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [
+    isOpen,
+    initialValue.id,
+    initialValue.name,
+    initialValue.type,
+    initialValue.description,
+  ]);
 
   /**
    * focuses the name input when the modal opens.
@@ -79,6 +98,9 @@ export default function EditModal({
           id: itemId,
           name: trimmedName,
           type: initialValue.type ?? "",
+          description: enableDescriptionField
+            ? descriptionValue.trim()
+            : initialValue.description,
         });
       }
     } else {
@@ -88,6 +110,9 @@ export default function EditModal({
           id: itemId,
           name: trimmedName,
           type: trimmedType,
+          description: enableDescriptionField
+            ? descriptionValue.trim()
+            : initialValue.description,
         });
       }
     }
@@ -144,6 +169,22 @@ export default function EditModal({
               </select>
             </div>
           )}
+
+          {enableDescriptionField ? (
+            <div className="form-group">
+              <label className="modal-label" htmlFor="modal-description-input">
+                {descriptionLabel}
+              </label>
+              <textarea
+                id="modal-description-input"
+                className="modal-textarea"
+                value={descriptionValue}
+                onChange={(event) => setDescriptionValue(event.target.value)}
+                placeholder={descriptionPlaceholder}
+                rows={3}
+              />
+            </div>
+          ) : null}
 
           <div className="modal-footer">
             <button type="button" className="btn-cancel" onClick={onClose}>

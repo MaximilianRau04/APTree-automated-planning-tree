@@ -4,12 +4,16 @@ import {
   DEFAULT_DATA,
   DEFAULT_ORDER,
   DEFAULT_TITLES,
+  DECORATOR_NODES_KEY,
   ACTION_INSTANCES_KEY,
   ACTION_TYPES_KEY,
+  DECORATOR_NODE_OPTIONS,
   PARAM_INSTANCES_KEY,
   PARAM_TYPES_KEY,
   PREDICATE_INSTANCES_KEY,
   PREDICATE_TYPES_KEY,
+  SERVICE_NODES_KEY,
+  SERVICE_NODE_OPTIONS,
 } from "./utils/constants";
 import {
   cloneActionInstance,
@@ -43,6 +47,9 @@ import type {
   SearchQueries,
   SidebarManager,
   StructuredItem,
+  DecoratorNodeOption,
+  ServiceNodeOption,
+  ImportReport,
 } from "./utils/types";
 
 /** describes the shared shape for modal controller state. */
@@ -168,6 +175,94 @@ const createInitialSearchQueries = (): SearchQueries => {
   return Object.fromEntries(initialEntries) as SearchQueries;
 };
 
+type PropertyBackedType = ParameterType | PredicateType | ActionType;
+
+interface ParsedAssignments {
+  named: Record<string, string>;
+  ordered: string[];
+}
+
+const stripQuotes = (value: string) => value.replace(/^['"]|['"]$/g, "");
+
+const parseAssignmentBlock = (block: string): ParsedAssignments => {
+  const named: Record<string, string> = {};
+  const ordered: string[] = [];
+  const entries = block
+    .split(",")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+  entries.forEach((entry) => {
+    const match = entry.match(/^([A-Za-z0-9_]+)\s*[:=]\s*(.+)$/);
+    if (match) {
+      const key = match[1].trim().toLowerCase();
+      const value = stripQuotes(match[2].trim());
+      named[key] = value;
+    } else {
+      ordered.push(stripQuotes(entry));
+    }
+  });
+
+  return { named, ordered };
+};
+
+const buildPropertyValuesFromAssignments = (
+  definition: PropertyBackedType,
+  assignments: ParsedAssignments
+): Record<string, string> => {
+  if (!definition.properties.length) {
+    return {};
+  }
+
+  const fallbackValues = [...assignments.ordered];
+  return definition.properties.reduce<Record<string, string>>((acc, property) => {
+    const normalizedKey = property.name.trim().toLowerCase();
+    if (normalizedKey && assignments.named[normalizedKey] !== undefined) {
+      acc[property.id] = assignments.named[normalizedKey];
+    } else if (fallbackValues.length > 0) {
+      acc[property.id] = fallbackValues.shift() ?? "";
+    } else {
+      acc[property.id] = "";
+    }
+    return acc;
+  }, {});
+};
+
+const pickInstanceDisplayName = (
+  typeName: string,
+  assignments: ParsedAssignments
+) => {
+  if (assignments.named["name"]) {
+    return assignments.named["name"];
+  }
+
+  if (assignments.named["id"]) {
+    return assignments.named["id"];
+  }
+
+  if (assignments.ordered[0]) {
+    return assignments.ordered[0];
+  }
+
+  const firstNamedKey = Object.keys(assignments.named)[0];
+  if (firstNamedKey) {
+    return assignments.named[firstNamedKey];
+  }
+
+  return `${typeName}-${Math.random().toString(36).slice(2, 6)}`;
+};
+
+const summarizeImport = (
+  processed: number,
+  imported: number,
+  errors: string[]
+): ImportReport => ({
+  processed,
+  imported,
+  skipped: Math.max(processed - imported, 0),
+  errors,
+});
+
 /**
  * central hook that encapsulates sidebar state, modal coordination, and item crud helpers.
  * @returns api for interacting with sidebar state and derived data
@@ -266,6 +361,70 @@ export const useSidebarManager = (): SidebarManager => {
     return map;
   }, [actionTypes]);
 
+  const parameterTypeNameMap = useMemo(() => {
+    const map = new Map<string, ParameterType>();
+    parameterTypes.forEach((entry) => {
+      map.set(entry.name.trim().toLowerCase(), entry);
+    });
+    return map;
+  }, [parameterTypes]);
+
+  const predicateTypeNameMap = useMemo(() => {
+    const map = new Map<string, PredicateType>();
+    predicateTypes.forEach((entry) => {
+      map.set(entry.name.trim().toLowerCase(), entry);
+    });
+    return map;
+  }, [predicateTypes]);
+
+  const actionTypeNameMap = useMemo(() => {
+    const map = new Map<string, ActionType>();
+    actionTypes.forEach((entry) => {
+      map.set(entry.name.trim().toLowerCase(), entry);
+    });
+    return map;
+  }, [actionTypes]);
+
+  const decoratorNodeOptions = useMemo<DecoratorNodeOption[]>(() => {
+    const entries = data[DECORATOR_NODES_KEY] as StructuredItem[] | undefined;
+    const source =
+      entries ??
+      DECORATOR_NODE_OPTIONS.map((option) => ({
+        id: option.id,
+        name: option.label,
+        type: option.typeLabel,
+        description: option.description ?? "",
+      }));
+
+    return source.map((item) => ({
+      id: item.id,
+      label: item.name,
+      typeLabel: item.type || "Decorator",
+      description: item.description || undefined,
+      kind: "decorator",
+    }));
+  }, [data]);
+
+  const serviceNodeOptions = useMemo<ServiceNodeOption[]>(() => {
+    const entries = data[SERVICE_NODES_KEY] as StructuredItem[] | undefined;
+    const source =
+      entries ??
+      SERVICE_NODE_OPTIONS.map((option) => ({
+        id: option.id,
+        name: option.label,
+        type: option.typeLabel,
+        description: option.description ?? "",
+      }));
+
+    return source.map((item) => ({
+      id: item.id,
+      label: item.name,
+      typeLabel: item.type || "Service",
+      description: item.description || undefined,
+      kind: "service",
+    }));
+  }, [data]);
+
   /**
    * Opens the "add item" modal for the given category.
    * Special handling for typed categories.
@@ -330,6 +489,25 @@ export const useSidebarManager = (): SidebarManager => {
         actionInstanceModal.openAdd,
         "Create an action type before adding instances."
       );
+      return;
+    }
+
+    if (category === DECORATOR_NODES_KEY || category === SERVICE_NODES_KEY) {
+      const defaultTypeLabel =
+        category === DECORATOR_NODES_KEY ? "Decorator" : "Service";
+
+      setModalState({
+        isOpen: true,
+        mode: "add",
+        category,
+        index: null,
+        initialValue: {
+          id: generateItemId(),
+          name: "",
+          type: defaultTypeLabel,
+          description: "",
+        },
+      });
       return;
     }
 
@@ -488,7 +666,10 @@ export const useSidebarManager = (): SidebarManager => {
       mode: "edit",
       category,
       index,
-      initialValue: { ...currentValue },
+      initialValue: {
+        ...currentValue,
+        description: currentValue.description ?? "",
+      },
     });
   };
 
@@ -509,9 +690,18 @@ export const useSidebarManager = (): SidebarManager => {
     setData((prev) => {
       const existingItems = prev[categoryKey] ?? [];
       const nextItems = [...existingItems];
+      const fallbackTypeLabel =
+        categoryKey === DECORATOR_NODES_KEY
+          ? "Decorator"
+          : categoryKey === SERVICE_NODES_KEY
+          ? "Service"
+          : value.type;
       const normalized: StructuredItem = {
         ...value,
         id: value.id || generateItemId(),
+        name: value.name.trim(),
+        type: (value.type || "").trim() || fallbackTypeLabel,
+        description: value.description?.trim() || undefined,
       };
 
       if (modalState.mode === "add") {
@@ -1182,6 +1372,203 @@ export const useSidebarManager = (): SidebarManager => {
     setSearchQueries((prev) => ({ ...prev, [category]: value }));
   };
 
+  const importParameterInstancesFromText = useCallback(
+    (rawText: string): ImportReport => {
+      const lines = rawText.split(/\r?\n/);
+      const created: ParameterInstance[] = [];
+      const errors: string[] = [];
+      let processed = 0;
+
+      lines.forEach((line, index) => {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) {
+          return;
+        }
+
+        if (!trimmed.toLowerCase().startsWith("parameterinstance")) {
+          return;
+        }
+
+        processed += 1;
+        const match = trimmed.match(
+          /^ParameterInstance:\s*([^\s{]+)\s*\{([^}]*)\}/i
+        );
+        if (!match) {
+          errors.push(
+            `Zeile ${index + 1}: Ungültiges ParameterInstance-Format.`
+          );
+          return;
+        }
+
+        const typeName = match[1].trim();
+        const definition = parameterTypeNameMap.get(typeName.toLowerCase());
+        if (!definition) {
+          errors.push(
+            `Zeile ${index + 1}: Unbekannter Parametertyp "${typeName}".`
+          );
+          return;
+        }
+
+        const assignments = parseAssignmentBlock(match[2].trim());
+        const instance = createEmptyParameterInstance(definition);
+        instance.name = pickInstanceDisplayName(definition.name, assignments);
+        instance.propertyValues = buildPropertyValuesFromAssignments(
+          definition,
+          assignments
+        );
+        created.push(instance);
+      });
+
+      if (created.length > 0) {
+        setData((prev) => {
+          const existing =
+            (prev[PARAM_INSTANCES_KEY] as ParameterInstance[] | undefined) ?? [];
+          return {
+            ...prev,
+            [PARAM_INSTANCES_KEY]: [...existing, ...created],
+          };
+        });
+      }
+
+      return summarizeImport(processed, created.length, errors);
+    },
+    [parameterTypeNameMap, setData]
+  );
+
+  const importPredicateInstancesFromText = useCallback(
+    (rawText: string): ImportReport => {
+      const lines = rawText.split(/\r?\n/);
+      const created: PredicateInstance[] = [];
+      const errors: string[] = [];
+      let processed = 0;
+
+      lines.forEach((line, index) => {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) {
+          return;
+        }
+
+        if (!trimmed.toLowerCase().startsWith("predicateinstance")) {
+          return;
+        }
+
+        processed += 1;
+        const match = trimmed.match(
+          /^PredicateInstance:\s*([^\s(]+)\s*\(([^)]*)\)/i
+        );
+        if (!match) {
+          errors.push(
+            `Zeile ${index + 1}: Ungültiges PredicateInstance-Format.`
+          );
+          return;
+        }
+
+        const typeName = match[1].trim();
+        const definition = predicateTypeNameMap.get(typeName.toLowerCase());
+        if (!definition) {
+          errors.push(
+            `Zeile ${index + 1}: Unbekannter Prädikatstyp "${typeName}".`
+          );
+          return;
+        }
+
+        const assignments = parseAssignmentBlock(match[2].trim());
+        let isNegated = false;
+        const negationToken = assignments.named["isnegated"];
+        if (negationToken !== undefined) {
+          isNegated = /true/i.test(negationToken);
+          delete assignments.named["isnegated"];
+        }
+
+        const instance = createEmptyPredicateInstance(definition);
+        instance.name = pickInstanceDisplayName(definition.name, assignments);
+        instance.isNegated = isNegated;
+        instance.propertyValues = buildPropertyValuesFromAssignments(
+          definition,
+          assignments
+        );
+        created.push(instance);
+      });
+
+      if (created.length > 0) {
+        setData((prev) => {
+          const existing =
+            (prev[PREDICATE_INSTANCES_KEY] as PredicateInstance[] | undefined) ?? [];
+          return {
+            ...prev,
+            [PREDICATE_INSTANCES_KEY]: [...existing, ...created],
+          };
+        });
+      }
+
+      return summarizeImport(processed, created.length, errors);
+    },
+    [predicateTypeNameMap, setData]
+  );
+
+  const importActionInstancesFromText = useCallback(
+    (rawText: string): ImportReport => {
+      const lines = rawText.split(/\r?\n/);
+      const created: ActionInstance[] = [];
+      const errors: string[] = [];
+      let processed = 0;
+
+      lines.forEach((line, index) => {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) {
+          return;
+        }
+
+        if (!trimmed.toLowerCase().startsWith("actioninstance")) {
+          return;
+        }
+
+        processed += 1;
+        const match = trimmed.match(
+          /^ActionInstance:\s*([^\s(]+)\s*\(([^)]*)\)/i
+        );
+        if (!match) {
+          errors.push(
+            `Zeile ${index + 1}: Ungültiges ActionInstance-Format.`
+          );
+          return;
+        }
+
+        const typeName = match[1].trim();
+        const definition = actionTypeNameMap.get(typeName.toLowerCase());
+        if (!definition) {
+          errors.push(
+            `Zeile ${index + 1}: Unbekannter Action-Typ "${typeName}".`
+          );
+          return;
+        }
+
+        const assignments = parseAssignmentBlock(match[2].trim());
+        const instance = createEmptyActionInstance(definition);
+        instance.name = pickInstanceDisplayName(definition.name, assignments);
+        instance.propertyValues = buildPropertyValuesFromAssignments(
+          definition,
+          assignments
+        );
+        created.push(instance);
+      });
+
+      if (created.length > 0) {
+        setData((prev) => {
+          const existing =
+            (prev[ACTION_INSTANCES_KEY] as ActionInstance[] | undefined) ?? [];
+          return {
+            ...prev,
+            [ACTION_INSTANCES_KEY]: [...existing, ...created],
+          };
+        });
+      }
+
+      return summarizeImport(processed, created.length, errors);
+    },
+    [actionTypeNameMap, setData]
+  );
+
   /**
    * resolves the localized add button label for the supplied category key.
    * @param category category key whose label should be retrieved
@@ -1229,9 +1616,14 @@ export const useSidebarManager = (): SidebarManager => {
     predicateTypes,
     actionTypeMap,
     actionTypes,
+    decoratorNodeOptions,
+    serviceNodeOptions,
     searchQueries,
     parameterTypeModalState,
     predicateTypeModalState,
     actionTypeModalState,
+    importParameterInstancesFromText,
+    importPredicateInstancesFromText,
+    importActionInstancesFromText,
   };
 };
