@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import "./Header.css";
 import type {
   DropdownProps,
   HeaderProps,
+  NormalizedDropdownItem,
 } from "./types.ts";
 import { UserMenu } from "./UserMenu";
 
@@ -14,6 +15,17 @@ import { UserMenu } from "./UserMenu";
 function Dropdown({ title, items }: DropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const normalizedItems: NormalizedDropdownItem[] = items.map((entry) => {
+    if (typeof entry === "string") {
+      return { kind: "action", label: entry };
+    }
+
+    if (entry.kind === "file" || entry.kind === "divider" || entry.kind === "label") {
+      return entry;
+    }
+
+    return { ...entry, kind: "action" };
+  });
 
   /**
    * Closes the dropdown when clicking outside of it
@@ -47,32 +59,124 @@ function Dropdown({ title, items }: DropdownProps) {
       
       {isOpen && (
         <div className="dropdown-menu">
-          {items.map((item, index) => (
-            <button 
-              key={index} 
-              className="dropdown-item"
-              onClick={() => setIsOpen(false)} 
-            >
-              {item}
-            </button>
-          ))}
+          {normalizedItems.map((item, index) => {
+            if (item.kind === "divider") {
+              return (
+                <div
+                  key={`divider-${index}`}
+                  className="dropdown-divider"
+                  role="separator"
+                />
+              );
+            }
+
+            if (item.kind === "label") {
+              return (
+                <div
+                  key={`label-${index}`}
+                  className="dropdown-group-label"
+                >
+                  {item.label}
+                </div>
+              );
+            }
+
+            if (item.kind === "file") {
+              const handleFileChange = (
+                event: ChangeEvent<HTMLInputElement>
+              ) => {
+                const file = event.target.files?.[0];
+                if (file) {
+                  item.onFileSelect(file);
+                }
+                event.target.value = "";
+                setIsOpen(false);
+              };
+
+              return (
+                <label
+                  key={`file-${index}`}
+                  className="dropdown-item file-upload"
+                >
+                  <span className="dropdown-item-title">{item.label}</span>
+                  {item.hint && (
+                    <span className="dropdown-item-hint">{item.hint}</span>
+                  )}
+                  <input
+                    type="file"
+                    className="file-upload-input"
+                    accept={item.accept ?? ".txt"}
+                    onChange={handleFileChange}
+                  />
+                </label>
+              );
+            }
+
+            return (
+              <button
+                key={`action-${index}`}
+                className="dropdown-item"
+                type="button"
+                onClick={() => {
+                  item.onSelect?.();
+                  setIsOpen(false);
+                }}
+                disabled={item.disabled}
+              >
+                {item.label}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
 
-export default function Header({ theme, onToggleTheme }: HeaderProps) {
+export default function Header({
+  theme,
+  onToggleTheme,
+  onImportParameterInstances,
+  onImportPredicateInstances,
+  onImportActionInstances,
+}: HeaderProps) {
   const isDarkMode = theme === "dark";
+  const fileMenuItems: DropdownProps["items"] = [
+    { label: "New" },
+    { label: "Open..." },
+    { label: "Save" },
+    { label: "Save As..." },
+    { label: "Export" },
+    { label: "Import" },
+    { kind: "divider" },
+    {
+      kind: "file",
+      label: "Import Parameter Instances",
+      hint: "TXT upload (.txt)",
+      accept: ".txt",
+      onFileSelect: onImportParameterInstances,
+    },
+    {
+      kind: "file",
+      label: "Import Predicate Instances",
+      hint: "TXT upload (.txt)",
+      accept: ".txt",
+      onFileSelect: onImportPredicateInstances,
+    },
+    {
+      kind: "file",
+      label: "Import Action Instances",
+      hint: "TXT upload (.txt)",
+      accept: ".txt",
+      onFileSelect: onImportActionInstances,
+    },
+  ];
 
   return (
     <header className="header">
       <div className="header-left">
         <nav className="header-nav">
-          <Dropdown
-            title="File"
-            items={["New", "Open...", "Save", "Save As...", "Export", "Import"]}
-          />
+          <Dropdown title="File" items={fileMenuItems} />
           <Dropdown
             title="Edit"
             items={["Undo", "Redo", "Cut", "Copy", "Paste", "Delete"]}
