@@ -119,6 +119,38 @@
   box-shadow: none;
 }
 
+.canvas-node-params {
+  position: absolute;
+  top: -34px;
+  left: 50%;
+  transform: translate(-50%, 0);
+  padding: 6px 14px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, rgba(15, 23, 42, 0.92) 80%, transparent);
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.35);
+  pointer-events: none;
+  z-index: 3;
+  letter-spacing: 0.04em;
+}
+
+.canvas-node-params-item {
+  white-space: nowrap;
+  color: inherit;
+}
+
+.canvas-node-action .canvas-node-params {
+  border-color: var(--action-border, rgba(0, 214, 255, 0.55));
+  background: color-mix(in srgb, rgba(6, 182, 212, 0.35) 65%, rgba(15, 23, 42, 0.92));
+  color: #e6fdff;
+}
+
 .canvas-node-remove {
   position: absolute;
   top: 12px;

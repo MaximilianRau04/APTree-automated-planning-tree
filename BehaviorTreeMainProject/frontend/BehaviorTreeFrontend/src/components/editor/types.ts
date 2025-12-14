@@ -1,10 +1,12 @@
 import type {
+  ActionInstance,
+  ActionType,
   DataCategory,
   FlowSuccessType,
   PredicateInstance,
+  PredicateType,
 } from "../sidebar/utils/types";
 import type { DragEntityKind } from "./dragTypes";
-import type { PredicateType } from "../sidebar/utils/types";
 import type { DraggedSidebarItem } from "./dragTypes";
 
 /** serialized node information stored by the canvas component. */
@@ -23,6 +25,7 @@ export interface CanvasNode {
   successType?: FlowSuccessType;
   preconditions?: PredicateInstance[];
   effects?: PredicateInstance[];
+  typeId?: string;
 }
 
 export const DEFAULT_CANVAS_NODE_WIDTH = 240;
@@ -75,4 +78,6 @@ export interface EditorCanvasProps {
     collection: "precondition" | "effect"
   ) => void;
   predicateTypes?: PredicateType[];
+  actionTypes?: ActionType[];
+  actionInstances?: ActionInstance[];
 }

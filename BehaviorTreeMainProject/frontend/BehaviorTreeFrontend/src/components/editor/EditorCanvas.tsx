@@ -34,6 +34,8 @@ import {
   DEFAULT_CANVAS_NODE_WIDTH,
 } from "./types";
 import type {
+  ActionInstance,
+  ActionType,
   PredicateInstance,
   PredicateType,
 } from "../sidebar/utils/types";
@@ -46,9 +48,24 @@ import "./EditorCanvas.css";
 
 type PortSide = "top" | "right" | "bottom" | "left";
 
+const resolveNumericOffset = (value: string | number | undefined): number => {
+  if (typeof value === "number") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  return 0;
+};
+
 interface BehaviorNodeData {
   node: CanvasNode;
   predicateTypeMap: Map<string, PredicateType>;
+  actionTypeMap: Map<string, ActionType>;
+  actionInstanceMap: Map<string, ActionInstance>;
   onRemoveNode?: (nodeId: string) => void;
   onCycleFlowSuccessType?: (nodeId: string) => void;
   onAddActionPrecondition?: (nodeId: string) => void;
@@ -98,6 +115,10 @@ const TARGET_HANDLE_STYLES: Record<PortSide, CSSProperties> = {
   bottom: { bottom: -8, left: "50%", transform: "translate(-50%, 0)" },
   left: { left: -8, top: "50%", transform: "translate(0, -50%)" },
 };
+
+const PARAM_BOX_HEIGHT = 24;
+const PARAM_BOX_GAP = 6;
+const PARAM_STACK_CLEARANCE = 18;
 
 /**
  * resolves the port side from a handle ID string.
@@ -258,6 +279,46 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
   const preconditions = node.preconditions ?? [];
   const effects = node.effects ?? [];
   const isAction = isActionNode(node);
+  const actionInstance =
+    isAction && node.kind === "actionInstance"
+      ? data.actionInstanceMap.get(node.sourceId)
+      : undefined;
+
+  const resolvedActionTypeId = isAction
+    ? node.kind === "actionType"
+      ? node.sourceId
+      : actionInstance?.typeId ?? node.typeId
+    : undefined;
+
+  const actionTypeDefinition =
+    resolvedActionTypeId && isAction
+      ? data.actionTypeMap.get(resolvedActionTypeId)
+      : undefined;
+
+  const actionParameterSummaries =
+    isAction && actionTypeDefinition
+      ? actionTypeDefinition.properties
+          .map((property, index) => {
+            const fallbackId = `${resolvedActionTypeId ?? "action"}-${index}`;
+            const propertyKey = property.id || fallbackId;
+            const name = property.name?.trim() || property.id || `param_${index + 1}`;
+            const value = actionInstance?.propertyValues?.[property.id];
+            const label = value && value.trim().length > 0 ? `${name}: ${value}` : name;
+            return label.trim().length > 0
+              ? { id: propertyKey, label }
+              : null;
+          })
+          .filter((entry): entry is { id: string; label: string } => Boolean(entry))
+      : [];
+
+  const showActionParams = actionParameterSummaries.length > 0;
+  const paramStackHeight = showActionParams
+    ? actionParameterSummaries.length * PARAM_BOX_HEIGHT +
+      (actionParameterSummaries.length - 1) * PARAM_BOX_GAP
+    : 0;
+  const paramClearance = showActionParams
+    ? paramStackHeight + PARAM_STACK_CLEARANCE
+    : 0;
 
   const nodeClasses = ["canvas-node", `canvas-node-${node.kind}`];
 
@@ -273,26 +334,28 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
     nodeClasses.push("canvas-node-action");
   }
 
-  const portStyleOverrides: Partial<Record<PortSide, CSSProperties>> = isAction
-    ? {
-        left: { left: 9 },
-        right: { right: 9 },
-      }
-    : {};
+  const portStyleOverrides: Partial<Record<PortSide, CSSProperties>> = {};
+  const sourceHandleOverrides: Partial<Record<PortSide, CSSProperties>> = {};
+  const targetHandleOverrides: Partial<Record<PortSide, CSSProperties>> = {};
 
-  const sourceHandleOverrides: Partial<Record<PortSide, CSSProperties>> = isAction
-    ? {
-        left: { left: -12 },
-        right: { right: -12 },
-      }
-    : {};
+  if (isAction) {
+    portStyleOverrides.left = { left: 8 };
+    portStyleOverrides.right = { right: 8 };
+    sourceHandleOverrides.left = { left: -12 };
+    sourceHandleOverrides.right = { right: -12 };
+    targetHandleOverrides.left = { left: -4 };
+    targetHandleOverrides.right = { right: -4 };
 
-  const targetHandleOverrides: Partial<Record<PortSide, CSSProperties>> = isAction
-    ? {
-        left: { left: -4 },
-        right: { right: -4 },
-      }
-    : {};
+    portStyleOverrides.top = {
+      top: resolveNumericOffset(PORT_STYLES.top.top) - paramClearance,
+    };
+    sourceHandleOverrides.top = {
+      top: resolveNumericOffset(SOURCE_HANDLE_STYLES.top.top) - paramClearance,
+    };
+    targetHandleOverrides.top = {
+      top: resolveNumericOffset(TARGET_HANDLE_STYLES.top.top) - paramClearance,
+    };
+  }
 
   return (
     <div className={nodeClasses.join(" ")}>
@@ -333,6 +396,19 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
         handleClassName="canvas-node-resizer-handle"
         lineClassName="canvas-node-resizer-line"
       />
+
+      {showActionParams ? (
+        <div
+          className="canvas-node-params"
+          aria-label="Action parameters"
+        >
+          {actionParameterSummaries.map((entry) => (
+            <span key={entry.id} className="canvas-node-params-chip">
+              {entry.label}
+            </span>
+          ))}
+        </div>
+      ) : null}
 
       {node.successType ? (
         data.onCycleFlowSuccessType ? (
@@ -560,6 +636,8 @@ function EditorCanvasInner(props: EditorCanvasProps) {
     onEditActionPredicate,
     onRemoveActionPredicate,
     predicateTypes,
+    actionTypes,
+    actionInstances,
   } = props;
 
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -570,6 +648,16 @@ function EditorCanvasInner(props: EditorCanvasProps) {
     () => createPredicateTypeMap(predicateTypes),
     [predicateTypes]
   );
+
+  const actionTypeMap = useMemo(() => {
+    const entries = actionTypes ?? [];
+    return new Map(entries.map((type) => [type.id, type] as const));
+  }, [actionTypes]);
+
+  const actionInstanceMap = useMemo(() => {
+    const entries = actionInstances ?? [];
+    return new Map(entries.map((instance) => [instance.id, instance] as const));
+  }, [actionInstances]);
 
   const flowNodes = useMemo<FlowNode<BehaviorNodeData>[]>(
     () =>
@@ -584,6 +672,8 @@ function EditorCanvasInner(props: EditorCanvasProps) {
           data: {
             node,
             predicateTypeMap,
+            actionTypeMap,
+            actionInstanceMap,
             onRemoveNode,
             onCycleFlowSuccessType,
             onAddActionPrecondition,
@@ -600,6 +690,8 @@ function EditorCanvasInner(props: EditorCanvasProps) {
     [
       nodes,
       predicateTypeMap,
+      actionTypeMap,
+      actionInstanceMap,
       onRemoveNode,
       onCycleFlowSuccessType,
       onAddActionPrecondition,

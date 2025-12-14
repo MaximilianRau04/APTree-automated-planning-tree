@@ -371,7 +371,6 @@ export default function Sidebar({ manager, onCreateBehaviorNode }: SidebarProps)
         const searchQuery = searchQueries[categoryKey] ?? "";
         const items = getItemsForCategory(categoryKey);
         const isBehaviorNodeCategory = categoryKey === BT_NODES_KEY;
-        const isActionCategory = categoryKey === ACTION_TYPES_KEY;
         const isBlackboardCategory = categoryKey === BLACKBOARD_KEY;
         const canManageCategory = !isBlackboardCategory;
         const actionInstanceItems: StructuredItem[] = isBehaviorNodeCategory
@@ -401,14 +400,6 @@ export default function Sidebar({ manager, onCreateBehaviorNode }: SidebarProps)
                 type="button"
               >
                 + {buttonLabel}
-              </button>
-              ) : isActionCategory ? (
-              <button
-                className="add-button"
-                onClick={() => openBtNodeWizard("action")}
-                type="button"
-              >
-                + Open BT Node Wizard
               </button>
               ) : (
               <button

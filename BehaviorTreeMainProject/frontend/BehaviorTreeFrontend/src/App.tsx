@@ -9,7 +9,9 @@ import { DEFAULT_CANVAS_NODE_HEIGHT, DEFAULT_CANVAS_NODE_WIDTH } from "./compone
 import type { DraggedSidebarItem } from "./components/editor/dragTypes";
 import { createId } from "./utils/id";
 import { createBehaviorNode } from "./components/editor/flowNodeFactory";
+import { reconcileInstanceValues } from "./components/sidebar/utils/helpers";
 import {
+  ACTION_INSTANCES_KEY,
   BEHAVIOR_NODE_OPTION_MAP,
   BT_NODES_KEY,
 } from "./components/sidebar/utils/constants";
@@ -20,6 +22,7 @@ import {
 } from "./components/sidebar/utils/helpers";
 import { FLOW_SUCCESS_TYPES } from "./components/sidebar/utils/types";
 import type {
+  ActionInstance,
   BehaviorNodeOption,
   PredicateInstance,
 } from "./components/sidebar/utils/types";
@@ -91,7 +94,59 @@ function App() {
     importParameterInstancesFromText,
     importPredicateInstancesFromText,
     importActionInstancesFromText,
+    actionTypes,
+    getItemsForCategory,
   } = sidebarManager;
+
+  const rawActionInstances = useMemo(
+    () => getItemsForCategory(ACTION_INSTANCES_KEY) as ActionInstance[],
+    [getItemsForCategory]
+  );
+
+  const actionInstances = useMemo(() => {
+    if (!rawActionInstances.length) {
+      return rawActionInstances;
+    }
+
+    const typeMap = new Map((actionTypes ?? []).map((type) => [type.id, type] as const));
+
+    let hasChanges = false;
+    const reconciled = rawActionInstances.map((instance) => {
+      const definition = typeMap.get(instance.typeId);
+      if (!definition) {
+        if (!instance.propertyValues || Object.keys(instance.propertyValues).length === 0) {
+          return instance;
+        }
+
+        hasChanges = true;
+        return { ...instance, propertyValues: {} };
+      }
+
+      const nextValues = reconcileInstanceValues(
+        definition,
+        instance.propertyValues ?? {}
+      );
+
+      const hasSameKeys =
+        Object.keys(nextValues).length ===
+          Object.keys(instance.propertyValues ?? {}).length &&
+        Object.entries(nextValues).every(
+          ([key, value]) => instance.propertyValues?.[key] === value
+        );
+
+      if (hasSameKeys) {
+        return instance;
+      }
+
+      hasChanges = true;
+      return {
+        ...instance,
+        propertyValues: nextValues,
+      };
+    });
+
+    return hasChanges ? reconciled : rawActionInstances;
+  }, [rawActionInstances, actionTypes]);
 
   const resetPredicateModalState = useCallback(() => {
     setPredicateModalState((prev) => ({
@@ -262,6 +317,7 @@ function App() {
           width: DEFAULT_CANVAS_NODE_WIDTH,
           height: DEFAULT_CANVAS_NODE_HEIGHT,
           isNegated: item.isNegated,
+          typeId: item.typeId,
         },
       ]);
     },
@@ -588,6 +644,8 @@ function App() {
               onRemoveActionPredicate={handleRemoveActionPredicate}
               onCycleFlowSuccessType={handleCycleFlowSuccessType}
               predicateTypes={PREDICATE_TYPE_CATALOG}
+              actionTypes={actionTypes}
+              actionInstances={actionInstances}
             />
           </div>
         </div>
