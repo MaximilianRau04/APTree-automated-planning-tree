@@ -37,6 +37,11 @@ import type {
   PredicateInstance,
   PredicateType,
 } from "../sidebar/utils/types";
+import {
+  DECORATOR_NODES_KEY,
+  FLOW_NODES_KEY,
+  SERVICE_NODES_KEY,
+} from "../sidebar/utils/constants";
 import "./EditorCanvas.css";
 
 type PortSide = "top" | "right" | "bottom" | "left";
@@ -252,9 +257,45 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
   const { node } = data;
   const preconditions = node.preconditions ?? [];
   const effects = node.effects ?? [];
+  const isAction = isActionNode(node);
+
+  const nodeClasses = ["canvas-node", `canvas-node-${node.kind}`];
+
+  if (node.category === FLOW_NODES_KEY) {
+    nodeClasses.push("canvas-node-flow");
+  } else if (node.category === DECORATOR_NODES_KEY) {
+    nodeClasses.push("canvas-node-decorator");
+  } else if (node.category === SERVICE_NODES_KEY) {
+    nodeClasses.push("canvas-node-service");
+  }
+
+  if (isAction) {
+    nodeClasses.push("canvas-node-action");
+  }
+
+  const portStyleOverrides: Partial<Record<PortSide, CSSProperties>> = isAction
+    ? {
+        left: { left: 9 },
+        right: { right: 9 },
+      }
+    : {};
+
+  const sourceHandleOverrides: Partial<Record<PortSide, CSSProperties>> = isAction
+    ? {
+        left: { left: -12 },
+        right: { right: -12 },
+      }
+    : {};
+
+  const targetHandleOverrides: Partial<Record<PortSide, CSSProperties>> = isAction
+    ? {
+        left: { left: -4 },
+        right: { right: -4 },
+      }
+    : {};
 
   return (
-    <div className={`canvas-node canvas-node-${node.kind}`}>
+    <div className={nodeClasses.join(" ")}>
       <NodeResizer
         isVisible={selected}
         minWidth={180}
@@ -338,7 +379,7 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
         </span>
       ) : null}
 
-      {isActionNode(node) ? (
+      {isAction ? (
         <div className="canvas-node-state">
           {(data.onAddActionPrecondition || data.onAddActionEffect) && (
             <div className="canvas-node-actions">
@@ -398,7 +439,7 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
         <span
           key={`port-${side}`}
           className={`canvas-node-port canvas-node-port-${side}`}
-          style={PORT_STYLES[side]}
+          style={{ ...PORT_STYLES[side], ...(portStyleOverrides[side] ?? {}) }}
         />
       ))}
       {(Object.keys(portPositions) as PortSide[]).map((side) => (
@@ -408,7 +449,10 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
           position={portPositions[side]}
           id={`source-${side}`}
           className="canvas-node-handle canvas-node-handle-hitbox canvas-node-handle-source"
-          style={SOURCE_HANDLE_STYLES[side]}
+          style={{
+            ...SOURCE_HANDLE_STYLES[side],
+            ...(sourceHandleOverrides[side] ?? {}),
+          }}
           isConnectableEnd={false}
         />
       ))}
@@ -419,7 +463,10 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
           position={portPositions[side]}
           id={`target-${side}`}
           className="canvas-node-handle canvas-node-handle-hitbox canvas-node-handle-target"
-          style={TARGET_HANDLE_STYLES[side]}
+          style={{
+            ...TARGET_HANDLE_STYLES[side],
+            ...(targetHandleOverrides[side] ?? {}),
+          }}
           isConnectableStart={false}
         />
       ))}

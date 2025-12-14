@@ -43,6 +43,7 @@
   cursor: grab;
   user-select: none;
   overflow: visible;
+  isolation: isolate;
   transition: border-color var(--transition-fast),
     box-shadow var(--transition-fast),
     background var(--transition-fast);
@@ -62,6 +63,22 @@
   border-color: var(--accent);
   box-shadow: 0 14px 32px rgba(99, 102, 241, 0.24);
 }
+
+.editor-canvas .react-flow__node.selected::before,
+.editor-canvas .react-flow__node.selected .react-flow__node-default,
+.editor-canvas .react-flow__node.selected .react-flow__node-resizer {
+  display: none !important;
+}
+
+.editor-canvas .react-flow__node.selected {
+  outline: none !important;
+}
+
+.canvas-node-resizer-line,
+.canvas-node-resizer-handle {
+  display: none !important;
+}
+
 
 .canvas-node-success {
   position: absolute;
@@ -290,16 +307,6 @@
   outline-offset: 2px;
 }
 
-.canvas-node-resizer-line {
-  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
-}
-
-.canvas-node-resizer-handle {
-  border: 2px solid var(--accent);
-  background: var(--surface-panel);
-  width: 12px;
-  height: 12px;
-}
 
 .canvas-node-parameterType {
   border-color: color-mix(in srgb, var(--accent) 85%, transparent);
@@ -320,17 +327,160 @@
 }
 
 .canvas-node-actionType {
-  border-color: color-mix(in srgb, var(--accent) 85%, transparent);
-  background: color-mix(in srgb, var(--accent) 10%, var(--surface-panel-alt) 90%);
+  --action-border: rgba(0, 255, 234, 0.7);
+  --action-before: linear-gradient(120deg, rgba(34, 197, 94, 0.3), rgba(14, 165, 233, 0.45));
+  --action-glow: rgba(59, 130, 246, 0.35);
 }
 
 .canvas-node-actionInstance {
-  border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+  --action-border: rgba(59, 255, 206, 0.75);
+  --action-before: linear-gradient(120deg, rgba(168, 85, 247, 0.28), rgba(6, 214, 160, 0.38));
+  --action-glow: rgba(16, 185, 129, 0.38);
 }
 
 .canvas-node-behaviorNode {
   border-color: color-mix(in srgb, var(--accent) 65%, transparent);
   background: color-mix(in srgb, var(--accent-soft) 45%, var(--surface-panel-alt) 55%);
+}
+
+.canvas-node-flow {
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-lg);
+  padding: 18px 24px;
+  box-shadow: none;
+}
+
+.canvas-node-flow::before,
+.canvas-node-flow::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: var(--radius-lg);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.canvas-node-flow::before {
+  background: linear-gradient(135deg, rgba(255, 0, 179, 0.18), rgba(101, 64, 255, 0.25));
+  box-shadow: 0 14px 30px rgba(157, 78, 221, 0.25);
+}
+
+.canvas-node-flow::after {
+  border: 2px solid rgba(255, 102, 255, 0.6);
+}
+
+.canvas-node-flow .canvas-node-success {
+  background: color-mix(in srgb, rgba(255, 0, 179, 0.55) 60%, rgba(101, 64, 255, 0.45));
+  border-color: rgba(255, 102, 255, 0.85);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(255, 0, 179, 0.35);
+}
+
+.canvas-node-action {
+  --action-border: rgba(0, 247, 255, 0.55);
+  --action-before: linear-gradient(120deg, rgba(0, 255, 234, 0.32), rgba(14, 165, 233, 0.42));
+  --action-glow: rgba(0, 214, 255, 0.32);
+  border: none;
+  background: transparent;
+  border-radius: 0;
+  padding: 18px 30px 18px 36px;
+  box-shadow: none;
+}
+
+.canvas-node-action:active,
+.canvas-node-service:active,
+.canvas-node-decorator:active,
+.canvas-node-action:focus-visible,
+.canvas-node-service:focus-visible,
+.canvas-node-decorator:focus-visible {
+  background: transparent;
+  box-shadow: none;
+  border: none;
+}
+
+.canvas-node-action::before,
+.canvas-node-action::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  clip-path: polygon(12% 0, 100% 0, 88% 100%, 0 100%);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.canvas-node-action::before {
+  background: var(--action-before);
+  filter: drop-shadow(0 0 28px var(--action-glow));
+}
+
+.canvas-node-action::after {
+  border: 2px solid var(--action-border);
+}
+
+.canvas-node-service {
+  border: none;
+  background: transparent;
+  border-radius: 0;
+  padding: 22px 32px;
+  box-shadow: none;
+}
+
+.canvas-node-service::before,
+.canvas-node-service::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  clip-path: polygon(12% 0, 88% 0, 100% 50%, 88% 100%, 12% 100%, 0 50%);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.canvas-node-service::before {
+  background: linear-gradient(140deg, rgba(34, 211, 238, 0.35), rgba(16, 185, 129, 0.35));
+  filter: drop-shadow(0 0 24px rgba(16, 185, 129, 0.35));
+}
+
+.canvas-node-service::after {
+  border: 2px solid rgba(110, 255, 190, 0.75);
+}
+
+.canvas-node-decorator {
+  border: none;
+  background: transparent;
+  border-radius: 0;
+  padding: 24px 30px;
+  box-shadow: none;
+}
+
+.canvas-node-decorator::before,
+.canvas-node-decorator::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  clip-path: polygon(50% 0, 100% 32%, 100% 68%, 50% 100%, 0 68%, 0 32%);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.canvas-node-decorator::before {
+  background: linear-gradient(145deg, rgba(255, 196, 73, 0.4), rgba(236, 72, 153, 0.35));
+  filter: drop-shadow(0 0 26px rgba(248, 164, 76, 0.45));
+}
+
+.canvas-node-decorator::after {
+  border: 2px solid rgba(255, 196, 73, 0.85);
+}
+
+.canvas-node-action .canvas-node-remove,
+.canvas-node-service .canvas-node-remove {
+  top: 18px;
+  right: 24px;
+}
+
+.canvas-node-decorator .canvas-node-remove {
+  top: 34px;
+  right: 26px;
 }
 
 
