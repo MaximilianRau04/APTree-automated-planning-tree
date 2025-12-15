@@ -122,9 +122,15 @@ const TARGET_HANDLE_STYLES: Record<PortSide, CSSProperties> = {
   left: { left: -8, top: "50%", transform: "translate(0, -50%)" },
 };
 
+const CANVAS_EXTENT: [[number, number], [number, number]] = [
+  [-4000, -4000],
+  [4000, 4000],
+];
+
 const PARAM_BOX_HEIGHT = 24;
 const PARAM_BOX_GAP = 6;
 const PARAM_STACK_CLEARANCE = 18;
+const SUCCESS_BADGE_CLEARANCE = 32;
 
 /**
  * resolves the port side from a handle ID string.
@@ -373,15 +379,27 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
     sourceHandleOverrides.right = { right: -12 };
     targetHandleOverrides.left = { left: -4 };
     targetHandleOverrides.right = { right: -4 };
+  }
+
+  const successBadgeClearance = node.successType ? SUCCESS_BADGE_CLEARANCE : 0;
+  const topClearance = (isAction ? paramClearance : 0) + successBadgeClearance;
+
+  if (topClearance > 0) {
+    const basePortTop = resolveNumericOffset(PORT_STYLES.top.top);
+    const baseSourceTop = resolveNumericOffset(SOURCE_HANDLE_STYLES.top.top);
+    const baseTargetTop = resolveNumericOffset(TARGET_HANDLE_STYLES.top.top);
 
     portStyleOverrides.top = {
-      top: resolveNumericOffset(PORT_STYLES.top.top) - paramClearance,
+      ...(portStyleOverrides.top ?? {}),
+      top: basePortTop - topClearance,
     };
     sourceHandleOverrides.top = {
-      top: resolveNumericOffset(SOURCE_HANDLE_STYLES.top.top) - paramClearance,
+      ...(sourceHandleOverrides.top ?? {}),
+      top: baseSourceTop - topClearance,
     };
     targetHandleOverrides.top = {
-      top: resolveNumericOffset(TARGET_HANDLE_STYLES.top.top) - paramClearance,
+      ...(targetHandleOverrides.top ?? {}),
+      top: baseTargetTop - topClearance,
     };
   }
 
@@ -925,6 +943,8 @@ function EditorCanvasInner(props: EditorCanvasProps) {
         edges={flowEdges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        translateExtent={CANVAS_EXTENT}
+        nodeExtent={CANVAS_EXTENT}
         onConnect={handleConnect}
         onNodeDrag={handleNodeDrag}
         onNodeDragStop={handleNodeDragStop}

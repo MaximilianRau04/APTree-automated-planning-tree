@@ -375,8 +375,8 @@ function App() {
           node.id === nodeId
             ? {
                 ...node,
-                x: Math.max(0, position.x),
-                y: Math.max(0, position.y),
+                x: position.x,
+                y: position.y,
               }
             : node
         )

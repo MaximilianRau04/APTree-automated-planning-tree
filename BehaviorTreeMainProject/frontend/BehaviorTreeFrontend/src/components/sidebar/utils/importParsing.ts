@@ -14,6 +14,11 @@ export interface ParsedAssignments {
 
 const stripQuotes = (value: string) => value.replace(/^['"]|['"]$/g, "");
 
+/**
+ * parses a string block containing property assignments into named and ordered collections.
+ * @param block input string block with property assignments
+ * @returns parsed assignments object
+ */
 export const parseAssignmentBlock = (block: string): ParsedAssignments => {
   const named: Record<string, string> = {};
   const ordered: string[] = [];
@@ -36,6 +41,12 @@ export const parseAssignmentBlock = (block: string): ParsedAssignments => {
   return { named, ordered };
 };
 
+/**
+ * builds a property values mapping from the provided type definition and parsed assignments.
+ * @param definition 
+ * @param assignment  
+ * @returns record mapping property IDs to their assigned values
+ */
 export const buildPropertyValuesFromAssignments = (
   definition: PropertyBackedType,
   assignments: ParsedAssignments
@@ -58,6 +69,12 @@ export const buildPropertyValuesFromAssignments = (
   }, {});
 };
 
+/**
+ * picks a display name for an instance based on the provided type name and parsed assignments.
+ * @param typeName 
+ * @param assignments  
+ * @returns chosen display name for the instance
+ */
 export const pickInstanceDisplayName = (
   typeName: string,
   assignments: ParsedAssignments
@@ -82,6 +99,13 @@ export const pickInstanceDisplayName = (
   return `${typeName}-${Math.random().toString(36).slice(2, 6)}`;
 };
 
+/**
+ * summarizes the results of an import operation.
+ * @param processed 
+ * @param imported 
+ * @param errors 
+ * @returns import report object
+ */
 export const summarizeImport = (
   processed: number,
   imported: number,
