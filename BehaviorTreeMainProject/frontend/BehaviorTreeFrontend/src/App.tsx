@@ -4,7 +4,11 @@ import Header from "./components/header/Header.tsx";
 import Sidebar from "./components/sidebar/Sidebar.tsx";
 import { useSidebarManager } from "./components/sidebar/useSidebarLogic";
 import EditorCanvas from "./components/editor/EditorCanvas.tsx";
-import type { CanvasNode, NodeConnection } from "./components/editor/types";
+import type {
+  ActionParameterDetail,
+  CanvasNode,
+  NodeConnection,
+} from "./components/editor/types";
 import { DEFAULT_CANVAS_NODE_HEIGHT, DEFAULT_CANVAS_NODE_WIDTH } from "./components/editor/types";
 import type { DraggedSidebarItem } from "./components/editor/dragTypes";
 import { createId } from "./utils/id";
@@ -16,6 +20,7 @@ import {
   BT_NODES_KEY,
 } from "./components/sidebar/utils/constants";
 import { PredicateInstanceModal } from "./components/sidebar/modals/InstanceModal";
+import ActionParameterDetailsModal from "./components/editor/modals/ActionParameterDetailsModal.tsx";
 import {
   clonePredicateInstance,
   createEmptyPredicateInstance,
@@ -75,6 +80,10 @@ function getInitialTheme(): ThemeMode {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
+/**
+ * application root component.
+ * @returns main application element
+ */
 function App() {
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
   const [userLockedTheme, setUserLockedTheme] = useState<boolean>(() => {
@@ -89,6 +98,7 @@ function App() {
   const [predicateModalState, setPredicateModalState] = useState<ActionPredicateModalState>(
     createInitialPredicateModalState
   );
+  const [parameterDetail, setParameterDetail] = useState<ActionParameterDetail | null>(null);
   const sidebarManager = useSidebarManager();
   const {
     importParameterInstancesFromText,
@@ -148,6 +158,9 @@ function App() {
     return hasChanges ? reconciled : rawActionInstances;
   }, [rawActionInstances, actionTypes]);
 
+  /**
+   * resets the predicate modal state to its initial configuration.
+   */
   const resetPredicateModalState = useCallback(() => {
     setPredicateModalState((prev) => ({
       ...createInitialPredicateModalState(),
@@ -155,10 +168,17 @@ function App() {
     }));
   }, []);
 
+  /**
+   * closes the action predicate modal.
+   */
   const closeActionPredicateModal = useCallback(() => {
     resetPredicateModalState();
   }, [resetPredicateModalState]);
 
+  /**
+   * opens the action predicate modal with the provided configuration.
+   * @param config modal configuration
+   */
   const openActionPredicateModal = useCallback(
     (config: {
       mode: "add" | "edit";
@@ -179,6 +199,21 @@ function App() {
     },
     []
   );
+
+  /**
+   * shows the action parameter detail modal with the provided detail.
+   * @param detail action parameter detail to display
+   */
+  const handleShowActionParameterDetail = useCallback((detail: ActionParameterDetail) => {
+    setParameterDetail(detail);
+  }, []);
+
+  /**
+   * closes the action parameter detail modal.
+   */
+  const handleCloseActionParameterDetail = useCallback(() => {
+    setParameterDetail(null);
+  }, []);
 
   /**
    * applies the current theme to the document root and persists the preference.
@@ -220,6 +255,9 @@ function App() {
     setUserLockedTheme(true);
   };
 
+  /**
+   * handles importing instances from a file using the provided importer function.
+   */
   const handleImportFromFile = useCallback(
     (
       file: File,
@@ -256,6 +294,9 @@ function App() {
     []
   );
 
+  /**
+   * handles importing parameter instances from a file.
+   */
   const handleImportParameterInstancesFile = useCallback(
     (file: File) =>
       handleImportFromFile(
@@ -638,6 +679,7 @@ function App() {
               onRemoveNode={handleRemoveNode}
               onAddConnection={handleAddConnection}
               onRemoveConnection={handleRemoveConnection}
+              onShowActionParameterDetail={handleShowActionParameterDetail}
               onAddActionPrecondition={handleAddActionPrecondition}
               onAddActionEffect={handleAddActionEffect}
               onEditActionPredicate={handleEditActionPredicate}
@@ -660,6 +702,11 @@ function App() {
         typeDefinitions={PREDICATE_TYPE_CATALOG}
         onClose={closeActionPredicateModal}
         onSave={handleSaveActionPredicate}
+      />
+
+      <ActionParameterDetailsModal
+        detail={parameterDetail}
+        onClose={handleCloseActionParameterDetail}
       />
     </>
   );

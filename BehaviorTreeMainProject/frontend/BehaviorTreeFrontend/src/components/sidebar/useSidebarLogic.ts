@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   ADD_LABELS,
   DEFAULT_DATA,
@@ -51,98 +51,13 @@ import type {
   ServiceNodeOption,
   ImportReport,
 } from "./utils/types";
-
-/** describes the shared shape for modal controller state. */
-interface ModalControllerState<TValue> {
-  isOpen: boolean;
-  mode: "add" | "edit";
-  index: number | null;
-  initialValue: TValue;
-  revision: number;
-}
-
-/** exposes modal state along with the typical lifecycle helpers. */
-interface ModalController<TValue> {
-  state: ModalControllerState<TValue>;
-  openAdd: (initialValue?: TValue) => void;
-  openEdit: (index: number, initialValue: TValue) => void;
-  close: () => void;
-}
-
-/**
- * provides a monotonically increasing revision number for modal resets.
- * @returns function that returns the next revision identifier per invocation
- */
-const useRevisionGenerator = () => {
-  const counterRef = useRef(0);
-
-  return useCallback(() => {
-    counterRef.current += 1;
-    return counterRef.current;
-  }, []);
-};
-
-/**
- * centralizes reusable modal state management helpers for add/edit flows.
- * @param createEmpty factory returning a blank value for the modal
- * @returns modal state alongside helpers for opening and closing the modal
- */
-const useModalController = <TValue,>(
-  createEmpty: () => TValue
-): ModalController<TValue> => {
-  const nextRevision = useRevisionGenerator();
-  const [state, setState] = useState<ModalControllerState<TValue>>(() => ({
-    isOpen: false,
-    mode: "add",
-    index: null,
-    initialValue: createEmpty(),
-    revision: 0,
-  }));
-
-  /**
-   * opens the modal in "add" mode with an optional initial value.
-   * @param initialValue optional initial value to prefill the modal
-   */
-  const openAdd = (initialValue?: TValue) => {
-    setState({
-      isOpen: true,
-      mode: "add",
-      index: null,
-      initialValue: initialValue ?? createEmpty(),
-      revision: nextRevision(),
-    });
-  };
-
-  /**
-   * opens the modal in "edit" mode with the provided index and initial value.
-   * @param index index of the item being edited
-   * @param initialValue initial value to prefill the modal
-   */
-  const openEdit = (index: number, initialValue: TValue) => {
-    setState({
-      isOpen: true,
-      mode: "edit",
-      index,
-      initialValue,
-      revision: nextRevision(),
-    });
-  };
-
-  /**
-   * closes the modal and resets its state.
-   */
-  const close = () => {
-    setState({
-      isOpen: false,
-      mode: "add",
-      index: null,
-      initialValue: createEmpty(),
-      revision: nextRevision(),
-    });
-  };
-
-  return { state, openAdd, openEdit, close };
-};
+import { useModalController } from "./utils/modalController";
+import {
+  buildPropertyValuesFromAssignments,
+  parseAssignmentBlock,
+  pickInstanceDisplayName,
+  summarizeImport,
+} from "./utils/importParsing";
 
 /**
  * normalizes type definitions by trimming fields and ensuring property ids.
@@ -174,94 +89,6 @@ const createInitialSearchQueries = (): SearchQueries => {
   const initialEntries = DEFAULT_ORDER.map((key) => [key, ""] as const);
   return Object.fromEntries(initialEntries) as SearchQueries;
 };
-
-type PropertyBackedType = ParameterType | PredicateType | ActionType;
-
-interface ParsedAssignments {
-  named: Record<string, string>;
-  ordered: string[];
-}
-
-const stripQuotes = (value: string) => value.replace(/^['"]|['"]$/g, "");
-
-const parseAssignmentBlock = (block: string): ParsedAssignments => {
-  const named: Record<string, string> = {};
-  const ordered: string[] = [];
-  const entries = block
-    .split(",")
-    .map((segment) => segment.trim())
-    .filter(Boolean);
-
-  entries.forEach((entry) => {
-    const match = entry.match(/^([A-Za-z0-9_]+)\s*[:=]\s*(.+)$/);
-    if (match) {
-      const key = match[1].trim().toLowerCase();
-      const value = stripQuotes(match[2].trim());
-      named[key] = value;
-    } else {
-      ordered.push(stripQuotes(entry));
-    }
-  });
-
-  return { named, ordered };
-};
-
-const buildPropertyValuesFromAssignments = (
-  definition: PropertyBackedType,
-  assignments: ParsedAssignments
-): Record<string, string> => {
-  if (!definition.properties.length) {
-    return {};
-  }
-
-  const fallbackValues = [...assignments.ordered];
-  return definition.properties.reduce<Record<string, string>>((acc, property) => {
-    const normalizedKey = property.name.trim().toLowerCase();
-    if (normalizedKey && assignments.named[normalizedKey] !== undefined) {
-      acc[property.id] = assignments.named[normalizedKey];
-    } else if (fallbackValues.length > 0) {
-      acc[property.id] = fallbackValues.shift() ?? "";
-    } else {
-      acc[property.id] = "";
-    }
-    return acc;
-  }, {});
-};
-
-const pickInstanceDisplayName = (
-  typeName: string,
-  assignments: ParsedAssignments
-) => {
-  if (assignments.named["name"]) {
-    return assignments.named["name"];
-  }
-
-  if (assignments.named["id"]) {
-    return assignments.named["id"];
-  }
-
-  if (assignments.ordered[0]) {
-    return assignments.ordered[0];
-  }
-
-  const firstNamedKey = Object.keys(assignments.named)[0];
-  if (firstNamedKey) {
-    return assignments.named[firstNamedKey];
-  }
-
-  return `${typeName}-${Math.random().toString(36).slice(2, 6)}`;
-};
-
-const summarizeImport = (
-  processed: number,
-  imported: number,
-  errors: string[]
-): ImportReport => ({
-  processed,
-  imported,
-  skipped: Math.max(processed - imported, 0),
-  errors,
-});
 
 /**
  * central hook that encapsulates sidebar state, modal coordination, and item crud helpers.
@@ -1372,6 +1199,11 @@ export const useSidebarManager = (): SidebarManager => {
     setSearchQueries((prev) => ({ ...prev, [category]: value }));
   };
 
+  /**
+   * Imports parameter instances from the provided raw text input.
+   * @param rawText multiline string containing parameter instance definitions
+   * @returns summary report of the import operation
+   */
   const importParameterInstancesFromText = useCallback(
     (rawText: string): ImportReport => {
       const lines = rawText.split(/\r?\n/);
@@ -1435,6 +1267,11 @@ export const useSidebarManager = (): SidebarManager => {
     [parameterTypeNameMap, setData]
   );
 
+  /**
+   * Imports predicate instances from the provided raw text input.
+   * @param rawText multiline string containing predicate instance definitions
+   * @returns summary report of the import operation
+   */
   const importPredicateInstancesFromText = useCallback(
     (rawText: string): ImportReport => {
       const lines = rawText.split(/\r?\n/);
@@ -1506,6 +1343,11 @@ export const useSidebarManager = (): SidebarManager => {
     [predicateTypeNameMap, setData]
   );
 
+  /**
+   * Imports action instances from the provided raw text input.
+   * @param rawText multiline string containing action instance definitions
+   * @returns summary report of the import operation
+   */
   const importActionInstancesFromText = useCallback(
     (rawText: string): ImportReport => {
       const lines = rawText.split(/\r?\n/);

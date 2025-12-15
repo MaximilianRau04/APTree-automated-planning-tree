@@ -40,6 +40,17 @@ export interface NodeConnection {
   targetPort?: 'top' | 'right' | 'bottom' | 'left';
 }
 
+/** details surfaced when inspecting an action parameter from the canvas. */
+export interface ActionParameterDetail {
+  nodeId: string;
+  nodeName: string;
+  nodeTypeLabel: string;
+  parameterId: string;
+  parameterName: string;
+  parameterType?: string;
+  parameterValue?: string;
+}
+
 /** contract for the editor canvas so the parent app can control interactions. */
 export interface EditorCanvasProps {
   nodes: CanvasNode[];
@@ -64,6 +75,7 @@ export interface EditorCanvasProps {
     targetPort: 'top' | 'right' | 'bottom' | 'left'
   ) => void;
   onRemoveConnection?: (connectionId: string) => void;
+  onShowActionParameterDetail?: (detail: ActionParameterDetail) => void;
   onAddActionPrecondition?: (nodeId: string) => void;
   onAddActionEffect?: (nodeId: string) => void;
   onCycleFlowSuccessType?: (nodeId: string) => void;

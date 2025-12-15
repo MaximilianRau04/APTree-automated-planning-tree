@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import {
   Background,
@@ -21,6 +21,7 @@ import {
   type NodeTypes,
   Position,
   useReactFlow,
+  useUpdateNodeInternals,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import {
@@ -28,7 +29,11 @@ import {
   isSidebarDrag,
   type DraggedSidebarItem,
 } from "./dragTypes";
-import type { CanvasNode, EditorCanvasProps } from "./types";
+import type {
+  ActionParameterDetail,
+  CanvasNode,
+  EditorCanvasProps,
+} from "./types";
 import {
   DEFAULT_CANVAS_NODE_HEIGHT,
   DEFAULT_CANVAS_NODE_WIDTH,
@@ -82,6 +87,7 @@ interface BehaviorNodeData {
   ) => void;
   onResizeNode?: (nodeId: string, size: { width: number; height: number }) => void;
   onMoveNode?: (nodeId: string, position: { x: number; y: number }) => void;
+  onShowActionParameterDetail?: (detail: ActionParameterDetail) => void;
 }
 
 interface BehaviorEdgeData {
@@ -275,6 +281,7 @@ function PredicateCollection({
  * @returns JSX element 
  */
 function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
+  const updateNodeInternals = useUpdateNodeInternals();
   const { node } = data;
   const preconditions = node.preconditions ?? [];
   const effects = node.effects ?? [];
@@ -295,20 +302,37 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
       ? data.actionTypeMap.get(resolvedActionTypeId)
       : undefined;
 
-  const actionParameterSummaries =
+  type ActionParameterSummary = {
+    id: string;
+    propertyId: string;
+    name: string;
+    value?: string;
+    valueType?: string;
+  };
+
+  /**
+   * generates a list of action parameter summaries for display.
+   */
+  const actionParameterSummaries: ActionParameterSummary[] =
     isAction && actionTypeDefinition
-      ? actionTypeDefinition.properties
-          .map((property, index) => {
-            const fallbackId = `${resolvedActionTypeId ?? "action"}-${index}`;
-            const propertyKey = property.id || fallbackId;
-            const name = property.name?.trim() || property.id || `param_${index + 1}`;
-            const value = actionInstance?.propertyValues?.[property.id];
-            const label = value && value.trim().length > 0 ? `${name}: ${value}` : name;
-            return label.trim().length > 0
-              ? { id: propertyKey, label }
-              : null;
-          })
-          .filter((entry): entry is { id: string; label: string } => Boolean(entry))
+      ? actionTypeDefinition.properties.reduce<ActionParameterSummary[]>((list, property, index) => {
+          const fallbackId = `${resolvedActionTypeId ?? "action"}-${index}`;
+          const propertyId = property.id?.trim() || fallbackId;
+          const name = property.name?.trim() || property.id || `param_${index + 1}`;
+          if (!name.trim()) {
+            return list;
+          }
+
+          list.push({
+            id: `${node.id}-${propertyId}`,
+            propertyId,
+            name,
+            value: property.id ? actionInstance?.propertyValues?.[property.id] : undefined,
+            valueType: property.valueType,
+          });
+
+          return list;
+        }, [])
       : [];
 
   const showActionParams = actionParameterSummaries.length > 0;
@@ -319,6 +343,10 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
   const paramClearance = showActionParams
     ? paramStackHeight + PARAM_STACK_CLEARANCE
     : 0;
+
+  useEffect(() => {
+    updateNodeInternals(id);
+  }, [id, paramClearance, showActionParams, updateNodeInternals]);
 
   const nodeClasses = ["canvas-node", `canvas-node-${node.kind}`];
 
@@ -403,9 +431,26 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
           aria-label="Action parameters"
         >
           {actionParameterSummaries.map((entry) => (
-            <span key={entry.id} className="canvas-node-params-chip">
-              {entry.label}
-            </span>
+            <button
+              key={entry.id}
+              type="button"
+              className="canvas-node-params-chip"
+              onMouseDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                data.onShowActionParameterDetail?.({
+                  nodeId: id,
+                  nodeName: node.name,
+                  nodeTypeLabel: node.typeLabel,
+                  parameterId: entry.propertyId,
+                  parameterName: entry.name,
+                  parameterType: entry.valueType,
+                  parameterValue: entry.value,
+                });
+              }}
+            >
+              {entry.name}
+            </button>
           ))}
         </div>
       ) : null}
@@ -638,6 +683,7 @@ function EditorCanvasInner(props: EditorCanvasProps) {
     predicateTypes,
     actionTypes,
     actionInstances,
+    onShowActionParameterDetail,
   } = props;
 
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -682,6 +728,7 @@ function EditorCanvasInner(props: EditorCanvasProps) {
             onRemoveActionPredicate,
             onResizeNode,
             onMoveNode,
+            onShowActionParameterDetail,
           },
           width,
           height,
@@ -700,6 +747,7 @@ function EditorCanvasInner(props: EditorCanvasProps) {
       onRemoveActionPredicate,
       onResizeNode,
       onMoveNode,
+      onShowActionParameterDetail,
     ]
   );
 
