@@ -72,6 +72,7 @@ interface BehaviorNodeData {
   actionTypeMap: Map<string, ActionType>;
   actionInstanceMap: Map<string, ActionInstance>;
   onRemoveNode?: (nodeId: string) => void;
+  onEditNode?: (nodeId: string) => void;
   onCycleFlowSuccessType?: (nodeId: string) => void;
   onAddActionPrecondition?: (nodeId: string) => void;
   onAddActionEffect?: (nodeId: string) => void;
@@ -291,6 +292,9 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
   const { node } = data;
   const preconditions = node.preconditions ?? [];
   const effects = node.effects ?? [];
+
+  const isFlowNode = node.category === FLOW_NODES_KEY;
+
   const isAction = isActionNode(node);
   const actionInstance =
     isAction && node.kind === "actionInstance"
@@ -316,9 +320,6 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
     valueType?: string;
   };
 
-  /**
-   * generates a list of action parameter summaries for display.
-   */
   const actionParameterSummaries: ActionParameterSummary[] =
     isAction && actionTypeDefinition
       ? actionTypeDefinition.properties.reduce<ActionParameterSummary[]>((list, property, index) => {
@@ -372,13 +373,17 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
   const sourceHandleOverrides: Partial<Record<PortSide, CSSProperties>> = {};
   const targetHandleOverrides: Partial<Record<PortSide, CSSProperties>> = {};
 
-  if (isAction) {
-    portStyleOverrides.left = { left: 8 };
-    portStyleOverrides.right = { right: 8 };
-    sourceHandleOverrides.left = { left: -12 };
-    sourceHandleOverrides.right = { right: -12 };
-    targetHandleOverrides.left = { left: -4 };
-    targetHandleOverrides.right = { right: -4 };
+  if (node.category === FLOW_NODES_KEY) {
+    const offset = "3.75%";
+
+    portStyleOverrides.left = { left: offset };
+    portStyleOverrides.right = { right: offset };
+
+    sourceHandleOverrides.left = { left: offset };
+    sourceHandleOverrides.right = { right: offset };
+
+    targetHandleOverrides.left = { left: offset };
+    targetHandleOverrides.right = { right: offset };
   }
 
   const successBadgeClearance = node.successType ? SUCCESS_BADGE_CLEARANCE : 0;
@@ -444,10 +449,7 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
       />
 
       {showActionParams ? (
-        <div
-          className="canvas-node-params"
-          aria-label="Action parameters"
-        >
+        <div className="canvas-node-params" aria-label="Action parameters">
           {actionParameterSummaries.map((entry) => (
             <button
               key={entry.id}
@@ -493,6 +495,22 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
             {node.successType}
           </span>
         )
+      ) : null}
+
+      {data.onEditNode ? (
+        <button
+          type="button"
+          className="canvas-node-edit"
+          onMouseDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            data.onEditNode?.(id);
+          }}
+          aria-label={`Edit ${node.name}`}
+          title="Edit"
+        >
+          ✎
+        </button>
       ) : null}
 
       {data.onRemoveNode ? (
@@ -581,20 +599,7 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
           style={{ ...PORT_STYLES[side], ...(portStyleOverrides[side] ?? {}) }}
         />
       ))}
-      {(Object.keys(portPositions) as PortSide[]).map((side) => (
-        <Handle
-          key={`source-${side}`}
-          type="source"
-          position={portPositions[side]}
-          id={`source-${side}`}
-          className="canvas-node-handle canvas-node-handle-hitbox canvas-node-handle-source"
-          style={{
-            ...SOURCE_HANDLE_STYLES[side],
-            ...(sourceHandleOverrides[side] ?? {}),
-          }}
-          isConnectableEnd={false}
-        />
-      ))}
+
       {(Object.keys(portPositions) as PortSide[]).map((side) => (
         <Handle
           key={`target-${side}`}
@@ -609,6 +614,23 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
           isConnectableStart={false}
         />
       ))}
+
+      {isFlowNode &&
+        (Object.keys(portPositions) as PortSide[]).map((side) => (
+          <Handle
+            key={`source-${side}`}
+            type="source"
+            position={portPositions[side]}
+            id={`source-${side}`}
+            className="canvas-node-handle canvas-node-handle-hitbox canvas-node-handle-source"
+            style={{
+              zIndex: 10, 
+              ...SOURCE_HANDLE_STYLES[side],
+              ...(sourceHandleOverrides[side] ?? {}),
+            }}
+            isConnectableEnd={false}
+          />
+        ))}
     </div>
   );
 }
@@ -645,6 +667,7 @@ function BehaviorEdge({
         id={id}
         path={edgePath}
         markerEnd={markerEnd}
+        interactionWidth={20} 
         style={{
           stroke: "#fff",
           strokeWidth: 2,
@@ -691,6 +714,7 @@ function EditorCanvasInner(props: EditorCanvasProps) {
     onMoveNode,
     onResizeNode,
     onRemoveNode,
+    onEditNode,
     onAddConnection,
     onRemoveConnection,
     onAddActionPrecondition,
@@ -739,6 +763,7 @@ function EditorCanvasInner(props: EditorCanvasProps) {
             actionTypeMap,
             actionInstanceMap,
             onRemoveNode,
+            onEditNode,
             onCycleFlowSuccessType,
             onAddActionPrecondition,
             onAddActionEffect,
@@ -758,6 +783,7 @@ function EditorCanvasInner(props: EditorCanvasProps) {
       actionTypeMap,
       actionInstanceMap,
       onRemoveNode,
+      onEditNode,
       onCycleFlowSuccessType,
       onAddActionPrecondition,
       onAddActionEffect,

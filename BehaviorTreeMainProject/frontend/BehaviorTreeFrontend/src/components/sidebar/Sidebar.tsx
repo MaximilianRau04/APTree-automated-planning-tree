@@ -60,7 +60,6 @@ export default function Sidebar({ manager, onCreateBehaviorNode }: SidebarProps)
     actionInstanceModalState,
     modalState,
     openAddModal,
-    openCategoryModal,
     openEditModal,
     openRenameCategoryModal,
     parameterTypeMap,
@@ -165,13 +164,6 @@ export default function Sidebar({ manager, onCreateBehaviorNode }: SidebarProps)
     <div className="sidebar">
       <div className="sidebar-title">
         <span className="sidebar-title-text">AI Planner</span>
-        <button
-          className="add-category-button"
-          onClick={openCategoryModal}
-          type="button"
-        >
-          + Add Section
-        </button>
       </div>
 
       <BtNodeWizardModal

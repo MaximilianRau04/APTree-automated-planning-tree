@@ -68,6 +68,7 @@ export interface EditorCanvasProps {
     size: { width: number; height: number }
   ) => void;
   onRemoveNode?: (nodeId: string) => void;
+  onEditNode?: (nodeId: string) => void;
   onAddConnection?: (
     sourceNodeId: string,
     targetNodeId: string,

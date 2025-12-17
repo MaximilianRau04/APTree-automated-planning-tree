@@ -9,7 +9,10 @@ import type {
   CanvasNode,
   NodeConnection,
 } from "./components/editor/types";
-import { DEFAULT_CANVAS_NODE_HEIGHT, DEFAULT_CANVAS_NODE_WIDTH } from "./components/editor/types";
+import {
+  DEFAULT_CANVAS_NODE_HEIGHT,
+  DEFAULT_CANVAS_NODE_WIDTH,
+} from "./components/editor/types";
 import type { DraggedSidebarItem } from "./components/editor/dragTypes";
 import { createId } from "./utils/id";
 import { createBehaviorNode } from "./components/editor/flowNodeFactory";
@@ -40,7 +43,10 @@ const STORAGE_KEY = "aptree-preferred-theme";
 type ActionPredicateCollection = "precondition" | "effect";
 type PredicateCollectionKey = "preconditions" | "effects";
 
-const COLLECTION_KEY_MAP: Record<ActionPredicateCollection, PredicateCollectionKey> = {
+const COLLECTION_KEY_MAP: Record<
+  ActionPredicateCollection,
+  PredicateCollectionKey
+> = {
   precondition: "preconditions",
   effect: "effects",
 };
@@ -65,19 +71,23 @@ const createInitialPredicateModalState = (): ActionPredicateModalState => ({
 
 /**
  * retrieves the initial theme mode based on user preference or system settings.
- * @returns initial theme mode 
+ * @returns initial theme mode
  */
 function getInitialTheme(): ThemeMode {
   if (typeof window === "undefined") {
     return "dark";
   }
 
-  const storedTheme = window.localStorage.getItem(STORAGE_KEY) as ThemeMode | null;
+  const storedTheme = window.localStorage.getItem(
+    STORAGE_KEY
+  ) as ThemeMode | null;
   if (storedTheme === "light" || storedTheme === "dark") {
     return storedTheme;
   }
 
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
 }
 
 /**
@@ -95,10 +105,10 @@ function App() {
   });
   const [canvasNodes, setCanvasNodes] = useState<CanvasNode[]>([]);
   const [connections, setConnections] = useState<NodeConnection[]>([]);
-  const [predicateModalState, setPredicateModalState] = useState<ActionPredicateModalState>(
-    createInitialPredicateModalState
-  );
-  const [parameterDetail, setParameterDetail] = useState<ActionParameterDetail | null>(null);
+  const [predicateModalState, setPredicateModalState] =
+    useState<ActionPredicateModalState>(createInitialPredicateModalState);
+  const [parameterDetail, setParameterDetail] =
+    useState<ActionParameterDetail | null>(null);
   const sidebarManager = useSidebarManager();
   const {
     importParameterInstancesFromText,
@@ -106,6 +116,7 @@ function App() {
     importActionInstancesFromText,
     actionTypes,
     getItemsForCategory,
+    openEditModal,
   } = sidebarManager;
 
   const rawActionInstances = useMemo(
@@ -118,13 +129,18 @@ function App() {
       return rawActionInstances;
     }
 
-    const typeMap = new Map((actionTypes ?? []).map((type) => [type.id, type] as const));
+    const typeMap = new Map(
+      (actionTypes ?? []).map((type) => [type.id, type] as const)
+    );
 
     let hasChanges = false;
     const reconciled = rawActionInstances.map((instance) => {
       const definition = typeMap.get(instance.typeId);
       if (!definition) {
-        if (!instance.propertyValues || Object.keys(instance.propertyValues).length === 0) {
+        if (
+          !instance.propertyValues ||
+          Object.keys(instance.propertyValues).length === 0
+        ) {
           return instance;
         }
 
@@ -204,9 +220,12 @@ function App() {
    * shows the action parameter detail modal with the provided detail.
    * @param detail action parameter detail to display
    */
-  const handleShowActionParameterDetail = useCallback((detail: ActionParameterDetail) => {
-    setParameterDetail(detail);
-  }, []);
+  const handleShowActionParameterDetail = useCallback(
+    (detail: ActionParameterDetail) => {
+      setParameterDetail(detail);
+    },
+    []
+  );
 
   /**
    * closes the action parameter detail modal.
@@ -261,7 +280,12 @@ function App() {
   const handleImportFromFile = useCallback(
     (
       file: File,
-      importer: (text: string) => { processed: number; imported: number; skipped: number; errors: string[] },
+      importer: (text: string) => {
+        processed: number;
+        imported: number;
+        skipped: number;
+        errors: string[];
+      },
       label: string
     ) => {
       const reader = new FileReader();
@@ -286,7 +310,9 @@ function App() {
       };
       reader.onerror = () => {
         window.alert(
-          `Import für ${label} fehlgeschlagen: ${reader.error?.message ?? "Unbekannter Fehler"}`
+          `Import für ${label} fehlgeschlagen: ${
+            reader.error?.message ?? "Unbekannter Fehler"
+          }`
         );
       };
       reader.readAsText(file);
@@ -325,6 +351,38 @@ function App() {
         "Action-Instanzen"
       ),
     [handleImportFromFile, importActionInstancesFromText]
+  );
+
+  /**
+   * opens the appropriate sidebar edit modal for the node's source item, if available.
+   */
+  const handleEditNodeFromCanvas = useCallback(
+    (nodeId: string) => {
+      const node = canvasNodes.find((entry) => entry.id === nodeId);
+      if (!node) {
+        console.warn("Unable to edit node; node not found", nodeId);
+        return;
+      }
+
+      const category = node.category;
+      const items = getItemsForCategory(category);
+      const index = items.findIndex((item) => item.id === node.sourceId);
+
+      if (index === -1) {
+        window.alert(
+          "This element cannot currently be edited via the canvas. Please edit it in the sidebar."
+        );
+        console.warn(
+          "Unable to edit node; no matching source item found",
+          node
+        );
+        return;
+      }
+
+      const item = items[index];
+      openEditModal(category, index, item);
+    },
+    [canvasNodes, getItemsForCategory, openEditModal]
   );
 
   /**
@@ -411,7 +469,7 @@ function App() {
   const handleRemoveNode = useCallback((nodeId: string) => {
     setCanvasNodes((prev) => prev.filter((node) => node.id !== nodeId));
     // Also remove all connections involving this node
-    setConnections((prev) => 
+    setConnections((prev) =>
       prev.filter(
         (conn) => conn.sourceNodeId !== nodeId && conn.targetNodeId !== nodeId
       )
@@ -421,38 +479,41 @@ function App() {
   /**
    * handles adding a connection between two nodes.
    */
-  const handleAddConnection = useCallback((
-    sourceNodeId: string,
-    targetNodeId: string,
-    sourcePort: 'top' | 'right' | 'bottom' | 'left',
-    targetPort: 'top' | 'right' | 'bottom' | 'left'
-  ) => {
-    // Check if connection already exists
-    setConnections((prev) => {
-      const exists = prev.some(
-        (conn) =>
-          conn.sourceNodeId === sourceNodeId && 
-          conn.targetNodeId === targetNodeId &&
-          conn.sourcePort === sourcePort &&
-          conn.targetPort === targetPort
-      );
-      
-      if (exists) {
-        return prev;
-      }
+  const handleAddConnection = useCallback(
+    (
+      sourceNodeId: string,
+      targetNodeId: string,
+      sourcePort: "top" | "right" | "bottom" | "left",
+      targetPort: "top" | "right" | "bottom" | "left"
+    ) => {
+      // Check if connection already exists
+      setConnections((prev) => {
+        const exists = prev.some(
+          (conn) =>
+            conn.sourceNodeId === sourceNodeId &&
+            conn.targetNodeId === targetNodeId &&
+            conn.sourcePort === sourcePort &&
+            conn.targetPort === targetPort
+        );
 
-      return [
-        ...prev,
-        {
-          id: createId("connection"),
-          sourceNodeId,
-          targetNodeId,
-          sourcePort,
-          targetPort,
-        },
-      ];
-    });
-  }, []);
+        if (exists) {
+          return prev;
+        }
+
+        return [
+          ...prev,
+          {
+            id: createId("connection"),
+            sourceNodeId,
+            targetNodeId,
+            sourcePort,
+            targetPort,
+          },
+        ];
+      });
+    },
+    []
+  );
 
   /**
    * handles removing a connection between nodes.
@@ -493,7 +554,11 @@ function App() {
    * opens the predicate modal in edit mode for the requested predicate.
    */
   const handleEditActionPredicate = useCallback(
-    (nodeId: string, predicateId: string, collection: ActionPredicateCollection) => {
+    (
+      nodeId: string,
+      predicateId: string,
+      collection: ActionPredicateCollection
+    ) => {
       const node = canvasNodes.find((entry) => entry.id === nodeId);
       if (!node) {
         console.warn("Unable to edit predicate; node not found", nodeId);
@@ -505,7 +570,10 @@ function App() {
       const predicate = predicateList.find((entry) => entry.id === predicateId);
 
       if (!predicate) {
-        console.warn("Unable to edit predicate; predicate not found", predicateId);
+        console.warn(
+          "Unable to edit predicate; predicate not found",
+          predicateId
+        );
         return;
       }
 
@@ -523,7 +591,11 @@ function App() {
    * removes the given predicate from the specified collection on a node.
    */
   const handleRemoveActionPredicate = useCallback(
-    (nodeId: string, predicateId: string, collection: ActionPredicateCollection) => {
+    (
+      nodeId: string,
+      predicateId: string,
+      collection: ActionPredicateCollection
+    ) => {
       setCanvasNodes((prev) =>
         prev.map((node) => {
           if (node.id !== nodeId) {
@@ -538,7 +610,9 @@ function App() {
 
           return {
             ...node,
-            [collectionKey]: predicateList.filter((entry) => entry.id !== predicateId),
+            [collectionKey]: predicateList.filter(
+              (entry) => entry.id !== predicateId
+            ),
           };
         })
       );
@@ -567,7 +641,9 @@ function App() {
 
           const predicateList = node[collectionKey] ?? [];
           if (predicateModalState.mode === "edit") {
-            if (!predicateList.some((entry) => entry.id === sanitizedValue.id)) {
+            if (
+              !predicateList.some((entry) => entry.id === sanitizedValue.id)
+            ) {
               return node;
             }
 
@@ -635,7 +711,9 @@ function App() {
     if (!predicateModalState.nodeId) {
       return null;
     }
-    return canvasNodes.find((node) => node.id === predicateModalState.nodeId) ?? null;
+    return (
+      canvasNodes.find((node) => node.id === predicateModalState.nodeId) ?? null
+    );
   }, [canvasNodes, predicateModalState.nodeId]);
 
   const predicateModalTitle = useMemo(() => {
@@ -650,7 +728,9 @@ function App() {
         : predicateModalState.collection === "precondition"
         ? "Precondition"
         : "Predicate";
-    const suffix = activePredicateNode ? ` for ${activePredicateNode.name}` : "";
+    const suffix = activePredicateNode
+      ? ` for ${activePredicateNode.name}`
+      : "";
     return `${verb} ${scope}${suffix}`;
   }, [predicateModalState, activePredicateNode]);
 
@@ -677,6 +757,7 @@ function App() {
               onMoveNode={handleMoveNode}
               onResizeNode={handleResizeNode}
               onRemoveNode={handleRemoveNode}
+              onEditNode={handleEditNodeFromCanvas}
               onAddConnection={handleAddConnection}
               onRemoveConnection={handleRemoveConnection}
               onShowActionParameterDetail={handleShowActionParameterDetail}
