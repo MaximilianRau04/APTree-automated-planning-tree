@@ -1,7 +1,0 @@
-NodeType,TotalTicks,AverageServicesTimeMs,AverageDecoratorsTimeMs,AverageNodeLogicTimeMs,AverageChildrenTimeMs,AverageTotalTickTimeMs,TotalServicesTimeMs,TotalDecoratorsTimeMs,TotalNodeLogicTimeMs,TotalChildrenTimeMs,TotalTickTimeMs
-BTFlowNode_Composite,55,3.82,0.88,1237.33,0.39,1242.42,210.14,48.46,68053.30,21.27,68333.19
-BTFlowNode_Dynamic_ENHSP,19,2.06,1.39,1.96,840.97,846.38,39.12,26.33,37.20,15978.50,16081.15
-BTFlowNode_Dynamic_FF,19,708.09,7.11,1.81,69.44,786.45,13453.77,135.05,34.34,1319.30,14942.46
-GenericBTAction,38,16.99,0.90,418.46,0.18,436.53,645.76,34.14,15901.49,6.72,16588.13
-TOTAL,131,109.53,1.86,641.42,132.26,885.08,14348.78,243.97,84026.33,17325.80,115944.93
-BTFlowNode_Dynamic_LAMA-FIRST,0,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00,0.00

@@ -1,5 +1,0 @@
-PlannerType,CallCount,SuccessfulCalls,SuccessRate,AveragePlannerTimeMs,AverageServiceTimeMs,AveragePlanSize,TotalPlannerTimeMs,TotalServiceTimeMs
-ENHSP,8,4,50.00%,1232.41,1252.01,2.00,9859.29,10016.11
-FF,12,6,50.00%,1448.17,1480.55,3.33,17378.09,17766.59
-LAMA-FIRST,28,14,50.00%,2090.00,2119.74,3.29,58519.99,59352.69
-TOTAL,48,24,50.00%,1786.61,1815.32,3.08,85757.37,87135.38

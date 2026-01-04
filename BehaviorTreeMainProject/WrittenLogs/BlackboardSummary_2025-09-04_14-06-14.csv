@@ -1,8 +1,0 @@
-Category,Count,BeforeTicking,AfterTicking,GenerationTimeMs,MostCommonInstance,MostCommonCount
-PredicateTypes,18,0,0,0.00,N/A,0
-ActionTypes,18,0,0,0.00,N/A,0
-ParameterTypes,12,0,0,0.00,N/A,0
-ActionInstances,555,0,0,0.00,N/A,0
-ParameterInstances,74,0,0,0.00,N/A,0
-PredicateInstances,307,0,0,0.00,N/A,0
-PredicateNegationCount,379,0,0,0.00,N/A,0
