@@ -567,32 +567,19 @@ public List<GenericBTAction> GetAllActionInstances()
         return false;
     }
 /// <summary>
-/// Adds predicate to the blackboard and the
+/// Adds predicate to the graph
 /// </summary>
 /// <param name="key"></param>
 /// <param name="predicate"></param>
 /// <returns></returns>
 /// <exception cref="InvalidOperationException"></exception>
     // Use it before adding new predicates
-    public async Task SetPredicate(FastName key, Predicate predicate)
+    public async Task SetPredicateOnGraph(FastName key, Predicate predicate)
     {
         LoggingService.LogInfo($"🔧 BLACKBOARD: SetPredicate called with key: {key}");
         LoggingService.LogInfo($"🔧 BLACKBOARD: Predicate type: {predicate.GetType().Name}");
         LoggingService.LogInfo($"🔧 BLACKBOARD: Predicate.PredicateName: {predicate.PredicateName}");
         LoggingService.LogInfo($"🔧 BLACKBOARD: Predicate.isNegated: {predicate.isNegated}");
-        
-        string newPredicateStr = BlackboardExtensions.FormatPredicate(predicate);
-        LoggingService.LogInfo($"🔧 BLACKBOARD: Formatted predicate string: {newPredicateStr}");
-        
-        // Check for identical predicate
-        if (PredicateValues.Values.Any(p => BlackboardExtensions.FormatPredicate(p) == newPredicateStr))
-        {
-            LoggingService.LogWarning($"🔧 BLACKBOARD: Identical predicate already exists: {newPredicateStr}");
-            return;
-        }
-
-        LoggingService.LogInfo($"🔧 BLACKBOARD: Calling SetPredicateSecondary with key: {key}");
-        SetPredicateSecondary(key, predicate);
         
         if (_driver == null)
         {
@@ -600,39 +587,137 @@ public List<GenericBTAction> GetAllActionInstances()
         }
 
         var parameters = predicate.GetAllProperties();
-        
+
         using var session = _driver.AsyncSession();
         await session.ExecuteWriteAsync(async tx =>
         {
+            // Only keep real predicate parameters that map to entities in the graph
             var paramList = parameters
                 .Where(p => p.Key != "PredicateName" && p.Key != "PredicateType" && p.Key != "isNegated")
+                .Where(p => p.Value is Entity)
                 .ToList();
 
             string query;
-            var queryParams = new Dictionary<string, object>();
+            var queryParams = new Dictionary<string, object?>();
 
             if (paramList.Count == 1)
             {
-                var value = paramList[0].Value as IEntity;
+                var value = paramList[0].Value as Entity;
                 query = $@"
                     MERGE (p0:{paramList[0].Value.GetType().Name} {{name: $firstParamName}})
-                    SET p0:{predicate.PredicateName}
+                    SET p0:{predicate.GetPredicateType()}
                     RETURN p0";
 
-                queryParams.Add("firstParamName", (value as Entity)?.NameKey.ToString() ?? paramList[0].Value.ToString());
+                // Safely resolve first parameter name (fallback to entity.ToString() if NameKey is null)
+                var firstName =
+                    value?.NameKey?.ToString()
+                    ?? paramList[0].Value?.ToString()
+                    ?? string.Empty;
+                queryParams.Add("firstParamName", firstName);
             }
             else if (paramList.Count == 2)
             {
-                var value1 = paramList[0].Value as IEntity;
-                var value2 = paramList[1].Value as IEntity;
+                var value1 = paramList[0].Value as Entity;
+                var value2 = paramList[1].Value as Entity;
                 query = $@"
                     MERGE (p0:{paramList[0].Value.GetType().Name} {{name: $firstParamName}})
                     MERGE (p1:{paramList[1].Value.GetType().Name} {{name: $secondParamName}})
-                    MERGE (p0)-[r:{predicate.PredicateName}]->(p1)
+                    MERGE (p0)-[r:{predicate.GetPredicateType()}]->(p1)
                     RETURN p0, p1";
 
-                queryParams.Add("firstParamName", (value1 as Entity)?.NameKey.ToString() ?? paramList[0].Value.ToString());
-                queryParams.Add("secondParamName", (value2 as Entity)?.NameKey.ToString() ?? paramList[1].Value.ToString());
+                // Safely resolve parameter names (fallbacks avoid null reference exceptions)
+                var firstParamName =
+                    value1?.NameKey?.ToString()
+                    ?? paramList[0].Value?.ToString()
+                    ?? string.Empty;
+
+                var secondParamName =
+                    value2?.NameKey?.ToString()
+                    ?? paramList[1].Value?.ToString()
+                    ?? string.Empty;
+
+                queryParams.Add("firstParamName", firstParamName);
+                queryParams.Add("secondParamName", secondParamName);
+            }
+            else
+            {
+                throw new ArgumentException($"Unsupported number of parameters: {paramList.Count}");
+            }
+
+            await tx.RunAsync(query, queryParams);
+        });
+    }
+
+    /// <summary>
+    /// Writes a predicate to Neo4j in a specific database
+    /// </summary>
+    public async Task SetPredicateOnGraphToDatabase(FastName key, Predicate predicate, string databaseName)
+    {
+        LoggingService.LogInfo($"🔧 BLACKBOARD: SetPredicateOnGraphToDatabase called with key: {key}, database: {databaseName}");
+        LoggingService.LogInfo($"🔧 BLACKBOARD: Predicate type: {predicate.GetType().Name}");
+        LoggingService.LogInfo($"🔧 BLACKBOARD: Predicate.PredicateName: {predicate.PredicateName}");
+        LoggingService.LogInfo($"🔧 BLACKBOARD: Predicate.isNegated: {predicate.isNegated}");
+        
+        if (_driver == null)
+        {
+            throw new InvalidOperationException("Neo4j driver not initialized");
+        }
+
+        var parameters = predicate.GetAllProperties();
+
+        // Create session with specific database using USE statement in query
+        // Note: Neo4j 5.x requires database to be specified via USE statement or session config
+        // We'll use a label-based approach or specify database in the query
+        using var session = _driver.AsyncSession();
+        await session.ExecuteWriteAsync(async tx =>
+        {
+            // Only keep real predicate parameters that map to entities in the graph
+            var paramList = parameters
+                .Where(p => p.Key != "PredicateName" && p.Key != "PredicateType" && p.Key != "isNegated")
+                .Where(p => p.Value is Entity)
+                .ToList();
+
+            string query;
+            var queryParams = new Dictionary<string, object?>();
+
+            if (paramList.Count == 1)
+            {
+                var value = paramList[0].Value as Entity;
+                query = $@"
+                    USE {databaseName}
+                    MERGE (p0:{paramList[0].Value.GetType().Name} {{name: $firstParamName}})
+                    SET p0:{predicate.GetPredicateType()}
+                    RETURN p0";
+
+                var firstName =
+                    value?.NameKey?.ToString()
+                    ?? paramList[0].Value?.ToString()
+                    ?? string.Empty;
+                queryParams.Add("firstParamName", firstName);
+            }
+            else if (paramList.Count == 2)
+            {
+                var value1 = paramList[0].Value as Entity;
+                var value2 = paramList[1].Value as Entity;
+                query = $@"
+                    USE {databaseName}
+                    MERGE (p0:{paramList[0].Value.GetType().Name} {{name: $firstParamName}})
+                    MERGE (p1:{paramList[1].Value.GetType().Name} {{name: $secondParamName}})
+                    MERGE (p0)-[r:{predicate.GetPredicateType()}]->(p1)
+                    RETURN p0, p1";
+
+                var firstParamName =
+                    value1?.NameKey?.ToString()
+                    ?? paramList[0].Value?.ToString()
+                    ?? string.Empty;
+
+                var secondParamName =
+                    value2?.NameKey?.ToString()
+                    ?? paramList[1].Value?.ToString()
+                    ?? string.Empty;
+
+                queryParams.Add("firstParamName", firstParamName);
+                queryParams.Add("secondParamName", secondParamName);
             }
             else
             {

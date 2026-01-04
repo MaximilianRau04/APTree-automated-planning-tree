@@ -1,34 +1,31 @@
-grammar DynamicBTFlowNode extends CRF,BehaviorTree {
-    
-    // Dynamic BTflow node definition - separate node type with different keyword
- symbol BTFlowNodeDynamic = "DynamicBTFlowNode" Name "{" SuccessDefinition ChildTypeDefinition (Service | Decorator | NodeGraph | BTFlowNode | BTFlowNodeDynamic)* "}";
+grammar DynamicBTFlowNode extends ConcreteBT {
 
-    //success criteria definition
-    SuccessDefinition = "success:" SuccessType ",";
-    SuccessType = all:"ALL" | any:"ANY" | count:"COUNT" | percentage:"PERCENTAGE" | signal:"SIGNAL";
+ //overriding the parent class to not allow single nodes in it
+
+
+    // Dynamic BTflow node definition - separate node type with different keyword
+    DynamicFlowNode extends FlowNode = 
+      "FlowNode" "{" 
+          Service+     
+          succri:SuccessCriteria
+          childType:ChildType
+          nodeGraph:NodeGraph 
+      "}";
+
+    //enums
+    enum SuccessCriteria = "ALL" | "ANY" | "COUNT" | "PERCENTAGE" | "SIGNAL";
+    enum TemporalType = "MEETS" | "BEFORE" | "AFTER" | "OVERLAPS" | "DURING";
+    enum ChildType = "ALLACTION" | "ALLFLOW"; 
     
-    //child type definition
-    ChildType = allactions:"ALLACTION" | allflow:"ALLFLOW";
-    ChildTypeDefinition = "childType:" ChildType ",";  
 
     // NodeGraph definition - separate top-level production
     NodeGraph = "Nodegraph" Name "{"
-                    NodesDefinition
-                    RelationsDefinition
+                    (BTNode)*
+                    (Relation)*
                 "}";                     
-
-    NodesDefinition = (NodeDefinition)*;
-    RelationsDefinition = (RelationDefinition)*;
-
-    NodeDefinition = ActionInstance | BTFlowNodeDynamic;
    
-    
-        RelationDefinition = SourceNode "--[" TemporalType "]-->" TargetNode;
-    
-    SourceNode = Name;
-    TargetNode = Name;
-    
-    TemporalType = "MEETS" | "BEFORE" | "AFTER" | "OVERLAPS" | "DURING";
+     Relation = 
+    "relation" source:Name@BTNode "--[" temptype:TemporalType "]-->" target:Name@BTNode ";";
     
 
 

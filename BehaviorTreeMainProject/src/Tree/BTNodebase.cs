@@ -245,180 +245,165 @@ public abstract class BTNodeBase : IBTNode
         // Initialize timing tracking
         tickStartTime = DateTime.Now;
         HasCompletedFullTick = false;
-        
-        // Increment tick count
         totalTickCount++;
         
+        LogTickStart();
+
+        // First time running, reset the node
+        if (LastStatus == EBTNodeResult.Uninitialized)
+        {
+            // sets the status to ready to tick
+            Reset();
+        }
+
+        // Run AlwaysOnServices phase
+        CurrentTickPhase = EBTNodeTickPhase.AlwaysOnServices;
+        if (!OnTick_AlwaysOnServices(InDeltaTime))
+        {
+            LastStatus = EBTNodeResult.failed;
+            LogPhaseFailure("AlwaysOnServices");
+            return OnTickReturn(LastStatus);
+        }
+        LogPhaseSuccess("AlwaysOnServices");
+
+        // Run GeneralServices phase
+        CurrentTickPhase = EBTNodeTickPhase.GeneralServices;
+        if (!OnTick_GeneralServices(InDeltaTime))
+        {
+            LastStatus = EBTNodeResult.failed;
+            LogPhaseFailure("GeneralServices");
+            return OnTickReturn(LastStatus);
+        }
+        LogPhaseSuccess("GeneralServices");
+        servicesEndTime = DateTime.Now;
+
+        // Run Decorators phase
+        CurrentTickPhase = EBTNodeTickPhase.Decorators;
+        if (!OnTick_Decorators(InDeltaTime))
+        {
+            LastStatus = EBTNodeResult.failed;
+            if (bDecoratorsAllowRunning && bCanSendExitNotification)
+                OnExit();
+            bDecoratorsAllowRunning = false;
+            LogDecoratorBlocked();
+            return OnTickReturn(LastStatus);
+        }
+        LogPhaseSuccess("Decorators");
+        decoratorsEndTime = DateTime.Now;
+
+        // Handle decorator state transition
+        if (!bDecoratorsAllowRunning)
+        {
+            Reset();
+        }
+        bDecoratorsAllowRunning = true;
+
+        // Check if node has already finished
+        if (HasFinished)
+        {
+            return OnTickReturn(LastStatus);
+        }
+
+        // Call OnEnter if needed
+        if (LastStatus == EBTNodeResult.readyToTick)
+        {
+            OnEnter();
+            if (HasFinished)
+                return OnTickReturn(LastStatus);
+        }
+
+        // Run NodeLogic phase
+        CurrentTickPhase = EBTNodeTickPhase.NodeLogic;
+        if (!OnTick_NodeLogic(InDeltaTime))
+        {
+            LastStatus = EBTNodeResult.failed;
+            LogPhaseFailure("NodeLogic");
+            return OnTickReturn(LastStatus);
+        }
+        LogPhaseSuccess("NodeLogic");
+        nodeLogicEndTime = DateTime.Now;
+
+        // Tick children if this node has them
+        if (HasChildren)
+        {
+            CurrentTickPhase = EBTNodeTickPhase.Children;
+            if (!OnTick_Children(InDeltaTime))
+            {
+                return OnTickReturn(LastStatus);
+            }
+            LogPhaseSuccess("Children");
+        }
+        childrenEndTime = DateTime.Now;
+
+        // Record tick completion
+        tickEndTime = DateTime.Now;
+        HasCompletedFullTick = true;
+        LogTickCompletion();
+
+        return OnTickReturn(LastStatus);
+    }
+
+    /// <summary>
+    /// Logs the start of the tick operation with tracking information
+    /// </summary>
+    private void LogTickStart()
+    {
         // Track flow node tick if this is a flow node
         if (this is BTFlowNodeBase)
         {
             BehaviorTreeComponentLogger.TrackFlowNodeTick(this.GetType().Name);
         }
-        // Track action tick if this is an action
         else if (this is GenericBTAction)
         {
             BehaviorTreeComponentLogger.TrackActionTick("GenericBTAction");
         }
         
-        // Log node tick start
         ExecutionFlowLogger.LogNodeTick(DebugDisplayName, GetType().Name, "START", LastStatus.ToString());
-        
-        //first time running, reset the node which will chnage the node to --> ready to tick
-        if (LastStatus == EBTNodeResult.Uninitialized)
-        {
-            LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} is Uninitialized, calling Reset()");
-            Reset();
-        }
+        LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - Tick started");
+    }
 
-        //then the ticks goes through the services. If any of the services fail, then node result will be failed  
-        LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - Starting AlwaysOnServices phase");
-        CurrentTickPhase = EBTNodeTickPhase.AlwaysOnServices;
-        
-        if (!OnTick_AlwaysOnServices(InDeltaTime))
-        {
-            //checks if the decorators can change the result and if yes, we will change the result and also the action upon exit will be executed
-            LastStatus = EBTNodeResult.failed;
-            LoggingService.LogWarning($"❌ BTNodeBase: AlwaysOnServices failed for {DebugDisplayName}, setting status to failed");
-            LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - EXITING at AlwaysOnServices failure");
-            
-            // Track node failure
-            BehaviorTreeComponentLogger.TrackNodeFailure(this.GetType().Name, DebugDisplayName);
-            
-            return OnTickReturn(LastStatus);
-        }
-        LoggingService.LogInfo($"✅ BTNodeBase: {DebugDisplayName} - AlwaysOnServices completed successfully");
+    /// <summary>
+    /// Logs a phase failure and tracks it for statistics
+    /// </summary>
+    private void LogPhaseFailure(string phaseName)
+    {
+        LoggingService.LogWarning($"❌ BTNodeBase: {phaseName} failed for {DebugDisplayName}");
+        ExecutionFlowLogger.LogPhaseTransition(DebugDisplayName, phaseName, "EXIT");
+        BehaviorTreeComponentLogger.TrackNodeFailure(this.GetType().Name, DebugDisplayName);
+    }
 
-        // then the ticks goes through the general services (like planning services)
-        LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - Starting GeneralServices phase");
-        CurrentTickPhase = EBTNodeTickPhase.GeneralServices; 
-        ExecutionFlowLogger.LogPhaseTransition(DebugDisplayName, "AlwaysOnServices", "GeneralServices");
-        if(!OnTick_GeneralServices(InDeltaTime))           
+    /// <summary>
+    /// Logs a phase success with phase transition
+    /// </summary>
+    private void LogPhaseSuccess(string phaseName)
+    {
+        LoggingService.LogInfo($"✅ BTNodeBase: {DebugDisplayName} - {phaseName} completed successfully");
+        if (phaseName != "AlwaysOnServices")
         {
-            LoggingService.LogWarning($"❌ BTNodeBase: GeneralServices failed for {DebugDisplayName}");
-            LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - EXITING at GeneralServices failure");
-            
-            // Track node failure
-            BehaviorTreeComponentLogger.TrackNodeFailure(this.GetType().Name, DebugDisplayName);
-            
-            return OnTickReturn(EBTNodeResult.failed);
+            string previousPhase = phaseName == "GeneralServices" ? "AlwaysOnServices" :
+                                   phaseName == "Decorators" ? "GeneralServices" :
+                                   phaseName == "NodeLogic" ? "Decorators" : "NodeLogic";
+            ExecutionFlowLogger.LogPhaseTransition(DebugDisplayName, previousPhase, phaseName);
         }
-        LoggingService.LogInfo($"✅ BTNodeBase: {DebugDisplayName} - GeneralServices completed successfully");
-        
-        // Record services end time
-        servicesEndTime = DateTime.Now;
+    }
 
-        // then the ticks goes through the decorators, if any of the decorators return false, then 
-        LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - Starting Decorators phase");
-        CurrentTickPhase = EBTNodeTickPhase.Decorators;
-        ExecutionFlowLogger.LogPhaseTransition(DebugDisplayName, "GeneralServices", "Decorators");
-        // if decorators return false, then we return failed
-        if (!OnTick_Decorators(InDeltaTime))
-        {
-            // Decorator blocked execution - return failed so node can be re-evaluated on next tick
-            LastStatus = EBTNodeResult.failed;
-            //node has previously run and now is not permitted to?
-            if (bDecoratorsAllowRunning && bCanSendExitNotification)
-            {OnExit();}                
-            bDecoratorsAllowRunning = false;
-            LoggingService.LogInfo($"⏳ BTNodeBase: Decorators blocked execution for {DebugDisplayName}, returning failed for re-evaluation on next tick");
-            LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - EXITING at Decorators blocking");
-            
-            // Track node failure
-            BehaviorTreeComponentLogger.TrackNodeFailure(this.GetType().Name, DebugDisplayName);
-            
-            return OnTickReturn(LastStatus);
-        }
-        LoggingService.LogInfo($"✅ BTNodeBase: {DebugDisplayName} - Decorators evaluation completed successfully");
-        
-        // Record decorators end time
-        decoratorsEndTime = DateTime.Now;
-        
-        // Only reset if decorators were previously blocking but now allow execution
-        if (!bDecoratorsAllowRunning)
-        {
-            LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - Decorators changed from blocking to allowing, calling Reset()");
-            Reset();
-            bDecoratorsAllowRunning = true;
-        }
-        else
-        {
-            // Decorators were already allowing execution, ensure flag is set to true
-            bDecoratorsAllowRunning = true;
-        }
-        
+    /// <summary>
+    /// Logs when decorators block execution
+    /// </summary>
+    private void LogDecoratorBlocked()
+    {
+        LoggingService.LogInfo($"⏳ BTNodeBase: Decorators blocked execution for {DebugDisplayName}");
+        BehaviorTreeComponentLogger.TrackNodeFailure(this.GetType().Name, DebugDisplayName);
+    }
 
-        // have we already finished? if yes, then we return the result
-        LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - Checking HasFinished: {HasFinished} (LastStatus: {LastStatus})");
-        if (HasFinished)
-        {
-            LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - Node has finished, returning {LastStatus} without further processing");
-            LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - EXITING at HasFinished check");
-            return OnTickReturn(LastStatus);
-        }
-        
-        //node has never been ticked? if yes, then we enter the node
-        LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - Checking if node needs OnEnter (LastStatus: {LastStatus})");
-        if(LastStatus == EBTNodeResult.readyToTick )
-        {
-            LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - Calling OnEnter()");
-            OnEnter();
-            if (HasFinished)
-            {
-                LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - OnEnter caused node to finish, returning {LastStatus}");
-                LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - EXITING at OnEnter completion");
-                return OnTickReturn(LastStatus);
-            }
-        }
-        
-        //here we tick the node logic itself
-        LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - Starting NodeLogic phase");
-        CurrentTickPhase = EBTNodeTickPhase.NodeLogic;
-        ExecutionFlowLogger.LogPhaseTransition(DebugDisplayName, "Decorators", "NodeLogic");
-        if (!OnTick_NodeLogic(InDeltaTime))
-        {
-            LoggingService.LogWarning($"❌ BTNodeBase: NodeLogic failed for {DebugDisplayName}");
-            LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - EXITING at NodeLogic failure");
-            return OnTickReturn(EBTNodeResult.failed);
-        }
-        LoggingService.LogInfo($"✅ BTNodeBase: {DebugDisplayName} - NodeLogic completed successfully");
-        
-        // Record node logic end time
-        nodeLogicEndTime = DateTime.Now;
-
-        // if it has children, we tick them too 
-        if(HasChildren)
-        {
-            LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - Starting Children phase (HasChildren: {HasChildren})");
-            CurrentTickPhase = EBTNodeTickPhase.Children;
-            ExecutionFlowLogger.LogPhaseTransition(DebugDisplayName, "NodeLogic", "Children");
-            if (!OnTick_Children(InDeltaTime))
-            {
-                LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - OnTick_Children returned false, returning {LastStatus}");
-                LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - EXITING at OnTick_Children");
-                return OnTickReturn(LastStatus);
-            }
-            LoggingService.LogInfo($"✅ BTNodeBase: {DebugDisplayName} - OnTick_Children completed successfully");
-        }
-        else
-        {
-            LoggingService.LogInfo($"🔄 BTNodeBase: {DebugDisplayName} - No children to tick (HasChildren: {HasChildren})");
-        }
-        
-        // Record children end time
-        childrenEndTime = DateTime.Now;
-        
-        // Record tick end time and mark as completed full tick
-        tickEndTime = DateTime.Now;
-        HasCompletedFullTick = true;
-        
-        // Log tick timing information
+    /// <summary>
+    /// Logs the completion of the full tick with timing information
+    /// </summary>
+    private void LogTickCompletion()
+    {
         LoggingService.LogInfo($"⏱️ BTNodeBase: {DebugDisplayName} - Tick timing: Services={ServicesDuration.TotalMilliseconds:F2}ms, Decorators={DecoratorsDuration.TotalMilliseconds:F2}ms, NodeLogic={NodeLogicDuration.TotalMilliseconds:F2}ms, Children={ChildrenDuration.TotalMilliseconds:F2}ms, Total={TotalTickDuration.TotalMilliseconds:F2}ms");
-
-        // Track tick timing for completed full ticks
         TickTimingLogger.TrackTickTiming(this);
-
         LoggingService.LogInfo($"✅ BTNodeBase: {DebugDisplayName} - Tick method completed successfully, returning {LastStatus}");
-        return OnTickReturn(LastStatus);
     }
     /// <summary>
     /// 

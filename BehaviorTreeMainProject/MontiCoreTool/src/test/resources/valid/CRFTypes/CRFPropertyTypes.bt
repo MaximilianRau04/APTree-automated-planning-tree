@@ -1,0 +1,16 @@
+define Beam as Element {
+  lenght: DOUBLE_VALUE
+  color: Name
+}
+
+define Plate as Element {
+  Roughness: DOUBLE_VALUE
+}
+
+define FirstPosition as Location {
+  id: NUMBER
+}
+
+define Robot as Agent {
+  id: NUMBER
+}

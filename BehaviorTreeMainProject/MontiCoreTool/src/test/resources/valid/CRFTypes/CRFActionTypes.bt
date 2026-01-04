@@ -1,0 +1,16 @@
+// 5. Action Type Definition (General Template)
+Action pickUpHL {
+    acttype: HIGHLEVEL
+    parameters {
+        obj: Element
+        grabPos: Location
+        client: Robot
+    }
+    preconditions {
+        atplace(obj, grabPos)
+        holding(client, obj)   
+    }    
+    effects {
+        holding(client, obj)
+    }   
+}

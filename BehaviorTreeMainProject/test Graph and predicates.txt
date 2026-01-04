@@ -26,7 +26,8 @@ try
         { "location", loc1 }
     };
     var atLocationPredicate = predicateFactory.CreatePredicateInstance("AtLocation", values);
-    await blackboard.AddPredicateWithGraph(new FastName("r1"), atLocationPredicate);
+    // Only write predicate to Neo4j (do not modify blackboard state)
+    await blackboard.SetPredicateOnGraph(new FastName("r1"), atLocationPredicate);
     Console.WriteLine("Successfully added AtLocation predicate to Neo4j");
 
     // Second predicate (ObjectAtLocation)
@@ -49,7 +50,8 @@ try
     var objectAtLocationPredicate = predicateFactory.CreatePredicateInstance("ObjectAtLocation", values1);
     Console.WriteLine("Created ObjectAtLocation predicate instance");
 
-    await blackboard.AddPredicateWithGraph(b1.NameKey, objectAtLocationPredicate);
+    // Only write predicate to Neo4j (do not modify blackboard state)
+    await blackboard.SetPredicateOnGraph(b1.NameKey, objectAtLocationPredicate);
     Console.WriteLine("Successfully added ObjectAtLocation predicate to Neo4j");
 }
 catch (Exception ex)

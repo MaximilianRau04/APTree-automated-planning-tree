@@ -1,0 +1,22 @@
+BehaviorTree MyRobotTree {
+  root Sequence  {
+    
+    Sequence {
+      Action pickup 
+      Action place
+    }
+    
+    Fallback {
+      Sequence {
+        Action pickup {
+          Decorator GripperEmpty
+        }
+        Action place
+      }
+      Sequence {
+        Action pickup 
+        Action place 
+      }
+    }
+  }
+}

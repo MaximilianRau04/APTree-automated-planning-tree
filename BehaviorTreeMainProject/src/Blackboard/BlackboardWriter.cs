@@ -249,8 +249,8 @@ public class BlackboardWriter
     public void RegisterAllInstances(string actionInstancesFile)
     {
         // Use default file paths for parameters and predicates
-        string parameterInstancesFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "src", "InputInstances", "ParameterInstances.txt");
-        string predicateInstancesFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "src", "InputInstances", "PredicateInstances.txt");
+        string parameterInstancesFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "src", "InputInstances", "parameterinstancesfile.txt");
+        string predicateInstancesFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "src", "InputInstances", "predicateinstancesfile.txt");
         
         RegisterAllInstances(parameterInstancesFile, predicateInstancesFile, actionInstancesFile);
     }

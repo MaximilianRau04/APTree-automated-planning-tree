@@ -28,3 +28,4 @@ Thumbs.db
 
 # Ignore the entire plannerinputs folder
 plannerinputs/
+.fake

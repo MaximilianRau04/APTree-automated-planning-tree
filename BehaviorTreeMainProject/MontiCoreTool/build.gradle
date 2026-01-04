@@ -163,6 +163,13 @@ task runBehaviorTreeGrammarParser(type: JavaExec) {
     workingDir = projectDir
 }
 
+task runCRFTypesParser(type: JavaExec) {
+    dependsOn 'compileJava'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'CRFTypesParserTest'
+    workingDir = projectDir
+}
+
 task runPDDLPlannerParser(type: JavaExec) {
     dependsOn 'compileJava'
     classpath = sourceSets.main.runtimeClasspath
@@ -174,6 +181,48 @@ task runMotionPlannerParser(type: JavaExec) {
     dependsOn 'compileJava'
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'URMotionPlannerTest'
+    workingDir = projectDir
+}
+
+task runCRFPropertyParser(type: JavaExec) {
+    dependsOn 'compileJava'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'CRFPropertyParser'
+    workingDir = projectDir
+}
+
+task runCRFPredicateParser(type: JavaExec) {
+    dependsOn 'compileJava'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'CRFPredicateParser'
+    workingDir = projectDir
+}
+
+task runCRFActionTypesParser(type: JavaExec) {
+    dependsOn 'compileJava'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'CRFActionTypesParserTest'
+    workingDir = projectDir
+}
+
+task runCRFActionTypeParser(type: JavaExec) {
+    dependsOn 'compileJava'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'CRFActionTypeParser'
+    workingDir = projectDir
+}
+
+task runDynamicFlowNodeParser(type: JavaExec) {
+    dependsOn 'compileJava'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'DynamicFlowNodeParserTest'
+    workingDir = projectDir
+}
+
+task runPDDLPlannerParser(type: JavaExec) {
+    dependsOn 'compileJava'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'PDDLPlannerParserTest'
     workingDir = projectDir
 }
 

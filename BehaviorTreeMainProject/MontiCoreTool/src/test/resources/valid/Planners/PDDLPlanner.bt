@@ -1,0 +1,5 @@
+PDDLPlanner {
+    domain robotdomain
+    problem pickandplace
+    planner fastdownward
+}

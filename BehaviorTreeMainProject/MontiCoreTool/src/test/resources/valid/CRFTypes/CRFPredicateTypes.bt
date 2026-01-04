@@ -1,0 +1,10 @@
+// 3. Define Predicate Types 
+define predicatetype Holding {
+  item : Element
+  agent : Agent
+}
+
+define predicatetype AtPlace {
+  item : Element
+  loc : Location
+}

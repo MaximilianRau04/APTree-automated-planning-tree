@@ -1,5 +1,5 @@
 # Predicate instances in CRF format
-# Format: PredicateInstance: predicateName(parameterName = value, isNegated = false/true)
+
 
 # atplace predicates
 PredicateInstance: atplace(myObject = lp1, place = fp1, isNegated = false)
@@ -46,6 +46,7 @@ PredicateInstance: belongstomodule(myObject = b5, mod = m1, isNegated = false)
 PredicateInstance: belongstomodule(myObject = b6, mod = m1, isNegated = false) 
 PredicateInstance: belongstomodule(myObject = lp1, mod = m1, isNegated = false) 
 PredicateInstance: belongstomodule(myObject = tp1, mod = m1, isNegated = false)
+PredicateInstance: belongstomodule(myObject = pr1, mod = m2, isNegated = false)
 
 
 
@@ -60,8 +61,7 @@ PredicateInstance: atplace(myObject = b10, place = fp14, isNegated = false)
 PredicateInstance: atplace(myObject = b11, place = fp15, isNegated = false)
 PredicateInstance: atplace(myObject = b12, place = fp16, isNegated = false)
 
-# positionfree predicate for problemC2 (updated to use pr2)
-PredicateInstance: positionfree(pos = pr2, isNegated = false)
+
 
 # clear predicates for problemC2 objects
 PredicateInstance: clear(myObject = lp2, isNegated = false)
@@ -90,6 +90,7 @@ PredicateInstance: belongstomodule(myObject = b11, mod = m2, isNegated = false)
 PredicateInstance: belongstomodule(myObject = b12, mod = m2, isNegated = false)
 PredicateInstance: belongstomodule(myObject = lp2, mod = m2, isNegated = false) 
 PredicateInstance: belongstomodule(myObject = tp2, mod = m2, isNegated = false)
+PredicateInstance: belongstomodule(myObject = pr2, mod = m2, isNegated = false)
 
 # Additional predicates from problemC3.pddl :init section
 # atplace predicates for problemC3 objects
@@ -102,8 +103,7 @@ PredicateInstance: atplace(myObject = b16, place = fp22, isNegated = false)
 PredicateInstance: atplace(myObject = b17, place = fp23, isNegated = false)
 PredicateInstance: atplace(myObject = b18, place = fp24, isNegated = false)
 
-# positionfree predicate for problemC3 (updated to use pr3)
-PredicateInstance: positionfree(pos = pr3, isNegated = false)
+
 
 # clear predicates for problemC3 objects
 PredicateInstance: clear(myObject = lp3, isNegated = false)
@@ -132,6 +132,7 @@ PredicateInstance: belongstomodule(myObject = b17, mod = m3, isNegated = false)
 PredicateInstance: belongstomodule(myObject = b18, mod = m3, isNegated = false)
 PredicateInstance: belongstomodule(myObject = lp3, mod = m3, isNegated = false) 
 PredicateInstance: belongstomodule(myObject = tp3, mod = m3, isNegated = false)
+PredicateInstance: belongstomodule(myObject = pr3, mod = m2, isNegated = false)
 
 # Additional predicates from problemC4.pddl :init section
 # atplace predicates for problemC4 objects
@@ -144,8 +145,7 @@ PredicateInstance: atplace(myObject = b22, place = fp30, isNegated = false)
 PredicateInstance: atplace(myObject = b23, place = fp31, isNegated = false)
 PredicateInstance: atplace(myObject = b24, place = fp32, isNegated = false)
 
-# positionfree predicate for problemC4 (using pr4)
-PredicateInstance: positionfree(pos = pr4, isNegated = false)
+
 
 # clear predicates for problemC4 objects
 PredicateInstance: clear(myObject = lp4, isNegated = false)
@@ -174,13 +174,6 @@ PredicateInstance: belongstomodule(myObject = b23, mod = m4, isNegated = false)
 PredicateInstance: belongstomodule(myObject = b24, mod = m4, isNegated = false)
 PredicateInstance: belongstomodule(myObject = lp4, mod = m4, isNegated = false) 
 PredicateInstance: belongstomodule(myObject = tp4, mod = m4, isNegated = false)
+PredicateInstance: belongstomodule(myObject = pr4, mod = m2, isNegated = false)
 
 
-PredicateInstance: attool(tool = vg1, loc = ep1, isNegated = false)
-PredicateInstance: attool(tool = gg1, loc = ep2, isNegated = false)
-PredicateInstance: attool(tool = ng1, loc = ep3, isNegated = false)
-
-PredicateInstance: atagent(agent = r1, location = pr2, isNegated = false)
-
-
-PredicateInstance: vgempty(client = r1, isNegated = false)

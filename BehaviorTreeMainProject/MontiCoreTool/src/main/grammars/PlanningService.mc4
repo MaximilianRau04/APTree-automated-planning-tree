@@ -1,0 +1,21 @@
+grammar PlanningService extends BehaviorTree {
+
+
+  abstract PService extends Service;
+
+  // Added keywords "domain" and "problem" to make the model readable
+  PDDLPlannerService extends PService = 
+      "PDDLPlanner" "{" 
+          "domain" domain:Name 
+          "problem" problem:Name 
+          "planner" planner:Name 
+      "}";
+  
+  // 2. Planner hierarchy
+  abstract Planner = name:Name;
+
+  // Added a keyword "version" to separate the two Name* lists
+  PDDLPlanner extends Planner = 
+      "configs" "{" config:Name* "}" 
+      "version" languageVersion:Name;
+}

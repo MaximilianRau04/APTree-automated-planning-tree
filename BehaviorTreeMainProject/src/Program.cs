@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using BehaviorTreeMainProject.Services;
 using BehaviorTreeMainProject.Log.Services;
+using BehaviorTreeMainProject.Tests;
 
 namespace BehaviorTreeMainProject
 {
@@ -13,7 +14,9 @@ namespace BehaviorTreeMainProject
             SubtreeInjectionService.ClearLogFile();
 
             // test the full tree
-            await FullTreeTest.RunTest();
+            //await FullTreeTest.RunTest();
+            //test the graph and predicates
+            await Neo4jPredicateGraphTest.RunAsync();
         }
     }
 }

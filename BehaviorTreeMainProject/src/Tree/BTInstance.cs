@@ -4,7 +4,7 @@ public class BTInstance : IBehaviorTree
 
     public Blackboard<FastName> LinkedBlackboard { get; protected set; }
 
-    public IBTNode RootNode { get;  set; }
+    public BTFlowNodeBase RootNode { get;  set; }
 
     public BTInstance()
     {
