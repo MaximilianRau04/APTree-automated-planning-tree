@@ -24,6 +24,7 @@ import {
 } from "./components/sidebar/utils/constants";
 import { PredicateInstanceModal } from "./components/sidebar/modals/InstanceModal";
 import ActionParameterDetailsModal from "./components/editor/modals/ActionParameterDetailsModal.tsx";
+import ActionPredicateManagerModal from "./components/editor/modals/ActionPredicateManagerModal.tsx";
 import {
   clonePredicateInstance,
   createEmptyPredicateInstance,
@@ -35,6 +36,7 @@ import type {
   PredicateInstance,
 } from "./components/sidebar/utils/types";
 import { PREDICATE_TYPE_CATALOG } from "./constants/predicateCatalog";
+import { PREDICATE_INSTANCES_KEY } from "./components/sidebar/utils/constants";
 
 type ThemeMode = "light" | "dark";
 
@@ -60,12 +62,31 @@ interface ActionPredicateModalState {
   revision: number;
 }
 
+interface ActionPredicateManagerState {
+  isOpen: boolean;
+  nodeId: string | null;
+  collection: ActionPredicateCollection | null;
+  revision: number;
+}
+
+type PendingManagerReopen = {
+  nodeId: string;
+  collection: ActionPredicateCollection;
+} | null;
+
 const createInitialPredicateModalState = (): ActionPredicateModalState => ({
   isOpen: false,
   mode: "add",
   nodeId: null,
   collection: null,
   initialValue: createEmptyPredicateInstance(),
+  revision: 0,
+});
+
+const createInitialPredicateManagerState = (): ActionPredicateManagerState => ({
+  isOpen: false,
+  nodeId: null,
+  collection: null,
   revision: 0,
 });
 
@@ -107,6 +128,9 @@ function App() {
   const [connections, setConnections] = useState<NodeConnection[]>([]);
   const [predicateModalState, setPredicateModalState] =
     useState<ActionPredicateModalState>(createInitialPredicateModalState);
+  const [predicateManagerState, setPredicateManagerState] =
+    useState<ActionPredicateManagerState>(createInitialPredicateManagerState);
+  const [, setPendingManagerReopen] = useState<PendingManagerReopen>(null);
   const [parameterDetail, setParameterDetail] =
     useState<ActionParameterDetail | null>(null);
   const sidebarManager = useSidebarManager();
@@ -121,6 +145,11 @@ function App() {
 
   const rawActionInstances = useMemo(
     () => getItemsForCategory(ACTION_INSTANCES_KEY) as ActionInstance[],
+    [getItemsForCategory]
+  );
+
+  const predicateInstances = useMemo(
+    () => getItemsForCategory(PREDICATE_INSTANCES_KEY) as PredicateInstance[],
     [getItemsForCategory]
   );
 
@@ -189,7 +218,29 @@ function App() {
    */
   const closeActionPredicateModal = useCallback(() => {
     resetPredicateModalState();
+    setPendingManagerReopen((prev) => {
+      if (!prev) {
+        return null;
+      }
+      setPredicateManagerState((managerPrev) => ({
+        isOpen: true,
+        nodeId: prev.nodeId,
+        collection: prev.collection,
+        revision: managerPrev.revision + 1,
+      }));
+      return null;
+    });
   }, [resetPredicateModalState]);
+
+  /**
+   * closes the action predicate manager modal.
+   */
+  const closeActionPredicateManager = useCallback(() => {
+    setPredicateManagerState((prev) => ({
+      ...createInitialPredicateManagerState(),
+      revision: prev.revision + 1,
+    }));
+  }, []);
 
   /**
    * opens the action predicate modal with the provided configuration.
@@ -210,6 +261,22 @@ function App() {
         initialValue: config.predicate
           ? clonePredicateInstance(config.predicate)
           : createEmptyPredicateInstance(),
+        revision: prev.revision + 1,
+      }));
+    },
+    []
+  );
+
+  /**
+   * opens the action predicate manager modal with the provided configuration.
+   * @param config modal configuration
+   */
+  const openActionPredicateManager = useCallback(
+    (config: { nodeId: string; collection: ActionPredicateCollection }) => {
+      setPredicateManagerState((prev) => ({
+        isOpen: true,
+        nodeId: config.nodeId,
+        collection: config.collection,
         revision: prev.revision + 1,
       }));
     },
@@ -293,25 +360,25 @@ function App() {
         const text = typeof reader.result === "string" ? reader.result : "";
         const summary = importer(text);
         if (summary.processed === 0) {
-          window.alert(`Keine ${label} in der Datei gefunden.`);
+          window.alert(`No ${label} found in the file.`);
           return;
         }
 
-        const base = `${summary.imported} von ${summary.processed} ${label} importiert.`;
+        const base = `${summary.imported} of ${summary.processed} ${label} imported.`;
         const skippedNote =
           summary.skipped > 0
-            ? `\n${summary.skipped} Zeilen wurden übersprungen.`
+            ? `\n${summary.skipped} lines were skipped.`
             : "";
         const errorNote =
           summary.errors.length > 0
-            ? `\nFehler:\n- ${summary.errors.join("\n- ")}`
+            ? `\nErrors:\n- ${summary.errors.join("\n- ")}`
             : "";
         window.alert(`${base}${skippedNote}${errorNote}`.trim());
       };
       reader.onerror = () => {
         window.alert(
-          `Import für ${label} fehlgeschlagen: ${
-            reader.error?.message ?? "Unbekannter Fehler"
+          `Import for ${label} failed: ${
+            reader.error?.message ?? "Unknown error"
           }`
         );
       };
@@ -328,7 +395,7 @@ function App() {
       handleImportFromFile(
         file,
         importParameterInstancesFromText,
-        "Parameter-Instanzen"
+        "Parameter Instances"
       ),
     [handleImportFromFile, importParameterInstancesFromText]
   );
@@ -338,7 +405,7 @@ function App() {
       handleImportFromFile(
         file,
         importPredicateInstancesFromText,
-        "Prädikat-Instanzen"
+        "Predicate Instances"
       ),
     [handleImportFromFile, importPredicateInstancesFromText]
   );
@@ -348,7 +415,7 @@ function App() {
       handleImportFromFile(
         file,
         importActionInstancesFromText,
-        "Action-Instanzen"
+        "Action Instances"
       ),
     [handleImportFromFile, importActionInstancesFromText]
   );
@@ -525,29 +592,11 @@ function App() {
   /**
    * handles adding a precondition to an action node.
    */
-  const handleAddActionPrecondition = useCallback(
-    (nodeId: string) => {
-      openActionPredicateModal({
-        mode: "add",
-        nodeId,
-        collection: "precondition",
-      });
+  const handleManageActionPredicates = useCallback(
+    (nodeId: string, collection: ActionPredicateCollection) => {
+      openActionPredicateManager({ nodeId, collection });
     },
-    [openActionPredicateModal]
-  );
-
-  /**
-   * handles adding an effect to an action node.
-   */
-  const handleAddActionEffect = useCallback(
-    (nodeId: string) => {
-      openActionPredicateModal({
-        mode: "add",
-        nodeId,
-        collection: "effect",
-      });
-    },
-    [openActionPredicateModal]
+    [openActionPredicateManager]
   );
 
   /**
@@ -663,8 +712,106 @@ function App() {
       );
 
       resetPredicateModalState();
+      setPendingManagerReopen((prev) => {
+        if (!prev) {
+          return null;
+        }
+        setPredicateManagerState((managerPrev) => ({
+          isOpen: true,
+          nodeId: prev.nodeId,
+          collection: prev.collection,
+          revision: managerPrev.revision + 1,
+        }));
+        return null;
+      });
     },
     [predicateModalState, resetPredicateModalState]
+  );
+
+  const handleCreateNewPredicateFromManager = useCallback(() => {
+    if (!predicateManagerState.nodeId || !predicateManagerState.collection) {
+      return;
+    }
+
+    setPendingManagerReopen({
+      nodeId: predicateManagerState.nodeId,
+      collection: predicateManagerState.collection,
+    });
+    closeActionPredicateManager();
+    openActionPredicateModal({
+      mode: "add",
+      nodeId: predicateManagerState.nodeId,
+      collection: predicateManagerState.collection,
+    });
+  }, [
+    closeActionPredicateManager,
+    openActionPredicateModal,
+    predicateManagerState.collection,
+    predicateManagerState.nodeId,
+  ]);
+
+  const handleAttachExistingPredicate = useCallback(
+    (predicateId: string) => {
+      if (!predicateManagerState.nodeId || !predicateManagerState.collection) {
+        return;
+      }
+
+      const selected = predicateInstances.find((p) => p.id === predicateId);
+      if (!selected) {
+        console.warn("Unable to attach predicate; instance not found", predicateId);
+        return;
+      }
+
+      const collectionKey = COLLECTION_KEY_MAP[predicateManagerState.collection];
+      const payload = clonePredicateInstance(selected);
+
+      setCanvasNodes((prev) =>
+        prev.map((node) => {
+          if (node.id !== predicateManagerState.nodeId) {
+            return node;
+          }
+
+          const predicateList = node[collectionKey] ?? [];
+          if (predicateList.some((entry) => entry.id === payload.id)) {
+            return node;
+          }
+
+          return {
+            ...node,
+            [collectionKey]: [...predicateList, payload],
+          };
+        })
+      );
+    },
+    [predicateInstances, predicateManagerState.collection, predicateManagerState.nodeId]
+  );
+
+  const handleRemovePredicateFromManager = useCallback(
+    (predicateId: string) => {
+      if (!predicateManagerState.nodeId || !predicateManagerState.collection) {
+        return;
+      }
+      handleRemoveActionPredicate(
+        predicateManagerState.nodeId,
+        predicateId,
+        predicateManagerState.collection
+      );
+    },
+    [handleRemoveActionPredicate, predicateManagerState.collection, predicateManagerState.nodeId]
+  );
+
+  const handleEditPredicateFromManager = useCallback(
+    (predicateId: string) => {
+      if (!predicateManagerState.nodeId || !predicateManagerState.collection) {
+        return;
+      }
+      handleEditActionPredicate(
+        predicateManagerState.nodeId,
+        predicateId,
+        predicateManagerState.collection
+      );
+    },
+    [handleEditActionPredicate, predicateManagerState.collection, predicateManagerState.nodeId]
   );
 
   /**
@@ -716,6 +863,32 @@ function App() {
     );
   }, [canvasNodes, predicateModalState.nodeId]);
 
+  const activePredicateManagerNode = useMemo(() => {
+    if (!predicateManagerState.nodeId) {
+      return null;
+    }
+    return (
+      canvasNodes.find((node) => node.id === predicateManagerState.nodeId) ?? null
+    );
+  }, [canvasNodes, predicateManagerState.nodeId]);
+
+  const managerAssignedList = useMemo(() => {
+    if (!activePredicateManagerNode || !predicateManagerState.collection) {
+      return [] as PredicateInstance[];
+    }
+    const collectionKey = COLLECTION_KEY_MAP[predicateManagerState.collection];
+    return (activePredicateManagerNode[collectionKey] ?? []) as PredicateInstance[];
+  }, [activePredicateManagerNode, predicateManagerState.collection]);
+
+  const managerAvailableList = useMemo(() => {
+    if (!predicateManagerState.collection) {
+      return predicateInstances;
+    }
+
+    const assignedIds = new Set(managerAssignedList.map((p) => p.id));
+    return predicateInstances.filter((p) => !assignedIds.has(p.id));
+  }, [managerAssignedList, predicateInstances, predicateManagerState.collection]);
+
   const predicateModalTitle = useMemo(() => {
     if (!predicateModalState.isOpen) {
       return "Manage Predicate";
@@ -761,8 +934,7 @@ function App() {
               onAddConnection={handleAddConnection}
               onRemoveConnection={handleRemoveConnection}
               onShowActionParameterDetail={handleShowActionParameterDetail}
-              onAddActionPrecondition={handleAddActionPrecondition}
-              onAddActionEffect={handleAddActionEffect}
+              onManageActionPredicates={handleManageActionPredicates}
               onEditActionPredicate={handleEditActionPredicate}
               onRemoveActionPredicate={handleRemoveActionPredicate}
               onCycleFlowSuccessType={handleCycleFlowSuccessType}
@@ -783,6 +955,22 @@ function App() {
         typeDefinitions={PREDICATE_TYPE_CATALOG}
         onClose={closeActionPredicateModal}
         onSave={handleSaveActionPredicate}
+      />
+
+      <ActionPredicateManagerModal
+        key={`${predicateManagerState.revision}-${predicateManagerState.nodeId}-${predicateManagerState.collection}`}
+        isOpen={predicateManagerState.isOpen}
+        nodeName={activePredicateManagerNode?.name ?? "Action"}
+        nodeTypeLabel={activePredicateManagerNode?.typeLabel ?? ""}
+        collection={predicateManagerState.collection ?? "precondition"}
+        assigned={managerAssignedList}
+        available={managerAvailableList}
+        predicateTypeMap={sidebarManager.predicateTypeMap}
+        onClose={closeActionPredicateManager}
+        onAdd={handleAttachExistingPredicate}
+        onRemove={handleRemovePredicateFromManager}
+        onEdit={handleEditPredicateFromManager}
+        onCreateNew={handleCreateNewPredicateFromManager}
       />
 
       <ActionParameterDetailsModal

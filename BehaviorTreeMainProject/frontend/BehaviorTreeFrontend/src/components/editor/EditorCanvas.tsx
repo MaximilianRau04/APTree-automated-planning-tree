@@ -41,7 +41,6 @@ import {
 import type {
   ActionInstance,
   ActionType,
-  PredicateInstance,
   PredicateType,
 } from "../sidebar/utils/types";
 import {
@@ -74,8 +73,10 @@ interface BehaviorNodeData {
   onRemoveNode?: (nodeId: string) => void;
   onEditNode?: (nodeId: string) => void;
   onCycleFlowSuccessType?: (nodeId: string) => void;
-  onAddActionPrecondition?: (nodeId: string) => void;
-  onAddActionEffect?: (nodeId: string) => void;
+  onManageActionPredicates?: (
+    nodeId: string,
+    collection: "precondition" | "effect"
+  ) => void;
   onEditActionPredicate?: (
     nodeId: string,
     predicateId: string,
@@ -170,27 +171,6 @@ function createPredicateTypeMap(predicateTypes?: PredicateType[]) {
  * @param predicateTypeMap map of predicate type ID to predicate type 
  * @returns formatted summary string 
  */
-function formatPredicateSummary(
-  predicate: PredicateInstance,
-  predicateTypeMap: Map<string, PredicateType>
-) {
-  const type = predicateTypeMap.get(predicate.typeId);
-  const entries = Object.entries(predicate.propertyValues ?? {});
-
-  if (entries.length === 0) {
-    return "";
-  }
-
-  return entries
-    .map(([propertyId, value]) => {
-      const propertyName = type?.properties.find(
-        (property) => property.id === propertyId
-      )?.name;
-      return propertyName ? `${propertyName}: ${value}` : `${propertyId}: ${value}`;
-    })
-    .join(", ");
-}
-
 /**
  * checks if a canvas node is an action node.
  * @param node the canvas node to check 
@@ -198,88 +178,6 @@ function formatPredicateSummary(
  */
 function isActionNode(node: CanvasNode) {
   return node.kind === "actionType" || node.kind === "actionInstance";
-}
-
-/**
- * presents a collection of predicates within a behavior node.
- * @param param0 component props 
- * @returns JSX element or null if no items 
- */
-function PredicateCollection({
-  nodeId,
-  items,
-  collection,
-  predicateTypeMap,
-  onEdit,
-  onRemove,
-}: {
-  nodeId: string;
-  items: PredicateInstance[];
-  collection: "precondition" | "effect";
-  predicateTypeMap: Map<string, PredicateType>;
-  onEdit?: BehaviorNodeData["onEditActionPredicate"];
-  onRemove?: BehaviorNodeData["onRemoveActionPredicate"];
-}) {
-  if (items.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="canvas-node-state-group">
-      <div className="canvas-node-state-list">
-        {items.map((predicate) => {
-          const summary = formatPredicateSummary(predicate, predicateTypeMap);
-
-          return (
-            <div key={predicate.id} className="canvas-node-state-item">
-              <div className="canvas-node-state-body">
-                <span className="canvas-node-state-name">
-                  {predicate.isNegated ? "NOT " : ""}
-                  {predicate.name || predicate.type}
-                </span>
-                <span className="canvas-node-state-meta">{predicate.type}</span>
-                {summary ? (
-                  <span className="canvas-node-state-args">{summary}</span>
-                ) : null}
-              </div>
-              <div className="canvas-node-state-actions">
-                {onEdit ? (
-                  <button
-                    type="button"
-                    className="canvas-node-state-btn"
-                    onMouseDown={(event) => event.stopPropagation()}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onEdit(nodeId, predicate.id, collection);
-                    }}
-                    title={`Edit ${collection}`}
-                    aria-label={`Edit ${collection}`}
-                  >
-                    E
-                  </button>
-                ) : null}
-                {onRemove ? (
-                  <button
-                    type="button"
-                    className="canvas-node-state-btn"
-                    onMouseDown={(event) => event.stopPropagation()}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onRemove(nodeId, predicate.id, collection);
-                    }}
-                    title={`Remove ${collection}`}
-                    aria-label={`Remove ${collection}`}
-                  >
-                    X
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
 }
 
 /**
@@ -538,57 +436,36 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
 
       {isAction ? (
         <div className="canvas-node-state">
-          {(data.onAddActionPrecondition || data.onAddActionEffect) && (
+          {data.onManageActionPredicates && (
             <div className="canvas-node-actions">
-              {data.onAddActionPrecondition ? (
-                <button
-                  type="button"
-                  className="canvas-node-action-btn"
-                  onMouseDown={(event) => event.stopPropagation()}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    data.onAddActionPrecondition?.(id);
-                  }}
-                  title="Add precondition"
-                  aria-label="Add precondition"
-                >
-                  Preconditions +
-                </button>
-              ) : null}
-              {data.onAddActionEffect ? (
-                <button
-                  type="button"
-                  className="canvas-node-action-btn"
-                  onMouseDown={(event) => event.stopPropagation()}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    data.onAddActionEffect?.(id);
-                  }}
-                  title="Add effect"
-                  aria-label="Add effect"
-                >
-                  Effects +
-                </button>
-              ) : null}
+              <button
+                type="button"
+                className="canvas-node-action-btn"
+                onMouseDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  data.onManageActionPredicates?.(id, "precondition");
+                }}
+                title="Manage preconditions"
+                aria-label="Manage preconditions"
+              >
+                Preconditions ({preconditions.length})
+              </button>
+              <button
+                type="button"
+                className="canvas-node-action-btn"
+                onMouseDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  data.onManageActionPredicates?.(id, "effect");
+                }}
+                title="Manage effects"
+                aria-label="Manage effects"
+              >
+                Effects ({effects.length})
+              </button>
             </div>
           )}
-
-          <PredicateCollection
-            nodeId={id}
-            items={preconditions}
-            predicateTypeMap={data.predicateTypeMap}
-            collection="precondition"
-            onEdit={data.onEditActionPredicate}
-            onRemove={data.onRemoveActionPredicate}
-          />
-          <PredicateCollection
-            nodeId={id}
-            items={effects}
-            predicateTypeMap={data.predicateTypeMap}
-            collection="effect"
-            onEdit={data.onEditActionPredicate}
-            onRemove={data.onRemoveActionPredicate}
-          />
         </div>
       ) : null}
 
@@ -717,8 +594,7 @@ function EditorCanvasInner(props: EditorCanvasProps) {
     onEditNode,
     onAddConnection,
     onRemoveConnection,
-    onAddActionPrecondition,
-    onAddActionEffect,
+    onManageActionPredicates,
     onCycleFlowSuccessType,
     onEditActionPredicate,
     onRemoveActionPredicate,
@@ -765,8 +641,7 @@ function EditorCanvasInner(props: EditorCanvasProps) {
             onRemoveNode,
             onEditNode,
             onCycleFlowSuccessType,
-            onAddActionPrecondition,
-            onAddActionEffect,
+            onManageActionPredicates,
             onEditActionPredicate,
             onRemoveActionPredicate,
             onResizeNode,
@@ -785,8 +660,7 @@ function EditorCanvasInner(props: EditorCanvasProps) {
       onRemoveNode,
       onEditNode,
       onCycleFlowSuccessType,
-      onAddActionPrecondition,
-      onAddActionEffect,
+      onManageActionPredicates,
       onEditActionPredicate,
       onRemoveActionPredicate,
       onResizeNode,

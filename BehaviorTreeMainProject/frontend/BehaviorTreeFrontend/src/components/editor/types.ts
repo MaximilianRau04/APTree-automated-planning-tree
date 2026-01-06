@@ -77,8 +77,10 @@ export interface EditorCanvasProps {
   ) => void;
   onRemoveConnection?: (connectionId: string) => void;
   onShowActionParameterDetail?: (detail: ActionParameterDetail) => void;
-  onAddActionPrecondition?: (nodeId: string) => void;
-  onAddActionEffect?: (nodeId: string) => void;
+  onManageActionPredicates?: (
+    nodeId: string,
+    collection: "precondition" | "effect"
+  ) => void;
   onCycleFlowSuccessType?: (nodeId: string) => void;
   onEditActionPredicate?: (
     nodeId: string,
