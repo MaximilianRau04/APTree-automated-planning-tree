@@ -40,6 +40,19 @@ import { PREDICATE_INSTANCES_KEY } from "./components/sidebar/utils/constants";
 
 type ThemeMode = "light" | "dark";
 
+type CanvasLevel = "high" | "mid" | "low";
+
+const CANVAS_LEVELS: Array<{ key: CanvasLevel; label: string }> = [
+  { key: "high", label: "High" },
+  { key: "mid", label: "Mid" },
+  { key: "low", label: "Low" },
+];
+
+type CanvasGraph = {
+  nodes: CanvasNode[];
+  connections: NodeConnection[];
+};
+
 const STORAGE_KEY = "aptree-preferred-theme";
 
 type ActionPredicateCollection = "precondition" | "effect";
@@ -56,6 +69,7 @@ const COLLECTION_KEY_MAP: Record<
 interface ActionPredicateModalState {
   isOpen: boolean;
   mode: "add" | "edit";
+  level: CanvasLevel | null;
   nodeId: string | null;
   collection: ActionPredicateCollection | null;
   initialValue: PredicateInstance;
@@ -64,12 +78,14 @@ interface ActionPredicateModalState {
 
 interface ActionPredicateManagerState {
   isOpen: boolean;
+  level: CanvasLevel | null;
   nodeId: string | null;
   collection: ActionPredicateCollection | null;
   revision: number;
 }
 
 type PendingManagerReopen = {
+  level: CanvasLevel;
   nodeId: string;
   collection: ActionPredicateCollection;
 } | null;
@@ -77,6 +93,7 @@ type PendingManagerReopen = {
 const createInitialPredicateModalState = (): ActionPredicateModalState => ({
   isOpen: false,
   mode: "add",
+  level: null,
   nodeId: null,
   collection: null,
   initialValue: createEmptyPredicateInstance(),
@@ -85,6 +102,7 @@ const createInitialPredicateModalState = (): ActionPredicateModalState => ({
 
 const createInitialPredicateManagerState = (): ActionPredicateManagerState => ({
   isOpen: false,
+  level: null,
   nodeId: null,
   collection: null,
   revision: 0,
@@ -124,8 +142,12 @@ function App() {
     const savedTheme = window.localStorage.getItem(STORAGE_KEY);
     return savedTheme === "light" || savedTheme === "dark";
   });
-  const [canvasNodes, setCanvasNodes] = useState<CanvasNode[]>([]);
-  const [connections, setConnections] = useState<NodeConnection[]>([]);
+  const [activeLevel, setActiveLevel] = useState<CanvasLevel>("high");
+  const [graphs, setGraphs] = useState<Record<CanvasLevel, CanvasGraph>>(() => ({
+    high: { nodes: [], connections: [] },
+    mid: { nodes: [], connections: [] },
+    low: { nodes: [], connections: [] },
+  }));
   const [predicateModalState, setPredicateModalState] =
     useState<ActionPredicateModalState>(createInitialPredicateModalState);
   const [predicateManagerState, setPredicateManagerState] =
@@ -224,6 +246,7 @@ function App() {
       }
       setPredicateManagerState((managerPrev) => ({
         isOpen: true,
+        level: prev.level,
         nodeId: prev.nodeId,
         collection: prev.collection,
         revision: managerPrev.revision + 1,
@@ -249,6 +272,7 @@ function App() {
   const openActionPredicateModal = useCallback(
     (config: {
       mode: "add" | "edit";
+      level: CanvasLevel;
       nodeId: string;
       collection: ActionPredicateCollection;
       predicate?: PredicateInstance;
@@ -256,6 +280,7 @@ function App() {
       setPredicateModalState((prev) => ({
         isOpen: true,
         mode: config.mode,
+        level: config.level,
         nodeId: config.nodeId,
         collection: config.collection,
         initialValue: config.predicate
@@ -272,9 +297,14 @@ function App() {
    * @param config modal configuration
    */
   const openActionPredicateManager = useCallback(
-    (config: { nodeId: string; collection: ActionPredicateCollection }) => {
+    (config: {
+      level: CanvasLevel;
+      nodeId: string;
+      collection: ActionPredicateCollection;
+    }) => {
       setPredicateManagerState((prev) => ({
         isOpen: true,
+        level: config.level,
         nodeId: config.nodeId,
         collection: config.collection,
         revision: prev.revision + 1,
@@ -425,7 +455,7 @@ function App() {
    */
   const handleEditNodeFromCanvas = useCallback(
     (nodeId: string) => {
-      const node = canvasNodes.find((entry) => entry.id === nodeId);
+      const node = graphs[activeLevel].nodes.find((entry) => entry.id === nodeId);
       if (!node) {
         console.warn("Unable to edit node; node not found", nodeId);
         return;
@@ -449,7 +479,7 @@ function App() {
       const item = items[index];
       openEditModal(category, index, item);
     },
-    [canvasNodes, getItemsForCategory, openEditModal]
+    [activeLevel, getItemsForCategory, graphs, openEditModal]
   );
 
   /**
@@ -461,33 +491,48 @@ function App() {
         const option = BEHAVIOR_NODE_OPTION_MAP.get(item.id);
 
         if (option) {
-          setCanvasNodes((prev) => [
-            ...prev,
-            createBehaviorNode({ option, position }),
-          ]);
+          setGraphs((prev) => {
+            const graph = prev[activeLevel];
+            return {
+              ...prev,
+              [activeLevel]: {
+                ...graph,
+                nodes: [...graph.nodes, createBehaviorNode({ option, position })],
+              },
+            };
+          });
           return;
         }
       }
 
-      setCanvasNodes((prev) => [
-        ...prev,
-        {
-          id: createId("canvas-node"),
-          sourceId: item.id,
-          name: item.name,
-          typeLabel: item.type,
-          category: item.category,
-          kind: item.kind,
-          x: position.x,
-          y: position.y,
-          width: DEFAULT_CANVAS_NODE_WIDTH,
-          height: DEFAULT_CANVAS_NODE_HEIGHT,
-          isNegated: item.isNegated,
-          typeId: item.typeId,
-        },
-      ]);
+      setGraphs((prev) => {
+        const graph = prev[activeLevel];
+        return {
+          ...prev,
+          [activeLevel]: {
+            ...graph,
+            nodes: [
+              ...graph.nodes,
+              {
+                id: createId("canvas-node"),
+                sourceId: item.id,
+                name: item.name,
+                typeLabel: item.type,
+                category: item.category,
+                kind: item.kind,
+                x: position.x,
+                y: position.y,
+                width: DEFAULT_CANVAS_NODE_WIDTH,
+                height: DEFAULT_CANVAS_NODE_HEIGHT,
+                isNegated: item.isNegated,
+                typeId: item.typeId,
+              },
+            ],
+          },
+        };
+      });
     },
-    []
+    [activeLevel]
   );
 
   /**
@@ -495,19 +540,26 @@ function App() {
    */
   const handleMoveNode = useCallback(
     (nodeId: string, position: { x: number; y: number }) => {
-      setCanvasNodes((prev) =>
-        prev.map((node) =>
-          node.id === nodeId
-            ? {
-                ...node,
-                x: position.x,
-                y: position.y,
-              }
-            : node
-        )
-      );
+      setGraphs((prev) => {
+        const graph = prev[activeLevel];
+        return {
+          ...prev,
+          [activeLevel]: {
+            ...graph,
+            nodes: graph.nodes.map((node) =>
+              node.id === nodeId
+                ? {
+                    ...node,
+                    x: position.x,
+                    y: position.y,
+                  }
+                : node
+            ),
+          },
+        };
+      });
     },
-    []
+    [activeLevel]
   );
 
   /**
@@ -515,33 +567,46 @@ function App() {
    */
   const handleResizeNode = useCallback(
     (nodeId: string, size: { width: number; height: number }) => {
-      setCanvasNodes((prev) =>
-        prev.map((node) =>
-          node.id === nodeId
-            ? {
-                ...node,
-                width: Math.max(120, size.width),
-                height: Math.max(100, size.height),
-              }
-            : node
-        )
-      );
+      setGraphs((prev) => {
+        const graph = prev[activeLevel];
+        return {
+          ...prev,
+          [activeLevel]: {
+            ...graph,
+            nodes: graph.nodes.map((node) =>
+              node.id === nodeId
+                ? {
+                    ...node,
+                    width: Math.max(120, size.width),
+                    height: Math.max(100, size.height),
+                  }
+                : node
+            ),
+          },
+        };
+      });
     },
-    []
+    [activeLevel]
   );
 
   /**
    * handles removing a node from the editor canvas.
    */
   const handleRemoveNode = useCallback((nodeId: string) => {
-    setCanvasNodes((prev) => prev.filter((node) => node.id !== nodeId));
-    // Also remove all connections involving this node
-    setConnections((prev) =>
-      prev.filter(
-        (conn) => conn.sourceNodeId !== nodeId && conn.targetNodeId !== nodeId
-      )
-    );
-  }, []);
+    setGraphs((prev) => {
+      const graph = prev[activeLevel];
+      return {
+        ...prev,
+        [activeLevel]: {
+          nodes: graph.nodes.filter((node) => node.id !== nodeId),
+          connections: graph.connections.filter(
+            (conn) =>
+              conn.sourceNodeId !== nodeId && conn.targetNodeId !== nodeId
+          ),
+        },
+      };
+    });
+  }, [activeLevel]);
 
   /**
    * handles adding a connection between two nodes.
@@ -554,8 +619,9 @@ function App() {
       targetPort: "top" | "right" | "bottom" | "left"
     ) => {
       // Check if connection already exists
-      setConnections((prev) => {
-        const exists = prev.some(
+      setGraphs((prev) => {
+        const graph = prev[activeLevel];
+        const exists = graph.connections.some(
           (conn) =>
             conn.sourceNodeId === sourceNodeId &&
             conn.targetNodeId === targetNodeId &&
@@ -567,36 +633,51 @@ function App() {
           return prev;
         }
 
-        return [
+        return {
           ...prev,
-          {
-            id: createId("connection"),
-            sourceNodeId,
-            targetNodeId,
-            sourcePort,
-            targetPort,
+          [activeLevel]: {
+            ...graph,
+            connections: [
+              ...graph.connections,
+              {
+                id: createId("connection"),
+                sourceNodeId,
+                targetNodeId,
+                sourcePort,
+                targetPort,
+              },
+            ],
           },
-        ];
+        };
       });
     },
-    []
+    [activeLevel]
   );
 
   /**
    * handles removing a connection between nodes.
    */
   const handleRemoveConnection = useCallback((connectionId: string) => {
-    setConnections((prev) => prev.filter((conn) => conn.id !== connectionId));
-  }, []);
+    setGraphs((prev) => {
+      const graph = prev[activeLevel];
+      return {
+        ...prev,
+        [activeLevel]: {
+          ...graph,
+          connections: graph.connections.filter((conn) => conn.id !== connectionId),
+        },
+      };
+    });
+  }, [activeLevel]);
 
   /**
    * handles adding a precondition to an action node.
    */
   const handleManageActionPredicates = useCallback(
     (nodeId: string, collection: ActionPredicateCollection) => {
-      openActionPredicateManager({ nodeId, collection });
+      openActionPredicateManager({ level: activeLevel, nodeId, collection });
     },
-    [openActionPredicateManager]
+    [activeLevel, openActionPredicateManager]
   );
 
   /**
@@ -608,7 +689,7 @@ function App() {
       predicateId: string,
       collection: ActionPredicateCollection
     ) => {
-      const node = canvasNodes.find((entry) => entry.id === nodeId);
+      const node = graphs[activeLevel].nodes.find((entry) => entry.id === nodeId);
       if (!node) {
         console.warn("Unable to edit predicate; node not found", nodeId);
         return;
@@ -628,12 +709,13 @@ function App() {
 
       openActionPredicateModal({
         mode: "edit",
+        level: activeLevel,
         nodeId,
         collection,
         predicate,
       });
     },
-    [canvasNodes, openActionPredicateModal]
+    [activeLevel, graphs, openActionPredicateModal]
   );
 
   /**
@@ -645,28 +727,35 @@ function App() {
       predicateId: string,
       collection: ActionPredicateCollection
     ) => {
-      setCanvasNodes((prev) =>
-        prev.map((node) => {
-          if (node.id !== nodeId) {
-            return node;
-          }
+      setGraphs((prev) => {
+        const graph = prev[activeLevel];
+        return {
+          ...prev,
+          [activeLevel]: {
+            ...graph,
+            nodes: graph.nodes.map((node) => {
+              if (node.id !== nodeId) {
+                return node;
+              }
 
-          const collectionKey = COLLECTION_KEY_MAP[collection];
-          const predicateList = node[collectionKey] ?? [];
-          if (!predicateList.some((entry) => entry.id === predicateId)) {
-            return node;
-          }
+              const collectionKey = COLLECTION_KEY_MAP[collection];
+              const predicateList = node[collectionKey] ?? [];
+              if (!predicateList.some((entry) => entry.id === predicateId)) {
+                return node;
+              }
 
-          return {
-            ...node,
-            [collectionKey]: predicateList.filter(
-              (entry) => entry.id !== predicateId
-            ),
-          };
-        })
-      );
+              return {
+                ...node,
+                [collectionKey]: predicateList.filter(
+                  (entry) => entry.id !== predicateId
+                ),
+              };
+            }),
+          },
+        };
+      });
     },
-    []
+    [activeLevel]
   );
 
   /**
@@ -674,7 +763,11 @@ function App() {
    */
   const handleSaveActionPredicate = useCallback(
     (value: PredicateInstance) => {
-      if (!predicateModalState.nodeId || !predicateModalState.collection) {
+      if (
+        !predicateModalState.nodeId ||
+        !predicateModalState.collection ||
+        !predicateModalState.level
+      ) {
         resetPredicateModalState();
         return;
       }
@@ -682,34 +775,40 @@ function App() {
       const collectionKey = COLLECTION_KEY_MAP[predicateModalState.collection];
       const sanitizedValue = clonePredicateInstance(value);
 
-      setCanvasNodes((prev) =>
-        prev.map((node) => {
-          if (node.id !== predicateModalState.nodeId) {
-            return node;
-          }
+      setGraphs((prev) => {
+        const level = predicateModalState.level as CanvasLevel;
+        const graph = prev[level];
+        return {
+          ...prev,
+          [level]: {
+            ...graph,
+            nodes: graph.nodes.map((node) => {
+              if (node.id !== predicateModalState.nodeId) {
+                return node;
+              }
 
-          const predicateList = node[collectionKey] ?? [];
-          if (predicateModalState.mode === "edit") {
-            if (
-              !predicateList.some((entry) => entry.id === sanitizedValue.id)
-            ) {
-              return node;
-            }
+              const predicateList = node[collectionKey] ?? [];
+              if (predicateModalState.mode === "edit") {
+                if (!predicateList.some((entry) => entry.id === sanitizedValue.id)) {
+                  return node;
+                }
 
-            return {
-              ...node,
-              [collectionKey]: predicateList.map((entry) =>
-                entry.id === sanitizedValue.id ? sanitizedValue : entry
-              ),
-            };
-          }
+                return {
+                  ...node,
+                  [collectionKey]: predicateList.map((entry) =>
+                    entry.id === sanitizedValue.id ? sanitizedValue : entry
+                  ),
+                };
+              }
 
-          return {
-            ...node,
-            [collectionKey]: [...predicateList, sanitizedValue],
-          };
-        })
-      );
+              return {
+                ...node,
+                [collectionKey]: [...predicateList, sanitizedValue],
+              };
+            }),
+          },
+        };
+      });
 
       resetPredicateModalState();
       setPendingManagerReopen((prev) => {
@@ -718,6 +817,7 @@ function App() {
         }
         setPredicateManagerState((managerPrev) => ({
           isOpen: true,
+          level: prev.level,
           nodeId: prev.nodeId,
           collection: prev.collection,
           revision: managerPrev.revision + 1,
@@ -729,17 +829,23 @@ function App() {
   );
 
   const handleCreateNewPredicateFromManager = useCallback(() => {
-    if (!predicateManagerState.nodeId || !predicateManagerState.collection) {
+    if (
+      !predicateManagerState.nodeId ||
+      !predicateManagerState.collection ||
+      !predicateManagerState.level
+    ) {
       return;
     }
 
     setPendingManagerReopen({
+      level: predicateManagerState.level,
       nodeId: predicateManagerState.nodeId,
       collection: predicateManagerState.collection,
     });
     closeActionPredicateManager();
     openActionPredicateModal({
       mode: "add",
+      level: predicateManagerState.level,
       nodeId: predicateManagerState.nodeId,
       collection: predicateManagerState.collection,
     });
@@ -747,12 +853,17 @@ function App() {
     closeActionPredicateManager,
     openActionPredicateModal,
     predicateManagerState.collection,
+    predicateManagerState.level,
     predicateManagerState.nodeId,
   ]);
 
   const handleAttachExistingPredicate = useCallback(
     (predicateId: string) => {
-      if (!predicateManagerState.nodeId || !predicateManagerState.collection) {
+      if (
+        !predicateManagerState.nodeId ||
+        !predicateManagerState.collection ||
+        !predicateManagerState.level
+      ) {
         return;
       }
 
@@ -765,112 +876,210 @@ function App() {
       const collectionKey = COLLECTION_KEY_MAP[predicateManagerState.collection];
       const payload = clonePredicateInstance(selected);
 
-      setCanvasNodes((prev) =>
-        prev.map((node) => {
-          if (node.id !== predicateManagerState.nodeId) {
-            return node;
-          }
+      setGraphs((prev) => {
+        const level = predicateManagerState.level as CanvasLevel;
+        const graph = prev[level];
+        return {
+          ...prev,
+          [level]: {
+            ...graph,
+            nodes: graph.nodes.map((node) => {
+              if (node.id !== predicateManagerState.nodeId) {
+                return node;
+              }
 
-          const predicateList = node[collectionKey] ?? [];
-          if (predicateList.some((entry) => entry.id === payload.id)) {
-            return node;
-          }
+              const predicateList = node[collectionKey] ?? [];
+              if (predicateList.some((entry) => entry.id === payload.id)) {
+                return node;
+              }
 
-          return {
-            ...node,
-            [collectionKey]: [...predicateList, payload],
-          };
-        })
-      );
+              return {
+                ...node,
+                [collectionKey]: [...predicateList, payload],
+              };
+            }),
+          },
+        };
+      });
     },
-    [predicateInstances, predicateManagerState.collection, predicateManagerState.nodeId]
+    [
+      predicateInstances,
+      predicateManagerState.collection,
+      predicateManagerState.level,
+      predicateManagerState.nodeId,
+    ]
   );
 
   const handleRemovePredicateFromManager = useCallback(
     (predicateId: string) => {
-      if (!predicateManagerState.nodeId || !predicateManagerState.collection) {
+      if (
+        !predicateManagerState.nodeId ||
+        !predicateManagerState.collection ||
+        !predicateManagerState.level
+      ) {
         return;
       }
-      handleRemoveActionPredicate(
-        predicateManagerState.nodeId,
-        predicateId,
-        predicateManagerState.collection
-      );
+
+      const level = predicateManagerState.level;
+      const collection = predicateManagerState.collection;
+      const nodeId = predicateManagerState.nodeId;
+      const collectionKey = COLLECTION_KEY_MAP[collection];
+
+      setGraphs((prev) => {
+        const graph = prev[level];
+        return {
+          ...prev,
+          [level]: {
+            ...graph,
+            nodes: graph.nodes.map((node) => {
+              if (node.id !== nodeId) {
+                return node;
+              }
+
+              const predicateList = node[collectionKey] ?? [];
+              if (!predicateList.some((entry) => entry.id === predicateId)) {
+                return node;
+              }
+
+              return {
+                ...node,
+                [collectionKey]: predicateList.filter(
+                  (entry) => entry.id !== predicateId
+                ),
+              };
+            }),
+          },
+        };
+      });
     },
-    [handleRemoveActionPredicate, predicateManagerState.collection, predicateManagerState.nodeId]
+    [predicateManagerState.collection, predicateManagerState.level, predicateManagerState.nodeId]
   );
 
   const handleEditPredicateFromManager = useCallback(
     (predicateId: string) => {
-      if (!predicateManagerState.nodeId || !predicateManagerState.collection) {
+      if (
+        !predicateManagerState.nodeId ||
+        !predicateManagerState.collection ||
+        !predicateManagerState.level
+      ) {
         return;
       }
-      handleEditActionPredicate(
-        predicateManagerState.nodeId,
-        predicateId,
-        predicateManagerState.collection
-      );
+
+      const level = predicateManagerState.level;
+      const nodeId = predicateManagerState.nodeId;
+      const collection = predicateManagerState.collection;
+
+      const node = graphs[level].nodes.find((entry) => entry.id === nodeId);
+      if (!node) {
+        console.warn("Unable to edit predicate; node not found", nodeId);
+        return;
+      }
+
+      const collectionKey = COLLECTION_KEY_MAP[collection];
+      const predicateList = node[collectionKey] ?? [];
+      const predicate = predicateList.find((entry) => entry.id === predicateId);
+
+      if (!predicate) {
+        console.warn(
+          "Unable to edit predicate; predicate not found",
+          predicateId
+        );
+        return;
+      }
+
+      openActionPredicateModal({
+        mode: "edit",
+        level,
+        nodeId,
+        collection,
+        predicate,
+      });
     },
-    [handleEditActionPredicate, predicateManagerState.collection, predicateManagerState.nodeId]
+    [
+      graphs,
+      openActionPredicateModal,
+      predicateManagerState.collection,
+      predicateManagerState.level,
+      predicateManagerState.nodeId,
+    ]
   );
 
   /**
    * handles cycling the flow success type for a flow node.
    */
   const handleCycleFlowSuccessType = useCallback((nodeId: string) => {
-    setCanvasNodes((prev) =>
-      prev.map((node) => {
-        if (node.id !== nodeId || !node.successType) {
-          return node;
-        }
+    setGraphs((prev) => {
+      const graph = prev[activeLevel];
+      return {
+        ...prev,
+        [activeLevel]: {
+          ...graph,
+          nodes: graph.nodes.map((node) => {
+            if (node.id !== nodeId || !node.successType) {
+              return node;
+            }
 
-        const currentIndex = Math.max(
-          0,
-          FLOW_SUCCESS_TYPES.indexOf(node.successType)
-        );
-        const nextType =
-          FLOW_SUCCESS_TYPES[(currentIndex + 1) % FLOW_SUCCESS_TYPES.length];
+            const currentIndex = Math.max(
+              0,
+              FLOW_SUCCESS_TYPES.indexOf(node.successType)
+            );
+            const nextType =
+              FLOW_SUCCESS_TYPES[(currentIndex + 1) % FLOW_SUCCESS_TYPES.length];
 
-        return {
-          ...node,
-          successType: nextType,
-        };
-      })
-    );
-  }, []);
+            return {
+              ...node,
+              successType: nextType,
+            };
+          }),
+        },
+      };
+    });
+  }, [activeLevel]);
 
   /**
    * handles creating a new behavior node on the canvas.
    */
   const handleCreateBehaviorNode = useCallback((option: BehaviorNodeOption) => {
-    setCanvasNodes((prev) => {
-      const nextIndex = prev.length;
+    setGraphs((prev) => {
+      const graph = prev[activeLevel];
+      const nextIndex = graph.nodes.length;
       const offset = 140;
       const position = {
         x: 140 + (nextIndex % 3) * offset,
         y: 140 + Math.floor(nextIndex / 3) * offset,
       };
-      return [...prev, createBehaviorNode({ option, position })];
+
+      return {
+        ...prev,
+        [activeLevel]: {
+          ...graph,
+          nodes: [...graph.nodes, createBehaviorNode({ option, position })],
+        },
+      };
     });
-  }, []);
+  }, [activeLevel]);
 
   const activePredicateNode = useMemo(() => {
-    if (!predicateModalState.nodeId) {
+    if (!predicateModalState.nodeId || !predicateModalState.level) {
       return null;
     }
     return (
-      canvasNodes.find((node) => node.id === predicateModalState.nodeId) ?? null
+      graphs[predicateModalState.level].nodes.find(
+        (node) => node.id === predicateModalState.nodeId
+      ) ?? null
     );
-  }, [canvasNodes, predicateModalState.nodeId]);
+  }, [graphs, predicateModalState.level, predicateModalState.nodeId]);
 
   const activePredicateManagerNode = useMemo(() => {
-    if (!predicateManagerState.nodeId) {
+    if (!predicateManagerState.nodeId || !predicateManagerState.level) {
       return null;
     }
     return (
-      canvasNodes.find((node) => node.id === predicateManagerState.nodeId) ?? null
+      graphs[predicateManagerState.level].nodes.find(
+        (node) => node.id === predicateManagerState.nodeId
+      ) ?? null
     );
-  }, [canvasNodes, predicateManagerState.nodeId]);
+  }, [graphs, predicateManagerState.level, predicateManagerState.nodeId]);
 
   const managerAssignedList = useMemo(() => {
     if (!activePredicateManagerNode || !predicateManagerState.collection) {
@@ -923,25 +1132,44 @@ function App() {
             onImportActionInstances={handleImportActionInstancesFile}
           />
           <div className="editor" role="main">
-            <EditorCanvas
-              nodes={canvasNodes}
-              connections={connections}
-              onDropNode={handleDropOnCanvas}
-              onMoveNode={handleMoveNode}
-              onResizeNode={handleResizeNode}
-              onRemoveNode={handleRemoveNode}
-              onEditNode={handleEditNodeFromCanvas}
-              onAddConnection={handleAddConnection}
-              onRemoveConnection={handleRemoveConnection}
-              onShowActionParameterDetail={handleShowActionParameterDetail}
-              onManageActionPredicates={handleManageActionPredicates}
-              onEditActionPredicate={handleEditActionPredicate}
-              onRemoveActionPredicate={handleRemoveActionPredicate}
-              onCycleFlowSuccessType={handleCycleFlowSuccessType}
-              predicateTypes={PREDICATE_TYPE_CATALOG}
-              actionTypes={actionTypes}
-              actionInstances={actionInstances}
-            />
+            <div className="level-tabs" role="tablist" aria-label="Canvas Level">
+              {CANVAS_LEVELS.map((level) => (
+                <button
+                  key={level.key}
+                  type="button"
+                  className={`level-tab${
+                    activeLevel === level.key ? " is-active" : ""
+                  }`}
+                  role="tab"
+                  aria-selected={activeLevel === level.key}
+                  onClick={() => setActiveLevel(level.key)}
+                >
+                  {level.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="editor-canvas-wrap">
+              <EditorCanvas
+                nodes={graphs[activeLevel].nodes}
+                connections={graphs[activeLevel].connections}
+                onDropNode={handleDropOnCanvas}
+                onMoveNode={handleMoveNode}
+                onResizeNode={handleResizeNode}
+                onRemoveNode={handleRemoveNode}
+                onEditNode={handleEditNodeFromCanvas}
+                onAddConnection={handleAddConnection}
+                onRemoveConnection={handleRemoveConnection}
+                onShowActionParameterDetail={handleShowActionParameterDetail}
+                onManageActionPredicates={handleManageActionPredicates}
+                onEditActionPredicate={handleEditActionPredicate}
+                onRemoveActionPredicate={handleRemoveActionPredicate}
+                onCycleFlowSuccessType={handleCycleFlowSuccessType}
+                predicateTypes={PREDICATE_TYPE_CATALOG}
+                actionTypes={actionTypes}
+                actionInstances={actionInstances}
+              />
+            </div>
           </div>
         </div>
       </div>

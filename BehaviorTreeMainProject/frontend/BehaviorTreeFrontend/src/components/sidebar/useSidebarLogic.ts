@@ -273,6 +273,10 @@ export const useSidebarManager = (): SidebarManager => {
     openModal(createEmpty(defaultDefinition));
   };
 
+  /**
+   * opens the generic item modal in add mode for the specified category.
+   * @param category category key representing the data section 
+   */
   const openAddModal = (category: DataCategory) => {
     if (category === PARAM_TYPES_KEY) {
       parameterTypeModal.openAdd();
