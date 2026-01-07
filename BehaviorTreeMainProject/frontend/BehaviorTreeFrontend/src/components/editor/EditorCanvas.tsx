@@ -94,6 +94,7 @@ interface BehaviorNodeData {
 
 interface BehaviorEdgeData {
   onRemoveConnection?: (connectionId: string) => void;
+  isHovered?: boolean;
 }
 
 const portPositions: Record<PortSide, Position> = {
@@ -111,10 +112,10 @@ const PORT_STYLES: Record<PortSide, CSSProperties> = {
 };
 
 const SOURCE_HANDLE_STYLES: Record<PortSide, CSSProperties> = {
-  top: { top: -16, left: "50%", transform: "translate(-50%, 0)" },
-  right: { right: -16, top: "50%", transform: "translate(0, -50%)" },
-  bottom: { bottom: -16, left: "50%", transform: "translate(-50%, 0)" },
-  left: { left: -16, top: "50%", transform: "translate(0, -50%)" },
+  top: { top: -6, left: "50%", transform: "translate(-50%, 0)" },
+  right: { right: -6, top: "50%", transform: "translate(0, -50%)" },
+  bottom: { bottom: -6, left: "50%", transform: "translate(-50%, 0)" },
+  left: { left: -6, top: "50%", transform: "translate(0, -50%)" },
 };
 
 const TARGET_HANDLE_STYLES: Record<PortSide, CSSProperties> = {
@@ -494,7 +495,7 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
           ))
         : null}
 
-      {isFlowNode &&
+      {(isFlowNode || isAction) &&
         (Object.keys(portPositions) as PortSide[]).map((side) => (
           <Handle
             key={`source-${side}`}
@@ -503,7 +504,7 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
             id={`source-${side}`}
             className="canvas-node-handle canvas-node-handle-hitbox canvas-node-handle-source"
             style={{
-              zIndex: 10, 
+              zIndex: 10,
               ...SOURCE_HANDLE_STYLES[side],
               ...(sourceHandleOverrides[side] ?? {}),
             }}
@@ -530,6 +531,7 @@ function BehaviorEdge({
   markerEnd,
   style,
   data,
+  selected,
 }: EdgeProps<BehaviorEdgeData>) {
   const [edgePath, midX, midY] = getSmoothStepPath({
     sourceX,
@@ -556,7 +558,9 @@ function BehaviorEdge({
       {data?.onRemoveConnection ? (
         <EdgeLabelRenderer>
           <div
-            className="canvas-connection-remove-wrap"
+            className={`canvas-connection-remove-wrap${
+              data?.isHovered ? " is-visible" : ""
+            }`}
             style={{
               position: "absolute",
               left: midX,
@@ -573,6 +577,7 @@ function BehaviorEdge({
                 data.onRemoveConnection?.(id);
               }}
               aria-label="Remove connection"
+              tabIndex={data?.isHovered || selected ? 0 : -1}
             >
               ×
             </button>
@@ -615,6 +620,7 @@ function EditorCanvasInner(props: EditorCanvasProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const { project } = useReactFlow();
   const [isActive, setIsActive] = useState(false);
+  const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
 
   const predicateTypeMap = useMemo(
     () => createPredicateTypeMap(predicateTypes),
@@ -697,6 +703,7 @@ function EditorCanvasInner(props: EditorCanvasProps) {
         animated: false,
         data: {
           onRemoveConnection,
+          isHovered: hoveredEdgeId === connection.id,
         },
         markerEnd: {
           type: MarkerType.ArrowClosed,
@@ -705,7 +712,7 @@ function EditorCanvasInner(props: EditorCanvasProps) {
           height: 16,
         },
       })),
-    [connections, onRemoveConnection]
+    [connections, hoveredEdgeId, onRemoveConnection]
   );
 
   /**
@@ -795,17 +802,28 @@ function EditorCanvasInner(props: EditorCanvasProps) {
       const sourceNode = nodes.find((entry) => entry.id === connection.source);
       const targetNode = nodes.find((entry) => entry.id === connection.target);
 
-      // Rule: arrows are always from flow nodes to non-flow nodes.
-      // Connecting to flow nodes (including flow->flow) should not work.
+      const isAction = (node: CanvasNode) =>
+        node.kind === "actionType" || node.kind === "actionInstance";
+      const isFlow = (node: CanvasNode) => node.category === FLOW_NODES_KEY;
+
+      // Rules:
+      // - Flow -> (Action/Service/Decorator/anything non-flow) is allowed (structure).
+      // - Action -> Action is allowed (plan/order/temporal relations).
+      // - Anything -> Flow is not allowed.
+      // - Flow -> Flow is not allowed.
       if (!sourceNode || !targetNode) {
         return;
       }
 
-      if (sourceNode.category !== FLOW_NODES_KEY) {
+      if (isFlow(targetNode)) {
         return;
       }
 
-      if (targetNode.category === FLOW_NODES_KEY) {
+      if (isFlow(sourceNode)) {
+        // allow Flow -> non-flow
+      } else if (isAction(sourceNode) && isAction(targetNode)) {
+        // allow Action -> Action (plan graph)
+      } else {
         return;
       }
 
@@ -820,6 +838,17 @@ function EditorCanvasInner(props: EditorCanvasProps) {
     },
     [nodes, onAddConnection]
   );
+
+  const handleEdgeMouseEnter = useCallback(
+    (_event: React.MouseEvent, edge: FlowEdge) => {
+      setHoveredEdgeId(edge.id);
+    },
+    []
+  );
+
+  const handleEdgeMouseLeave = useCallback(() => {
+    setHoveredEdgeId(null);
+  }, []);
 
   /**
    * handles node drag events on the canvas.
@@ -871,6 +900,8 @@ function EditorCanvasInner(props: EditorCanvasProps) {
         translateExtent={CANVAS_EXTENT}
         nodeExtent={CANVAS_EXTENT}
         onConnect={handleConnect}
+        onEdgeMouseEnter={handleEdgeMouseEnter}
+        onEdgeMouseLeave={handleEdgeMouseLeave}
         onNodeDrag={handleNodeDrag}
         onNodeDragStop={handleNodeDragStop}
         connectionLineType={ConnectionLineType.SmoothStep}

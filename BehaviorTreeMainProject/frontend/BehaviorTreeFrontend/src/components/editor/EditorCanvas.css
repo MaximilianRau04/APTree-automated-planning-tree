@@ -655,8 +655,8 @@
 }
 
 .canvas-node-handle-hitbox {
-  width: 28px !important;
-  height: 28px !important;
+  width: 16px !important;
+  height: 16px !important;
   border-radius: 50%;
   border: none;
   background: transparent;
@@ -664,7 +664,14 @@
 }
 
 .canvas-connection-remove-wrap {
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.canvas-connection-remove-wrap.is-visible {
   pointer-events: all;
+  opacity: 1;
 }
 
 .canvas-connection-remove-btn {
@@ -681,7 +688,7 @@
   justify-content: center;
   cursor: pointer;
   box-shadow: 0 6px 16px rgba(239, 68, 68, 0.28);
-  opacity: 0.26;
+  opacity: 0.55;
   transition:
     opacity var(--transition-fast),
     background var(--transition-fast),
