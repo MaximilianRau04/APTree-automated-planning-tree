@@ -1,0 +1,8 @@
+Category,Count,BeforeTicking,AfterTicking,GenerationTimeMs,AverageTimeMs,MostCommonInstance,MostCommonCount
+PredicateTypes,18,18,0,0.00,0.00,N/A,0
+ActionTypes,18,18,0,0.00,0.00,N/A,0
+ParameterTypes,12,12,0,0.00,0.00,N/A,0
+ActionInstances,39,4,111,734.91,18.84,TravelML,18
+ParameterInstances,84,84,0,11.09,0.13,Location,41
+PredicateInstances,133,121,0,828.00,6.23,atplace,36
+PredicateNegationCount,41,0,0,0.00,0.00,N/A,0

@@ -2,7 +2,7 @@ grammar ConcreteBT extends CRFTypeDef {
 
 
 // === GENERATED RULES (DO NOT EDIT BELOW) ===
-symbol Beam extends Element = "Beam" name:Name "(" lenght:DOUBLE_VALUE color:Name ")";
+symbol Beam extends Element = "Beam" name:Name "(" lenght:DOUBLE_VALUE color:Name ")" ;
 symbol Plate extends Element = "Plate" name:Name "(" Roughness:DOUBLE_VALUE ")";
 symbol FirstPosition extends Location = "FirstPosition" name:Name "(" id:NUMBER ")";
 symbol Robot extends Agent = "Robot" name:Name "(" id:NUMBER ")";
@@ -16,8 +16,11 @@ AtPlace extends Predicate = "AtPlace" name:Name? "(" item:Name@Element loc:Name@
 
 
 // === GENERATED ACTION RULES (DO NOT EDIT BELOW) ===
-PickUpHL extends PActionNode = "Action" "PickUpHL" name:Name "(" obj:Name@Element grabPos:Name@Location client:Name@Robot ")" ("{" (Decorator | Service)* "}")? ;
+PickUpHL extends PActionNode = "Action" "PickUpHL" name:Name "(" obj:Name@Element grabPos:Name@Location client:Name@Robot ")" ("{" (Decorator | Service)* "}")?  ("@" subtreeAnnotation:Name)?;
 astrule PickUpHL = method public crftypedef._ast.ASTActionLevel getActLevel() { if(actLevel==null){ actLevel=crftypedef._ast.ASTActionLevel.HIGHLEVEL; } return actLevel; } ;
+
+PlaceHL extends PActionNode = "Action" "PlaceHL" name:Name "(" obj:Name@Element targetPos:Name@Location client:Name@Robot ")" ("{" (Decorator | Service)* "}")? ;
+astrule PlaceHL = method public crftypedef._ast.ASTActionLevel getActLevel() { if(actLevel==null){ actLevel=crftypedef._ast.ASTActionLevel.HIGHLEVEL; } return actLevel; } ;
 
 // === END GENERATED ACTION RULES ===
 }

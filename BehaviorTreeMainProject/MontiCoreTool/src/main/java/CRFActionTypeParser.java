@@ -128,7 +128,7 @@ public class CRFActionTypeParser {
      *   }
      * 
      * Output:
-     *   PickUpHL extends PActionNode = "Action" "PickUpHL" name:Name "(" obj:Name@Element grabPos:Name@Location client:Name@Robot ")" ("{" (Decorator | Service)* "}")? ;
+     *   PickUpHL extends PActionNode = "Action" "PickUpHL" name:Name "(" obj:Name@Element grabPos:Name@Location client:Name@Robot ")" ("@" subtreeAnnotation:Name)? ("{" (Decorator | Service)* "}")? ;
      *   astrule PickUpHL = method public crftypedef._ast.ASTActionLevel getActLevel() { if(actLevel==null){ actLevel=crftypedef._ast.ASTActionLevel.HIGHLEVEL; } return actLevel; } ;
      */
     public static String generateGrammarRule(ASTActionTypeDefinition actionDef) {
@@ -157,8 +157,8 @@ public class CRFActionTypeParser {
                 .append(paramType);
         }
         
-        // End with optional decorators/services block
-        rule.append(" \")\" (\"{\" (Decorator | Service)* \"}\")? ;");
+        // End with optional subtree annotation and optional decorators/services block
+        rule.append(" \")\" (\"@\" subtreeAnnotation:Name)? (\"{\" (Decorator | Service)* \"}\")? ;");
         
         // Add astrule with method for default actLevel value
         rule.append("\nastrule ")

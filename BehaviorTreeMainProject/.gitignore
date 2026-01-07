@@ -19,13 +19,8 @@ obj/
 .DS_Store
 Thumbs.db
 
-# Logs and CSV log files
+# Logs
 *.log
-*.csv
-WrittenLogs/
-
-# Java heap dumps (very large files - exceeds GitHub 100MB limit)
-*.hprof
 
 # Temporary files
 *.tmp

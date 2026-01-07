@@ -50,6 +50,7 @@ abstract PActionNode extends ActionNode =
     actLevel: ActionLevel
     precondition:State
     effect:State
+    ("@" subtreeAnnotation:Name)? 
     ("{" (Decorator | Service)* "}")?
     ;
 

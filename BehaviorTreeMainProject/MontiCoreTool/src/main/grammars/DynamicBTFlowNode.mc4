@@ -2,11 +2,12 @@ grammar DynamicBTFlowNode extends ConcreteBT {
 
  //overriding the parent class to not allow single nodes in it
 
-
+@Override
+   BehaviorTree = "BehaviorTree" Name "{" "root" root:DynamicFlowNode "}";
     // Dynamic BTflow node definition - separate node type with different keyword
     DynamicFlowNode extends FlowNode = 
       "FlowNode" "{" 
-          Service+     
+          (Decorator | Service)*     
           succri:SuccessCriteria
           childType:ChildType
           nodeGraph:NodeGraph 

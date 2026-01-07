@@ -219,13 +219,20 @@ task runDynamicFlowNodeParser(type: JavaExec) {
     workingDir = projectDir
 }
 
-task runPDDLPlannerParser(type: JavaExec) {
+task runAPTreeParser(type: JavaExec) {
+    description = 'Parses and analyzes the APTree behavior tree model'
     dependsOn 'compileJava'
     classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'PDDLPlannerParserTest'
+    mainClass = 'APTreeParserTest'
     workingDir = projectDir
 }
 
-
+// Task to generate Class Diagram from grammar (shows AST structure)
+task generateASTClassDiagram(type: JavaExec) {
+    dependsOn 'compileJava'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'ASTClassDiagramGenerator'
+    workingDir = projectDir
+}
 
 defaultTasks 'build'
