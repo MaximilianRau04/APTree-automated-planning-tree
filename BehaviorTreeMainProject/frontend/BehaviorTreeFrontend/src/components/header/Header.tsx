@@ -115,7 +115,9 @@ function Dropdown({ title, items }: DropdownProps) {
             return (
               <button
                 key={`action-${index}`}
-                className="dropdown-item"
+                className={`dropdown-item${
+                  item.label === "Export Graph (JSON)" ? " dropdown-item-strong" : ""
+                }`}
                 type="button"
                 onClick={() => {
                   item.onSelect?.();
@@ -139,6 +141,8 @@ export default function Header({
   onImportParameterInstances,
   onImportPredicateInstances,
   onImportActionInstances,
+  onExportCanvasGraph,
+  onImportCanvasGraph,
 }: HeaderProps) {
   const isDarkMode = theme === "dark";
   const fileMenuItems: DropdownProps["items"] = [
@@ -146,9 +150,21 @@ export default function Header({
     { label: "Open..." },
     { label: "Save" },
     { label: "Save As..." },
-    { label: "Export" },
-    { label: "Import" },
     { kind: "divider" },
+    { kind: "label", label: "Graph" },
+    {
+      kind: "action",
+      label: "Export Graph (JSON)",
+      onSelect: onExportCanvasGraph,
+    },
+    {
+      kind: "file",
+      label: "Import Graph (JSON)",
+      accept: ".json,application/json",
+      onFileSelect: (file) => onImportCanvasGraph(file),
+    },
+    { kind: "divider" },
+    { kind: "label", label: "Instances" },
     {
       kind: "file",
       label: "Import Parameter Instances",

@@ -663,11 +663,15 @@
   opacity: 0;
 }
 
+.canvas-connection-remove-wrap {
+  pointer-events: all;
+}
+
 .canvas-connection-remove-btn {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--danger) 65%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 72%, transparent);
   background: color-mix(in srgb, var(--danger) 10%, var(--surface-panel) 90%);
   color: var(--danger, #ef4444);
   font-size: 16px;
@@ -677,7 +681,7 @@
   justify-content: center;
   cursor: pointer;
   box-shadow: 0 6px 16px rgba(239, 68, 68, 0.28);
-  opacity: 0.18;
+  opacity: 0.26;
   transition:
     opacity var(--transition-fast),
     background var(--transition-fast),

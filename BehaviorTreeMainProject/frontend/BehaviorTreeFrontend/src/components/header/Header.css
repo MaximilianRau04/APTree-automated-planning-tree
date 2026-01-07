@@ -162,6 +162,10 @@
   outline: none;
 }
 
+.dropdown-item-strong {
+  color: var(--text-primary);
+}
+
 .file-upload {
   cursor: pointer;
   display: flex;

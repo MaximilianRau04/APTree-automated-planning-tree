@@ -4,6 +4,8 @@ export interface HeaderProps {
   onImportParameterInstances: (file: File) => void;
   onImportPredicateInstances: (file: File) => void;
   onImportActionInstances: (file: File) => void;
+  onExportCanvasGraph: () => void;
+  onImportCanvasGraph: (file: File) => void;
 }
 
 export interface DropdownActionItem {

@@ -118,10 +118,10 @@ const SOURCE_HANDLE_STYLES: Record<PortSide, CSSProperties> = {
 };
 
 const TARGET_HANDLE_STYLES: Record<PortSide, CSSProperties> = {
-  top: { top: -8, left: "50%", transform: "translate(-50%, 0)" },
-  right: { right: -8, top: "50%", transform: "translate(0, -50%)" },
-  bottom: { bottom: -8, left: "50%", transform: "translate(-50%, 0)" },
-  left: { left: -8, top: "50%", transform: "translate(0, -50%)" },
+  top: { top: -6, left: "50%", transform: "translate(-50%, 0)" },
+  right: { right: -6, top: "50%", transform: "translate(0, -50%)" },
+  bottom: { bottom: -6, left: "50%", transform: "translate(-50%, 0)" },
+  left: { left: -6, top: "50%", transform: "translate(0, -50%)" },
 };
 
 const CANVAS_EXTENT: [[number, number], [number, number]] = [
@@ -477,20 +477,22 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
         />
       ))}
 
-      {(Object.keys(portPositions) as PortSide[]).map((side) => (
-        <Handle
-          key={`target-${side}`}
-          type="target"
-          position={portPositions[side]}
-          id={`target-${side}`}
-          className="canvas-node-handle canvas-node-handle-hitbox canvas-node-handle-target"
-          style={{
-            ...TARGET_HANDLE_STYLES[side],
-            ...(targetHandleOverrides[side] ?? {}),
-          }}
-          isConnectableStart={false}
-        />
-      ))}
+      {!isFlowNode
+        ? (Object.keys(portPositions) as PortSide[]).map((side) => (
+            <Handle
+              key={`target-${side}`}
+              type="target"
+              position={portPositions[side]}
+              id={`target-${side}`}
+              className="canvas-node-handle canvas-node-handle-hitbox canvas-node-handle-target"
+              style={{
+                ...TARGET_HANDLE_STYLES[side],
+                ...(targetHandleOverrides[side] ?? {}),
+              }}
+              isConnectableStart={false}
+            />
+          ))
+        : null}
 
       {isFlowNode &&
         (Object.keys(portPositions) as PortSide[]).map((side) => (
@@ -553,22 +555,28 @@ function BehaviorEdge({
       />
       {data?.onRemoveConnection ? (
         <EdgeLabelRenderer>
-          <button
-            type="button"
-            className="canvas-connection-remove-btn"
+          <div
+            className="canvas-connection-remove-wrap"
             style={{
               position: "absolute",
-              transform: `translate(-50%, -50%) translate(${midX}px, ${midY}px)`,
+              left: midX,
+              top: midY,
+              transform: "translate(-50%, -50%)",
               pointerEvents: "all",
             }}
-            onClick={(event) => {
-              event.stopPropagation();
-              data.onRemoveConnection?.(id);
-            }}
-            aria-label="Remove connection"
           >
-            ×
-          </button>
+            <button
+              type="button"
+              className="canvas-connection-remove-btn"
+              onClick={(event) => {
+                event.stopPropagation();
+                data.onRemoveConnection?.(id);
+              }}
+              aria-label="Remove connection"
+            >
+              ×
+            </button>
+          </div>
         </EdgeLabelRenderer>
       ) : null}
     </>
@@ -784,6 +792,23 @@ function EditorCanvasInner(props: EditorCanvasProps) {
         return;
       }
 
+      const sourceNode = nodes.find((entry) => entry.id === connection.source);
+      const targetNode = nodes.find((entry) => entry.id === connection.target);
+
+      // Rule: arrows are always from flow nodes to non-flow nodes.
+      // Connecting to flow nodes (including flow->flow) should not work.
+      if (!sourceNode || !targetNode) {
+        return;
+      }
+
+      if (sourceNode.category !== FLOW_NODES_KEY) {
+        return;
+      }
+
+      if (targetNode.category === FLOW_NODES_KEY) {
+        return;
+      }
+
       const sourcePort = resolvePortFromHandle(connection.sourceHandle, "right");
       const targetPort = resolvePortFromHandle(connection.targetHandle, "left");
       onAddConnection(
@@ -793,7 +818,7 @@ function EditorCanvasInner(props: EditorCanvasProps) {
         targetPort
       );
     },
-    [onAddConnection]
+    [nodes, onAddConnection]
   );
 
   /**

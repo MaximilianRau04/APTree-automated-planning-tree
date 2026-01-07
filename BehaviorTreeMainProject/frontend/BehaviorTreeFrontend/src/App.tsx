@@ -53,6 +53,13 @@ type CanvasGraph = {
   connections: NodeConnection[];
 };
 
+type ExportedCanvasGraphsV1 = {
+  version: 1;
+  exportedAt: string;
+  activeLevel: CanvasLevel;
+  graphs: Record<CanvasLevel, CanvasGraph>;
+};
+
 const STORAGE_KEY = "aptree-preferred-theme";
 
 type ActionPredicateCollection = "precondition" | "effect";
@@ -448,6 +455,122 @@ function App() {
         "Action Instances"
       ),
     [handleImportFromFile, importActionInstancesFromText]
+  );
+
+  const handleExportCanvasGraph = useCallback(() => {
+    const payload: ExportedCanvasGraphsV1 = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      activeLevel,
+      graphs,
+    };
+
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "aptree-canvas-graphs.json";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+
+    URL.revokeObjectURL(url);
+  }, [activeLevel, graphs]);
+
+  const handleImportCanvasGraphFile = useCallback(
+    async (file: File) => {
+      try {
+        const text = await file.text();
+        const parsed: unknown = JSON.parse(text);
+
+        const isCanvasLevel = (value: unknown): value is CanvasLevel =>
+          value === "high" || value === "mid" || value === "low";
+
+        const isCanvasGraph = (value: unknown): value is CanvasGraph => {
+          if (!value || typeof value !== "object") {
+            return false;
+          }
+
+          const graph = value as CanvasGraph;
+          return Array.isArray(graph.nodes) && Array.isArray(graph.connections);
+        };
+
+        const isV1 = (value: unknown): value is ExportedCanvasGraphsV1 => {
+          if (!value || typeof value !== "object") {
+            return false;
+          }
+
+          const obj = value as Partial<ExportedCanvasGraphsV1>;
+          if (obj.version !== 1) {
+            return false;
+          }
+          if (!isCanvasLevel(obj.activeLevel)) {
+            return false;
+          }
+          if (!obj.graphs || typeof obj.graphs !== "object") {
+            return false;
+          }
+
+          const graphsObj = obj.graphs as Record<string, unknown>;
+          return (
+            isCanvasGraph(graphsObj.high) &&
+            isCanvasGraph(graphsObj.mid) &&
+            isCanvasGraph(graphsObj.low)
+          );
+        };
+
+        let nextGraphs: Record<CanvasLevel, CanvasGraph> | null = null;
+        let nextLevel: CanvasLevel | null = null;
+
+        if (isV1(parsed)) {
+          nextGraphs = parsed.graphs;
+          nextLevel = parsed.activeLevel;
+        } else if (parsed && typeof parsed === "object") {
+          // lenient fallback: allow importing a raw graphs object
+          const obj = parsed as Record<string, unknown>;
+          const candidateGraphs = obj.graphs && typeof obj.graphs === "object" ? (obj.graphs as Record<string, unknown>) : obj;
+
+          if (
+            isCanvasGraph(candidateGraphs.high) &&
+            isCanvasGraph(candidateGraphs.mid) &&
+            isCanvasGraph(candidateGraphs.low)
+          ) {
+            nextGraphs = {
+              high: candidateGraphs.high as CanvasGraph,
+              mid: candidateGraphs.mid as CanvasGraph,
+              low: candidateGraphs.low as CanvasGraph,
+            };
+          }
+
+          if (isCanvasLevel(obj.activeLevel)) {
+            nextLevel = obj.activeLevel;
+          }
+        }
+
+        if (!nextGraphs) {
+          window.alert(
+            "Import failed: JSON did not match the expected canvas graph format."
+          );
+          return;
+        }
+
+        setGraphs(nextGraphs);
+        if (nextLevel) {
+          setActiveLevel(nextLevel);
+        }
+
+        setParameterDetail(null);
+        setPredicateModalState(createInitialPredicateModalState());
+        setPredicateManagerState(createInitialPredicateManagerState());
+      } catch (error) {
+        window.alert(
+          `Import failed: ${error instanceof Error ? error.message : "Unknown error"}`
+        );
+      }
+    },
+    []
   );
 
   /**
@@ -1130,6 +1253,8 @@ function App() {
             onImportParameterInstances={handleImportParameterInstancesFile}
             onImportPredicateInstances={handleImportPredicateInstancesFile}
             onImportActionInstances={handleImportActionInstancesFile}
+            onExportCanvasGraph={handleExportCanvasGraph}
+            onImportCanvasGraph={handleImportCanvasGraphFile}
           />
           <div className="editor" role="main">
             <div className="level-tabs" role="tablist" aria-label="Canvas Level">
