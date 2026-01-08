@@ -7,7 +7,7 @@ grammar CRFTypeDef extends BehaviorTree {
  World = (PropertyTypeDefinition | Property | PredicateTypeDefinition | State | ActionTypeDefinition)*;
 
 // 2. The Type System (The "Types")
-  interface PropertyType ;
+  interface symbol PropertyType ;
   MCPrimitiveType implements PropertyType ;
   abstract CustomProperty implements PropertyType ;
 
@@ -21,7 +21,7 @@ abstract symbol Tool     extends CustomProperty = name:Name ;
 abstract symbol  Agent    extends CustomProperty = name:Name;
 
   // definition of a property - accepts any Name as type (validated by CoCo if needed)
-     Property = name:Name ":" type:Name ;
+     Property = name:Name ":" type:Name@PropertyType ;
  
   // 5. The Dynamic Definition rule
 PropertyTypeDefinition = "define" name:Name "as" superType:Name "{" (Property)* "}";
