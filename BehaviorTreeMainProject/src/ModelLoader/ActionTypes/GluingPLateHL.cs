@@ -5,7 +5,7 @@ using ModelLoader.PredicateTypes;
 
 namespace BehaviorTreeMainProject
 {
-    public class GluingPLateHL : GenericBTAction
+    public class GluingPLateHL : PActionNode
     {
         // Parameter: obj of type plate
         public Plate obj { get; private set; }

@@ -33,7 +33,7 @@ public class BTInstance : IBehaviorTree
         InNode.SetTreeForAllServices(this);
         
         // If this is a GenericBTAction, also set the tree for its SubtreeInjectionService
-        if (InNode is GenericBTAction action)
+        if (InNode is PActionNode action)
         {
             action.SetTreeForSubtreeInjectionService(this);
         }

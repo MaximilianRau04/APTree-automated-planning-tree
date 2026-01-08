@@ -106,7 +106,7 @@ public class CallGOAPPlanner : BTServicePlanner
     private NodeGraph ParsePlanStringToNodeGraph(string planString)
     {
         var nodeGraph = new NodeGraph();
-        var actions = new List<GenericBTAction>();
+        var actions = new List<PActionNode>();
         
         // Parse the plan string (assuming it's in a format like NodeGraphGenerated.txt)
         var lines = planString.Split('\n', StringSplitOptions.RemoveEmptyEntries);
@@ -154,7 +154,7 @@ public class CallGOAPPlanner : BTServicePlanner
         return nodeGraph;
     }
     
-    private GenericBTAction CreateActionFromString(string actionString)
+    private PActionNode CreateActionFromString(string actionString)
     {
         try
         {
@@ -182,7 +182,7 @@ public class CallGOAPPlanner : BTServicePlanner
         }
     }
     
-    private GenericBTAction CreateNewActionInstance(string actionString)
+    private PActionNode CreateNewActionInstance(string actionString)
     {
         try
         {
@@ -205,7 +205,7 @@ public class CallGOAPPlanner : BTServicePlanner
         return null;
     }
     
-    private void ParseRelationString(string relationString, List<GenericBTAction> actions, NodeGraph nodeGraph)
+    private void ParseRelationString(string relationString, List<PActionNode> actions, NodeGraph nodeGraph)
     {
         try
         {
@@ -388,13 +388,13 @@ public class CallGOAPPlanner : BTServicePlanner
     }
     
     // Legacy methods for backward compatibility
-    public List<BTActionNodeBase> GetPlan()
+    public List<ActionNode> GetPlan()
     {
         if (generatedNodeGraph != null)
         {
-            return generatedNodeGraph.GetAllActionNodes().Cast<BTActionNodeBase>().ToList();
+            return generatedNodeGraph.GetAllActionNodes().Cast<ActionNode>().ToList();
         }
-        return new List<BTActionNodeBase>();
+        return new List<ActionNode>();
     }
     
     public (List<IBTNode> Actions, List<OrderType> Orders) CreatePlanWithOrders()

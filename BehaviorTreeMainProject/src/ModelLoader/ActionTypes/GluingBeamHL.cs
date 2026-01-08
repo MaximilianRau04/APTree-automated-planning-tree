@@ -5,7 +5,7 @@ using ModelLoader.PredicateTypes;
 
 namespace BehaviorTreeMainProject
 {
-    public class GluingBeamHL : GenericBTAction
+    public class GluingBeamHL : PActionNode
     {
         // Parameter: obj of type beam
         public Beam obj { get; private set; }

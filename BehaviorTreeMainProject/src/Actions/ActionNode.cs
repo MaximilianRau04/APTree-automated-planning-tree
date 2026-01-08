@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 
-public abstract class BTActionNodeBase :BTNodeBase
+public abstract class ActionNode :BTNodeBase
 {
     private readonly Func<Dictionary<string, object>, float, bool> actionLogic;
     protected readonly Blackboard<FastName> blackboard;
@@ -14,7 +14,7 @@ public abstract class BTActionNodeBase :BTNodeBase
 
     public override string DebugDisplayName => debugDisplayName;
 
-    protected BTActionNodeBase(Blackboard<FastName> blackboard, string instanceName)
+    protected ActionNode(Blackboard<FastName> blackboard, string instanceName)
     {
         this.blackboard = blackboard;
         this.instanceName = new FastName(instanceName);

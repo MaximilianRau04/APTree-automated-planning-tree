@@ -8,7 +8,7 @@ using BehaviorTreeMainProject.Log.Services;
 
 
 // Generic action class that will be created by the factory
-public abstract class GenericBTAction : BTActionNodeBase
+public abstract class PActionNode : ActionNode
 {
     public override string TypeName => "GenericBTAction";
     public readonly FastName actionType;
@@ -34,7 +34,7 @@ public abstract class GenericBTAction : BTActionNodeBase
     }
 
     // Constructor for action instances
-    public GenericBTAction(
+    public PActionNode(
         string actionType,
         string instanceName,
         Blackboard<FastName> blackboard
@@ -255,12 +255,14 @@ public abstract class GenericBTAction : BTActionNodeBase
                     // Log high-level action completion
                     ActionExecutionLogger.Instance.LogActionCompleted(actionName, instanceName, "Subtree execution completed successfully");
 
-                    // NEW: Reset planning state after successful HL action completion
+                    // Reset planning state after successful HL action completion
                     ResetPlanningStateAfterSuccess();
-                    
 
-                    LoggingService.LogSuccess($"✅ GenericBTAction: {InstanceName.ToString()} returning true (subtree succeeded)");
-                    return true;
+                    // After a successful subtree, execute this action's logic (apply effects)
+                    LoggingService.LogInfo($"🔧 GenericBTAction: {InstanceName.ToString()} executing post-subtree action logic");
+                    var postResult = ExecuteActionLogic(InDeltaTime);
+                    LoggingService.LogInfo($"📊 GenericBTAction: {InstanceName.ToString()} post-subtree action result: {postResult}, LastStatus: {LastStatus}");
+                    return postResult;
                 }
                 else
                 {

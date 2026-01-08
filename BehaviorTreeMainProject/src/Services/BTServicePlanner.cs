@@ -222,7 +222,7 @@ public abstract class BTServicePlanner : BTServiceBase
             StoreNodeGraphInBlackboard();
 
             // NEW: Add the subtree to the blackboard's injected subtrees after successful planning
-            if (OwningFlowNode.ParentNode is GenericBTAction parentAction && parentAction.IsHighLevelAction)
+            if (OwningFlowNode.ParentNode is PActionNode parentAction && parentAction.IsHighLevelAction)
             {
                 AddSubtreeToBlackboardAfterSuccessfulPlanning();
             }

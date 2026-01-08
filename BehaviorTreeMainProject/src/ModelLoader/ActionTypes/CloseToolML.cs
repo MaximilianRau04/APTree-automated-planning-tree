@@ -5,7 +5,7 @@ using ModelLoader.PredicateTypes;
 
 namespace BehaviorTreeMainProject
 {
-    public class CloseToolML : GenericBTAction
+    public class CloseToolML : PActionNode
     {
         // Parameter: client of type robot
         public Robot client { get; private set; }

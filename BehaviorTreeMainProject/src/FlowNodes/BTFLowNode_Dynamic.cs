@@ -329,9 +329,9 @@ public class BTFlowNode_Dynamic : BTFlowNodeBase
     }
     
     // New method to get executable actions
-    public List<GenericBTAction> GetExecutableActions()
+    public List<PActionNode> GetExecutableActions()
     {
-        var executableActions = new List<GenericBTAction>();
+        var executableActions = new List<PActionNode>();
         
         // Get actions from NodeGraph that are ready to execute
         var readyActions = actionGraph.GetExecutableNodes(0.0f);
@@ -346,11 +346,11 @@ public class BTFlowNode_Dynamic : BTFlowNodeBase
     }
     
     // Method to get all actions (executable and non-executable) for monitoring
-    public List<GenericBTAction> GetAllActions()
+    public List<PActionNode> GetAllActions()
     {
         if (!planningCompleted || actionGraph == null)
         {
-            return new List<GenericBTAction>();
+            return new List<PActionNode>();
         }
         
         return actionGraph.GetAllActionNodes();
@@ -388,14 +388,14 @@ public class BTFlowNode_Dynamic : BTFlowNodeBase
     /// Find the parent GenericBTAction that owns this subtree
     /// </summary>
     /// <returns>The parent action or null if not found</returns>
-    public GenericBTAction? GetParentAction()
+    public PActionNode? GetParentAction()
     {
         var current = ParentNode;
         
         // Traverse up the parent chain to find the GenericBTAction
         while (current != null)
         {
-            if (current is GenericBTAction action)
+            if (current is PActionNode action)
             {
                 LoggingService.LogInfo($"🔍 FlowNode: Found parent action: {action.InstanceName.ToString()}");
                 return action;
@@ -423,7 +423,7 @@ public class BTFlowNode_Dynamic : BTFlowNodeBase
         foreach (var node in allNodes)
         {
             // Check if this is a GenericBTAction and get its current status
-            if (node is GenericBTAction action)
+            if (node is PActionNode action)
             {
                 var currentStatus = action.GetCurrentStatus();
                 

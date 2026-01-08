@@ -142,7 +142,7 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
     /// </summary>
     /// <param name="actionNodes">List of action nodes to add to the graph</param>
     /// <returns>The created NodeGraph</returns>
-    public NodeGraph CreateNodeGraphFromActions(List<GenericBTAction> actionNodes)
+    public NodeGraph CreateNodeGraphFromActions(List<PActionNode> actionNodes)
     {
         var graph = new NodeGraph();
 
@@ -200,7 +200,7 @@ public abstract class BTFlowNodeBase : BTNodeBase, IEnumerable
     /// <param name="useOrderRelations">Whether to create sequential order relations</param>
     /// <param name="defaultTemporalConstraint">Default temporal constraint between consecutive actions</param>
     /// <returns>The created NodeGraph</returns>
-    protected NodeGraph CreateNodeGraphFromActions(List<GenericBTAction> actionNodes, bool useOrderRelations, TemporalConstraint defaultTemporalConstraint)
+    protected NodeGraph CreateNodeGraphFromActions(List<PActionNode> actionNodes, bool useOrderRelations, TemporalConstraint defaultTemporalConstraint)
     {
         var graph = new NodeGraph();
 

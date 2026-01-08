@@ -337,7 +337,7 @@ namespace BehaviorTreeMainProject.Log.Services
                 case Predicate predicate:
                     return predicate.PredicateTypeName;
                 
-                case GenericBTAction action:
+                case PActionNode action:
                     return action.actionType.ToString();
                 
                 case BTFlowNodeBase flowNode:

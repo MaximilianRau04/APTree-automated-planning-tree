@@ -930,7 +930,7 @@ namespace BehaviorTreeMainProject
                             for (int j = 0; j < actions.Count; j++)
                             {
                                 var action = actions[j];
-                                if (action is GenericBTAction genericAction)
+                                if (action is PActionNode genericAction)
                                 {
                                     LoggingService.LogInfo($"   🔍 Action {j + 1}: {action.InstanceName.ToString()}");
                                     
@@ -1084,7 +1084,7 @@ namespace BehaviorTreeMainProject
                                     
                                     foreach (var action in actions)
                                     {
-                                        if (action is GenericBTAction genericAction)
+                                        if (action is PActionNode genericAction)
                                         {
                                             if (genericAction.IsHighLevelAction)
                                             {
@@ -1103,7 +1103,7 @@ namespace BehaviorTreeMainProject
                                     for (int j = 0; j < Math.Min(actions.Count, 5); j++) // Show first 5 actions
                                     {
                                         var action = actions[j];
-                                        if (action is GenericBTAction genericAction)
+                                        if (action is PActionNode genericAction)
                                         {
                                             var status = genericAction.IsHighLevelAction ? "HL" : "ML";
                                             var subtreeStatus = genericAction.HighLevelSubtree != null ? "🌳" : "❌";
@@ -1162,7 +1162,7 @@ namespace BehaviorTreeMainProject
                             // Check for high-level actions with subtrees
                             foreach (var action in actions)
                             {
-                                if (action is GenericBTAction genericAction && genericAction.IsHighLevelAction)
+                                if (action is PActionNode genericAction && genericAction.IsHighLevelAction)
                                 {
                                     if (genericAction.HighLevelSubtree != null)
                                     {
@@ -1387,7 +1387,7 @@ namespace BehaviorTreeMainProject
 
                 foreach (var actionNode in actionNodes)
                 {
-                    var actionId = actionNode is BTActionNodeBase actionBase ? actionBase.InstanceName.ToString() : actionNode.GetType().Name;
+                    var actionId = actionNode is ActionNode actionBase ? actionBase.InstanceName.ToString() : actionNode.GetType().Name;
                     var currentStatus = actionNode.LastStatus;
 
                     // Check if status has changed
@@ -1453,7 +1453,7 @@ namespace BehaviorTreeMainProject
                             
                             foreach (var action in actions)
                             {
-                                if (action is GenericBTAction genericAction && genericAction.IsHighLevelAction)
+                                if (action is PActionNode genericAction && genericAction.IsHighLevelAction)
                                 {
                                     if (genericAction.HighLevelSubtree != null)
                                     {
@@ -1627,7 +1627,7 @@ namespace BehaviorTreeMainProject
                             
                             foreach (var action in actions)
                             {
-                                if (action is GenericBTAction genericAction && genericAction.IsHighLevelAction)
+                                if (action is PActionNode genericAction && genericAction.IsHighLevelAction)
                                 {
                                     if (genericAction.HighLevelSubtree != null)
                                     {

@@ -20,7 +20,7 @@ namespace BehaviorTreeMainProject
         private readonly Dictionary<string, string> defaultPlannerMapping;
         
         // Action to be processed in the next tick
-        private GenericBTAction pendingAction;
+        private PActionNode pendingAction;
         
         // Parameter instances from PDDL file
         private readonly Dictionary<string, string> parameterInstances;
@@ -34,7 +34,7 @@ namespace BehaviorTreeMainProject
         private static readonly string LogFilePath = "SubtreeInjectionService_Debug.log";
         private static readonly object LogLock = new object();
 
-        public SubtreeInjectionService(IBehaviorTree owningTree, GenericBTAction action) : base(owningTree)
+        public SubtreeInjectionService(IBehaviorTree owningTree, PActionNode action) : base(owningTree)
         {
             subtreeConfigurations = new Dictionary<string, SubtreeConfiguration>();
             cachedSubtrees = new Dictionary<string, BTFlowNode_Dynamic>();
@@ -51,7 +51,7 @@ namespace BehaviorTreeMainProject
         /// <summary>
         /// Alternative constructor that allows setting the tree later
         /// </summary>
-        public SubtreeInjectionService(GenericBTAction action) : base(null)
+        public SubtreeInjectionService(PActionNode action) : base(null)
         {
             subtreeConfigurations = new Dictionary<string, SubtreeConfiguration>();
             cachedSubtrees = new Dictionary<string, BTFlowNode_Dynamic>();
@@ -498,7 +498,7 @@ namespace BehaviorTreeMainProject
                         var cassette1Node = LinkedBlackboard.GetFlowNode(new FastName("cassette1")) as BTFlowNode_Dynamic;
                         if (cassette1Node != null)
                         {
-                            List<GenericBTAction> cassette1Actions = cassette1Node.GetActionGraph().GetAllActionNodes();
+                            List<PActionNode> cassette1Actions = cassette1Node.GetActionGraph().GetAllActionNodes();
                             foreach (var action in cassette1Actions)
                             {
                                 if (action.InstanceName.ToString() == pendingActionName)
@@ -513,7 +513,7 @@ namespace BehaviorTreeMainProject
                         var cassette2Node = LinkedBlackboard.GetFlowNode(new FastName("cassette2")) as BTFlowNode_Dynamic;
                         if (cassette2Node != null)
                         {
-                            List<GenericBTAction> cassette2Actions = cassette2Node.GetActionGraph().GetAllActionNodes();
+                            List<PActionNode> cassette2Actions = cassette2Node.GetActionGraph().GetAllActionNodes();
                             foreach (var action in cassette2Actions)
                             {
                                 if (action.InstanceName.ToString() == pendingActionName)
@@ -735,7 +735,7 @@ namespace BehaviorTreeMainProject
         /// <summary>
         /// Inject a subtree into an action
         /// </summary>
-        public void InjectSubtreeIntoAction(GenericBTAction action, string configName, string instanceName, Dictionary<string, object> customParameters = null)
+        public void InjectSubtreeIntoAction(PActionNode action, string configName, string instanceName, Dictionary<string, object> customParameters = null)
         {
             var config = GetConfiguration(configName);
             var subtree = CreateSubtree(config, instanceName, customParameters);
@@ -756,7 +756,7 @@ namespace BehaviorTreeMainProject
         /// <summary>
         /// Set the corresponding cassette subtree completion flag based on the action instance name
         /// </summary>
-        private void SetCassetteSubtreeCompletedFlag(GenericBTAction action)
+        private void SetCassetteSubtreeCompletedFlag(PActionNode action)
         {
             if (LinkedBlackboard == null)
             {
@@ -781,7 +781,7 @@ namespace BehaviorTreeMainProject
         /// <summary>
         /// Remove subtree from an action
         /// </summary>
-        public void RemoveSubtreeFromAction(GenericBTAction action)
+        public void RemoveSubtreeFromAction(PActionNode action)
         {
             action.RemoveSubtree();
             LogMessage($"✅ SubtreeInjectionService: Removed subtree from action '{action.InstanceName.ToString()}'");
@@ -897,10 +897,10 @@ namespace BehaviorTreeMainProject
         /// <summary>
         /// Recursively find the action that has this service attached to it
         /// </summary>
-        private GenericBTAction FindActionWithService(IBTNode node)
+        private PActionNode FindActionWithService(IBTNode node)
         {
             // Check if this node is a GenericBTAction and has this service
-            if (node is GenericBTAction action)
+            if (node is PActionNode action)
             {
                 // Check if this action has this service in its services list
                 if (HasServiceAttached(action))
@@ -926,7 +926,7 @@ namespace BehaviorTreeMainProject
         /// <summary>
         /// Check if an action has this service attached to it
         /// </summary>
-        private bool HasServiceAttached(GenericBTAction action)
+        private bool HasServiceAttached(PActionNode action)
         {
             // We need to check if this action has this service in its services list
             // Since we can't directly access the services list, we'll use a different approach
@@ -1231,7 +1231,7 @@ namespace BehaviorTreeMainProject
         /// </summary>
         /// <param name="action">The action to find the cassette for</param>
         /// <returns>The cassette index (0-3) or -1 if not found</returns>
-        private int FindCassetteIndexForAction(GenericBTAction action)
+        private int FindCassetteIndexForAction(PActionNode action)
         {
             if (OwningTree?.RootNode == null)
             {
@@ -1262,7 +1262,7 @@ namespace BehaviorTreeMainProject
         /// <param name="node">Current node to check</param>
         /// <param name="targetAction">The action we're looking for</param>
         /// <returns>The cassette index (0-3) or -1 if not found</returns>
-        private int TraverseTreeForAction(IBTNode node, GenericBTAction targetAction)
+        private int TraverseTreeForAction(IBTNode node, PActionNode targetAction)
         {
             if (node == null) return -1;
 
@@ -1337,7 +1337,7 @@ namespace BehaviorTreeMainProject
         /// <param name="flowNode">The flow node to check</param>
         /// <param name="targetAction">The action to look for</param>
         /// <returns>True if the flow node contains the action</returns>
-        private bool ContainsAction(BTFlowNode_Dynamic flowNode, GenericBTAction targetAction)
+        private bool ContainsAction(BTFlowNode_Dynamic flowNode, PActionNode targetAction)
         {
             var actionGraph = flowNode.GetActionGraph();
             if (actionGraph != null)

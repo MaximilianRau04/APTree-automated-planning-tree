@@ -5,7 +5,7 @@ using ModelLoader.PredicateTypes;
 
 namespace BehaviorTreeMainProject
 {
-    public class NailingHL : GenericBTAction
+    public class NailingHL : PActionNode
     {
         // Parameter: obj of type element
         public Element obj { get; private set; }

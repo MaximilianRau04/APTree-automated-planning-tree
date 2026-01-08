@@ -215,7 +215,7 @@ public abstract class BTNodeBase : IBTNode
         LoggingService.LogInfo($"🔧 BTNodeBase: Set tree for all services of child {childNode.DebugDisplayName}");
         
         // If this is a GenericBTAction, also set the tree for its SubtreeInjectionService
-        if (childNode is GenericBTAction action)
+        if (childNode is PActionNode action)
         {
             action.SetTreeForSubtreeInjectionService(OwningTree);
             LinkedBlackboard.SetActionInstance(action.InstanceName, action);
@@ -312,16 +312,6 @@ public abstract class BTNodeBase : IBTNode
                 return OnTickReturn(LastStatus);
         }
 
-        // Run NodeLogic phase
-        CurrentTickPhase = EBTNodeTickPhase.NodeLogic;
-        if (!OnTick_NodeLogic(InDeltaTime))
-        {
-            LastStatus = EBTNodeResult.failed;
-            LogPhaseFailure("NodeLogic");
-            return OnTickReturn(LastStatus);
-        }
-        LogPhaseSuccess("NodeLogic");
-        nodeLogicEndTime = DateTime.Now;
 
         // Tick children if this node has them
         if (HasChildren)
@@ -334,6 +324,17 @@ public abstract class BTNodeBase : IBTNode
             LogPhaseSuccess("Children");
         }
         childrenEndTime = DateTime.Now;
+
+         // Run NodeLogic phase
+        CurrentTickPhase = EBTNodeTickPhase.NodeLogic;
+        if (!OnTick_NodeLogic(InDeltaTime))
+        {
+            LastStatus = EBTNodeResult.failed;
+            LogPhaseFailure("NodeLogic");
+            return OnTickReturn(LastStatus);
+        }
+        LogPhaseSuccess("NodeLogic");
+        nodeLogicEndTime = DateTime.Now;
 
         // Record tick completion
         tickEndTime = DateTime.Now;
@@ -353,7 +354,7 @@ public abstract class BTNodeBase : IBTNode
         {
             BehaviorTreeComponentLogger.TrackFlowNodeTick(this.GetType().Name);
         }
-        else if (this is GenericBTAction)
+        else if (this is PActionNode)
         {
             BehaviorTreeComponentLogger.TrackActionTick("GenericBTAction");
         }
@@ -434,7 +435,7 @@ public abstract class BTNodeBase : IBTNode
                 BehaviorTreeComponentLogger.TrackFlowNodeSuccess(this.GetType().Name);
             }
             // Track action success if this is an action
-            else if (this is GenericBTAction)
+            else if (this is PActionNode)
             {
                 BehaviorTreeComponentLogger.TrackActionSuccess("GenericBTAction");
             }
@@ -449,7 +450,7 @@ public abstract class BTNodeBase : IBTNode
                 BehaviorTreeComponentLogger.TrackFlowNodeFailure(this.GetType().Name);
             }
             // Track action failure if this is an action
-            else if (this is GenericBTAction)
+            else if (this is PActionNode)
             {
                 BehaviorTreeComponentLogger.TrackActionFailure("GenericBTAction");
             }

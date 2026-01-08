@@ -30,13 +30,12 @@ public class Blackboard<T> : IDisposable where T : class
     Dictionary<FastName, Location>   LocationValues =    new ();
     Dictionary<FastName, Agent>   AgentValues =    new ();
     private Dictionary<FastName, Predicate> PredicateValues = new();
-    Dictionary<FastName, GenericBTAction> ActionValues = new();
+    Dictionary<FastName, PActionNode> ActionValues = new();
     Dictionary<FastName, IBTNode> FlowNodeValues = new();
      Dictionary<FastName, State> StateValues = new();
     Dictionary<FastName, NodeGraph> NodeGraphValues = new();
     Dictionary<FastName, BTFlowNode_Dynamic> InjectedSubtreesValues = new();
    
-    private readonly IDriver _driver;
     private readonly EnvironmentGraph _envGraph;
 
     /// <summary>
@@ -54,7 +53,6 @@ public class Blackboard<T> : IDisposable where T : class
 
     public Blackboard(string uri, string user, string password)
     {
-        _driver = GraphDatabase.Driver(uri, AuthTokens.Basic(user, password));
         _envGraph = new EnvironmentGraph(uri, user, password);
     }
 
@@ -289,7 +287,7 @@ public bool HasEntityType(FastName typeName)
     {
         return ElementValues.Values.ToList();
     }
-public List<GenericBTAction> GetAllActions()
+public List<PActionNode> GetAllActions()
 {
     return ActionValues.Values.ToList();
 }
@@ -402,9 +400,9 @@ public void SetPredicateType(FastName key, Predicate predicateType)
 }
 
     // Action type methods
-    public void SetActionType(FastName key, GenericBTAction actionType)
+    public void SetActionType(FastName key, PActionNode actionType)
     {
-        if (!typeof(GenericBTAction).IsAssignableFrom(actionType.GetType()))
+        if (!typeof(PActionNode).IsAssignableFrom(actionType.GetType()))
         {
             throw new ArgumentException($"Type {actionType.GetType().Name} is not an Action type");
         }
@@ -427,7 +425,7 @@ public void SetPredicateType(FastName key, Predicate predicateType)
         // BlackboardTrackingLogger.LogNewInstance(key.ToString(), actionTypeName, "Blackboard", $"Action instance: {actionTypeName}");
     }
 
-public void SetActionInstance(FastName key, GenericBTAction actionInstance)
+public void SetActionInstance(FastName key, PActionNode actionInstance)
 {
     if (!ActionValues.ContainsKey(key))
     {
@@ -443,7 +441,7 @@ public void SetActionInstance(FastName key, GenericBTAction actionInstance)
     }
 }
 
-public BTActionNodeBase GetAction(FastName key)
+public ActionNode GetAction(FastName key)
     {
         if (!ActionValues.ContainsKey(key))
         {
@@ -456,7 +454,7 @@ public BTActionNodeBase GetAction(FastName key)
 /// Gets all action instances from the blackboard
 /// </summary>
 /// <returns>List of all action instances</returns>
-public List<GenericBTAction> GetAllActionInstances()
+public List<PActionNode> GetAllActionInstances()
 {
     return ActionValues.Values.ToList();
 }
@@ -581,153 +579,15 @@ public List<GenericBTAction> GetAllActionInstances()
         LoggingService.LogInfo($"🔧 BLACKBOARD: Predicate.PredicateName: {predicate.PredicateName}");
         LoggingService.LogInfo($"🔧 BLACKBOARD: Predicate.isNegated: {predicate.isNegated}");
         
-        if (_driver == null)
+        if (_envGraph == null)
         {
-            throw new InvalidOperationException("Neo4j driver not initialized");
+            throw new InvalidOperationException("EnvironmentGraph not initialized");
         }
 
-        var parameters = predicate.GetAllProperties();
-
-        using var session = _driver.AsyncSession();
-        await session.ExecuteWriteAsync(async tx =>
-        {
-            // Only keep real predicate parameters that map to entities in the graph
-            var paramList = parameters
-                .Where(p => p.Key != "PredicateName" && p.Key != "PredicateType" && p.Key != "isNegated")
-                .Where(p => p.Value is Entity)
-                .ToList();
-
-            string query;
-            var queryParams = new Dictionary<string, object?>();
-
-            if (paramList.Count == 1)
-            {
-                var value = paramList[0].Value as Entity;
-                query = $@"
-                    MERGE (p0:{paramList[0].Value.GetType().Name} {{name: $firstParamName}})
-                    SET p0:{predicate.GetPredicateType()}
-                    RETURN p0";
-
-                // Safely resolve first parameter name (fallback to entity.ToString() if NameKey is null)
-                var firstName =
-                    value?.NameKey?.ToString()
-                    ?? paramList[0].Value?.ToString()
-                    ?? string.Empty;
-                queryParams.Add("firstParamName", firstName);
-            }
-            else if (paramList.Count == 2)
-            {
-                var value1 = paramList[0].Value as Entity;
-                var value2 = paramList[1].Value as Entity;
-                query = $@"
-                    MERGE (p0:{paramList[0].Value.GetType().Name} {{name: $firstParamName}})
-                    MERGE (p1:{paramList[1].Value.GetType().Name} {{name: $secondParamName}})
-                    MERGE (p0)-[r:{predicate.GetPredicateType()}]->(p1)
-                    RETURN p0, p1";
-
-                // Safely resolve parameter names (fallbacks avoid null reference exceptions)
-                var firstParamName =
-                    value1?.NameKey?.ToString()
-                    ?? paramList[0].Value?.ToString()
-                    ?? string.Empty;
-
-                var secondParamName =
-                    value2?.NameKey?.ToString()
-                    ?? paramList[1].Value?.ToString()
-                    ?? string.Empty;
-
-                queryParams.Add("firstParamName", firstParamName);
-                queryParams.Add("secondParamName", secondParamName);
-            }
-            else
-            {
-                throw new ArgumentException($"Unsupported number of parameters: {paramList.Count}");
-            }
-
-            await tx.RunAsync(query, queryParams);
-        });
+        await _envGraph.SetPredicateOnGraph(predicate);
     }
 
-    /// <summary>
-    /// Writes a predicate to Neo4j in a specific database
-    /// </summary>
-    public async Task SetPredicateOnGraphToDatabase(FastName key, Predicate predicate, string databaseName)
-    {
-        LoggingService.LogInfo($"🔧 BLACKBOARD: SetPredicateOnGraphToDatabase called with key: {key}, database: {databaseName}");
-        LoggingService.LogInfo($"🔧 BLACKBOARD: Predicate type: {predicate.GetType().Name}");
-        LoggingService.LogInfo($"🔧 BLACKBOARD: Predicate.PredicateName: {predicate.PredicateName}");
-        LoggingService.LogInfo($"🔧 BLACKBOARD: Predicate.isNegated: {predicate.isNegated}");
-        
-        if (_driver == null)
-        {
-            throw new InvalidOperationException("Neo4j driver not initialized");
-        }
-
-        var parameters = predicate.GetAllProperties();
-
-        // Create session with specific database using USE statement in query
-        // Note: Neo4j 5.x requires database to be specified via USE statement or session config
-        // We'll use a label-based approach or specify database in the query
-        using var session = _driver.AsyncSession();
-        await session.ExecuteWriteAsync(async tx =>
-        {
-            // Only keep real predicate parameters that map to entities in the graph
-            var paramList = parameters
-                .Where(p => p.Key != "PredicateName" && p.Key != "PredicateType" && p.Key != "isNegated")
-                .Where(p => p.Value is Entity)
-                .ToList();
-
-            string query;
-            var queryParams = new Dictionary<string, object?>();
-
-            if (paramList.Count == 1)
-            {
-                var value = paramList[0].Value as Entity;
-                query = $@"
-                    USE {databaseName}
-                    MERGE (p0:{paramList[0].Value.GetType().Name} {{name: $firstParamName}})
-                    SET p0:{predicate.GetPredicateType()}
-                    RETURN p0";
-
-                var firstName =
-                    value?.NameKey?.ToString()
-                    ?? paramList[0].Value?.ToString()
-                    ?? string.Empty;
-                queryParams.Add("firstParamName", firstName);
-            }
-            else if (paramList.Count == 2)
-            {
-                var value1 = paramList[0].Value as Entity;
-                var value2 = paramList[1].Value as Entity;
-                query = $@"
-                    USE {databaseName}
-                    MERGE (p0:{paramList[0].Value.GetType().Name} {{name: $firstParamName}})
-                    MERGE (p1:{paramList[1].Value.GetType().Name} {{name: $secondParamName}})
-                    MERGE (p0)-[r:{predicate.GetPredicateType()}]->(p1)
-                    RETURN p0, p1";
-
-                var firstParamName =
-                    value1?.NameKey?.ToString()
-                    ?? paramList[0].Value?.ToString()
-                    ?? string.Empty;
-
-                var secondParamName =
-                    value2?.NameKey?.ToString()
-                    ?? paramList[1].Value?.ToString()
-                    ?? string.Empty;
-
-                queryParams.Add("firstParamName", firstParamName);
-                queryParams.Add("secondParamName", secondParamName);
-            }
-            else
-            {
-                throw new ArgumentException($"Unsupported number of parameters: {paramList.Count}");
-            }
-
-            await tx.RunAsync(query, queryParams);
-        });
-    }
-
+    
     public void SetPredicateSync(FastName key, Predicate predicate)
     {
         // NEW: Clear, prominent logging for predicate additions

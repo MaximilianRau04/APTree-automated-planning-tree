@@ -23,67 +23,75 @@ public class EnvironmentGraph : IDisposable
         _driver = GraphDatabase.Driver(uri, AuthTokens.Basic(user, password));
     }
     /// <summary>
-    /// Adds a relationship between two nodes in the graph
+    /// Adds a predicate to the Neo4j graph database
     /// </summary>
-    /// <param name="predicateType"> The type of predicate to create </param>
-    /// <param name="parameters"> A dictionary of parameters for the predicate </param>
-    /// <returns> A task that represents the asynchronous operation </returns>
-
-    public async Task AddPredicateRelationship(string predicateType, Dictionary<string, Entity> parameters)
+    /// <param name="predicate">The predicate to add to the graph</param>
+    /// <returns>A task that represents the asynchronous operation</returns>
+    public async Task SetPredicateOnGraph(Predicate predicate)
     {
-        // Create an asynchronous session to interact with the Neo4j database
-        var session = _driver.AsyncSession();
-        try
+        using var session = _driver.AsyncSession();
+        await session.ExecuteWriteAsync(async tx =>
         {
-            // Execute the operation in a write transaction
-            await session.ExecuteWriteAsync(async tx =>
-            {
-                // Create nodes for each parameter if they don't exist
-                foreach (var param in parameters)
-                {
-                    await tx.RunAsync(@"
-                        MERGE (thing:Thing {id: $id, type: $type, name: $name})
-                        ",
-                        new 
-                        {
-                            id = param.Value.ID,
-                            type = param.Value.GetType().Name,
-                            name = param.Value.NameKey.ToString()
-                        });
-                }
-
-                // Create the relationship based on predicate type
-                var query = BuildPredicateQuery(predicateType, parameters);
-                await tx.RunAsync(query.query, query.parameters);
-            });
-        }
-        finally
-        {
-            await session.CloseAsync();
-        }
-    }
-
-    private (string query, object parameters) BuildPredicateQuery(string predicateType, Dictionary<string, Entity> parameters)
-    {
-        // Example for a binary predicate like "holding(agent, element)"
-        if (parameters.Count == 2)
-        {
-            var param1 = parameters.First();
-            var param2 = parameters.Last();
+            var parameters = predicate.GetAllProperties();
             
-            return (@"
-                MATCH (a:Thing {id: $id1})
-                MATCH (b:Thing {id: $id2})
-                CREATE (a)-[r:" + predicateType + @"]->(b)
-                RETURN type(r)
-                ",
-                new { id1 = param1.Value.ID, id2 = param2.Value.ID }
-            );
-        }
+            // Only keep real predicate parameters that map to entities in the graph
+            var paramList = parameters
+                .Where(p => p.Key != "PredicateName" && p.Key != "PredicateType" && p.Key != "isNegated")
+                .Where(p => p.Value is Entity)
+                .ToList();
 
-        // Handle other predicate arities as needed
-        throw new NotImplementedException($"Predicate with {parameters.Count} parameters not supported yet");
+            string query;
+            var queryParams = new Dictionary<string, object?>();
+
+            if (paramList.Count == 1)
+            {
+                var value = paramList[0].Value as Entity;
+                query = $@"
+                    MERGE (p0:{paramList[0].Value.GetType().Name} {{name: $firstParamName}})
+                    SET p0:{predicate.GetPredicateType()}
+                    RETURN p0";
+
+                // Safely resolve first parameter name (fallback to entity.ToString() if NameKey is null)
+                var firstName =
+                    value?.NameKey?.ToString()
+                    ?? paramList[0].Value?.ToString()
+                    ?? string.Empty;
+                queryParams.Add("firstParamName", firstName);
+            }
+            else if (paramList.Count == 2)
+            {
+                var value1 = paramList[0].Value as Entity;
+                var value2 = paramList[1].Value as Entity;
+                query = $@"
+                    MERGE (p0:{paramList[0].Value.GetType().Name} {{name: $firstParamName}})
+                    MERGE (p1:{paramList[1].Value.GetType().Name} {{name: $secondParamName}})
+                    MERGE (p0)-[r:{predicate.GetPredicateType()}]->(p1)
+                    RETURN p0, p1";
+
+                // Safely resolve parameter names (fallbacks avoid null reference exceptions)
+                var firstParamName =
+                    value1?.NameKey?.ToString()
+                    ?? paramList[0].Value?.ToString()
+                    ?? string.Empty;
+
+                var secondParamName =
+                    value2?.NameKey?.ToString()
+                    ?? paramList[1].Value?.ToString()
+                    ?? string.Empty;
+
+                queryParams.Add("firstParamName", firstParamName);
+                queryParams.Add("secondParamName", secondParamName);
+            }
+            else
+            {
+                throw new ArgumentException($"Unsupported number of parameters: {paramList.Count}");
+            }
+
+            await tx.RunAsync(query, queryParams);
+        });
     }
+
+   
 
     public async Task<bool> TestConnection()
     {

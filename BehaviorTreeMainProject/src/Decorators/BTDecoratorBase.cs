@@ -9,7 +9,7 @@ public abstract class BTDecoratorBase : IBTDecorator
     public IBehaviorTree OwningTree { get;  protected set;} = null!;
 
     public Blackboard<FastName> LinkedBlackboard => OwningTree.LinkedBlackboard;
-    public GenericBTAction? AttachedAction { get; protected set; }
+    public PActionNode? AttachedAction { get; protected set; }
     public BTFlowNode_Dynamic? AttachedNode { get; protected set; }
     public abstract bool CanPostProcessTickResult { get; }
     public abstract EBTNodeResult PostProcessTickResult(EBTNodeResult InResult);

@@ -5,7 +5,7 @@ using ModelLoader.PredicateTypes;
 
 namespace BehaviorTreeMainProject
 {
-    public class DeequipML : GenericBTAction
+    public class DeequipML : PActionNode
     {
         // Parameter: client of type robot
         public Robot client { get; private set; }

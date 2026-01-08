@@ -5,7 +5,7 @@ using ModelLoader.PredicateTypes;
 
 namespace BehaviorTreeMainProject
 {
-    public class PlaceML : GenericBTAction
+    public class PlaceML : PActionNode
     {
         // Parameter: obj of type element
         public Element obj { get; private set; }

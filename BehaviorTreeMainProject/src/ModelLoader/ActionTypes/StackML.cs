@@ -5,7 +5,7 @@ using ModelLoader.PredicateTypes;
 
 namespace BehaviorTreeMainProject
 {
-    public class StackML : GenericBTAction
+    public class StackML : PActionNode
     {
         // Parameter: obj1 of type element
         public Element obj1 { get; private set; }

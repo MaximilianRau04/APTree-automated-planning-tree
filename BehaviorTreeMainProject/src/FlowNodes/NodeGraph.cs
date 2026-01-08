@@ -9,7 +9,7 @@ using BehaviorTreeMainProject.Log.Services;
 /// </summary>
 public class GraphNode
 {
-    public GenericBTAction ActionNode { get; set; }
+    public PActionNode ActionNode { get; set; }
     public List<GraphNode> OrderSuccessors { get; set; } = new();
     public List<GraphNode> OrderPredecessors { get; set; } = new();
     public Dictionary<GraphNode, TemporalConstraint> TemporalConstraints { get; set; } = new();
@@ -18,7 +18,7 @@ public class GraphNode
     public bool IsExecuting { get; set; } = false;
     public bool IsCompleted { get; set; } = false;
 
-    public GraphNode(GenericBTAction actionNode)
+    public GraphNode(PActionNode actionNode)
     {
         ActionNode = actionNode;
     }
@@ -30,7 +30,7 @@ public class GraphNode
 public class NodeGraph
 {
     private List<GraphNode> nodes = new();
-    private Dictionary<BTActionNodeBase, GraphNode> nodeMap = new();
+    private Dictionary<ActionNode, GraphNode> nodeMap = new();
     private float elapsedTime = 0f;
     
     public NodeGraph()
@@ -41,7 +41,7 @@ public class NodeGraph
     /// <summary>
     /// Add an action node to the graph
     /// </summary>
-    public void AddNode(GenericBTAction actionNode)
+    public void AddNode(PActionNode actionNode)
     {
         if (!nodeMap.ContainsKey(actionNode))
         {
@@ -59,7 +59,7 @@ public class NodeGraph
     /// <summary>
     /// Add an order relation between two nodes (like Hasse diagram)
     /// </summary>
-    public void AddOrderRelation(BTActionNodeBase from, BTActionNodeBase to)
+    public void AddOrderRelation(ActionNode from, ActionNode to)
     {
         LoggingService.LogInfo($"🔧 NodeGraph: AddOrderRelation called: {from.InstanceName.ToString()} → {to.InstanceName.ToString()}");
         
@@ -138,7 +138,7 @@ public class NodeGraph
     /// <summary>
     /// Add a temporal constraint between two nodes (based on Allen's theory)
     /// </summary>
-    public void AddTemporalConstraint(BTActionNodeBase from, BTActionNodeBase to, TemporalConstraint constraint)
+    public void AddTemporalConstraint(ActionNode from, ActionNode to, TemporalConstraint constraint)
     {
         LoggingService.LogInfo($"🔧 NodeGraph: AddTemporalConstraint called: {from.InstanceName.ToString()} {constraint} {to.InstanceName.ToString()}");
         
@@ -159,7 +159,7 @@ public class NodeGraph
     /// <summary>
     /// Get all nodes in the graph in execution order (preserving order relations)
     /// </summary>
-    public List<GenericBTAction> GetAllActionNodes()
+    public List<PActionNode> GetAllActionNodes()
     {
         return GetExecutionOrder();
     }
@@ -167,7 +167,7 @@ public class NodeGraph
     /// <summary>
     /// Get node info for debugging purposes
     /// </summary>
-    public GraphNode GetNodeInfo(BTActionNodeBase actionNode)
+    public GraphNode GetNodeInfo(ActionNode actionNode)
     {
         if (nodeMap.TryGetValue(actionNode, out var graphNode))
         {
@@ -179,7 +179,7 @@ public class NodeGraph
     /// <summary>
     /// Get nodes that can be executed at the current time based on order and temporal constraints
     /// </summary>
-    public List<GenericBTAction> GetExecutableNodes(float deltaTime)
+    public List<PActionNode> GetExecutableNodes(float deltaTime)
     {
         elapsedTime += deltaTime;
         return GetExecutableNodesInternal();
@@ -188,9 +188,9 @@ public class NodeGraph
     /// <summary>
     /// Get nodes that can be executed without incrementing elapsed time (for subsequent calls in same tick)
     /// </summary>
-    public List<GenericBTAction> GetExecutableNodesInternal()
+    public List<PActionNode> GetExecutableNodesInternal()
     {
-        var executableNodes = new List<GenericBTAction>();
+        var executableNodes = new List<PActionNode>();
 
         LoggingService.LogInfo($"   🔍 NodeGraph: GetExecutableNodesInternal called - Total nodes in graph: {nodes.Count}");
         LoggingService.LogInfo($"   🔍 NodeGraph: Elapsed time: {elapsedTime}");
@@ -246,7 +246,7 @@ public class NodeGraph
             if (canExecuteNode && allPredecessorsCompleted)
             {
                 LoggingService.LogInfo($"   ✅ NodeGraph: Node {node.ActionNode.InstanceName.ToString()} can be executed");
-                executableNodes.Add(node.ActionNode as GenericBTAction);
+                executableNodes.Add(node.ActionNode as PActionNode);
                 // Don't set IsExecuting here - let the BTFLowNode_Dynamic handle that when it actually starts executing
             }
             else
@@ -443,7 +443,7 @@ public class NodeGraph
     /// <summary>
     /// Mark a node as completed
     /// </summary>
-    public void MarkNodeCompleted(BTActionNodeBase actionNode)
+    public void MarkNodeCompleted(ActionNode actionNode)
     {
         LoggingService.LogInfo($"🔍 DEBUG: MarkNodeCompleted called for {actionNode.InstanceName.ToString()}");
         LoggingService.LogInfo($"🔍 DEBUG: Node status before marking: {actionNode.LastStatus}");
@@ -477,7 +477,7 @@ public class NodeGraph
     /// <summary>
     /// Mark a node as started executing
     /// </summary>
-    public void MarkNodeStarted(BTActionNodeBase actionNode)
+    public void MarkNodeStarted(ActionNode actionNode)
     {
         if (nodeMap.TryGetValue(actionNode, out var graphNode))
         {
@@ -554,7 +554,7 @@ public class NodeGraph
     /// </summary>
     /// <param name="actionNode">The action to remove</param>
     /// <returns>True if the action was found and removed, false otherwise</returns>
-    public bool RemoveAction(GenericBTAction actionNode)
+    public bool RemoveAction(PActionNode actionNode)
     {
         if (nodeMap.TryGetValue(actionNode, out var graphNode))
         {
@@ -580,9 +580,9 @@ public class NodeGraph
     /// <summary>
     /// Get the execution order as a list (left-to-right like Hasse diagram)
     /// </summary>
-    public List<GenericBTAction> GetExecutionOrder()
+    public List<PActionNode> GetExecutionOrder()
     {
-        var result = new List<GenericBTAction>();
+        var result = new List<PActionNode>();
         var visited = new HashSet<GraphNode>();
         var tempVisited = new HashSet<GraphNode>();
 
@@ -632,7 +632,7 @@ public class NodeGraph
     /// <summary>
     /// Topological sort to determine execution order
     /// </summary>
-    private void TopologicalSort(GraphNode node, HashSet<GraphNode> visited, HashSet<GraphNode> tempVisited, List<GenericBTAction> result)
+    private void TopologicalSort(GraphNode node, HashSet<GraphNode> visited, HashSet<GraphNode> tempVisited, List<PActionNode> result)
     {
         if (tempVisited.Contains(node))
             return; // Cycle detected

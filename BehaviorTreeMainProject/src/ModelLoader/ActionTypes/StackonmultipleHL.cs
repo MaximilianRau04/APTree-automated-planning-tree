@@ -5,7 +5,7 @@ using ModelLoader.PredicateTypes;
 
 namespace BehaviorTreeMainProject
 {
-    public class StackonmultipleHL : GenericBTAction
+    public class StackonmultipleHL : PActionNode
     {
         // Parameter: plate of type element
         public Element plate { get; private set; }

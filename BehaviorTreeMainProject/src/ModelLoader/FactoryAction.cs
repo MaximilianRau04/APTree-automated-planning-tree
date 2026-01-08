@@ -11,7 +11,7 @@ public class FactoryAction : Singleton<FactoryAction>
     /// Creates an action instance from an ActionInstance definition like:
     /// ActionInstance: pickUp(pickedObject : b1, rob : r1, loc : fp1, robTool : vg1)
     /// </summary>
-    public GenericBTAction CreateActionInstance(
+    public PActionNode CreateActionInstance(
         string actionInstanceDefinition, 
         Blackboard<FastName> blackboard)
     {
@@ -88,10 +88,10 @@ public class FactoryAction : Singleton<FactoryAction>
 
         // Create the action instance
         Console.WriteLine($"🔍 Creating instance with constructor arguments...");
-        GenericBTAction instance;
+        PActionNode instance;
         try
         {
-            instance = targetConstructor.Invoke(constructorArgs.ToArray()) as GenericBTAction;
+            instance = targetConstructor.Invoke(constructorArgs.ToArray()) as PActionNode;
             
             if (instance == null)
             {
@@ -178,11 +178,11 @@ public class FactoryAction : Singleton<FactoryAction>
         Console.WriteLine($"🔍 Finding action type: '{actionTypeName}'");
         
         // Get the assembly containing GenericBTAction types
-        var assembly = typeof(GenericBTAction).Assembly;
+        var assembly = typeof(PActionNode).Assembly;
         
         // Search for types that inherit from GenericBTAction
         var actionTypes = assembly.GetTypes()
-            .Where(t => t.IsSubclassOf(typeof(GenericBTAction)) && !t.IsAbstract)
+            .Where(t => t.IsSubclassOf(typeof(PActionNode)) && !t.IsAbstract)
             .ToList();
         
         Console.WriteLine($"📋 Found {actionTypes.Count} action types: {string.Join(", ", actionTypes.Select(t => t.Name))}");

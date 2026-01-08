@@ -61,14 +61,14 @@ public class BTFlowNode_Composite : BTFlowNodeBase
         childNode.SetTreeForAllServices(OwningTree);
         
         // If this is a GenericBTAction, also set the tree for its SubtreeInjectionService
-        if (childNode is GenericBTAction action)
+        if (childNode is PActionNode action)
         {
             action.SetTreeForSubtreeInjectionService(OwningTree);
         }
 
         // Store flow nodes in a separate list since NodeGraph is designed for action nodes
         // We'll use the actionGraph from the base class for action nodes and a separate list for flow nodes
-        if (childNode is GenericBTAction actionNode)
+        if (childNode is PActionNode actionNode)
         {
             actionGraph.AddNode(actionNode);
             LinkedBlackboard.SetActionInstance(actionNode.InstanceName, actionNode);

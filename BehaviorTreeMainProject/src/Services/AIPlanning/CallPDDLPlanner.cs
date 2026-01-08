@@ -16,7 +16,7 @@ namespace BehaviorTreeMainProject.Services.AIPlanning
         private readonly Blackboard<FastName> blackboard;
         private readonly FactoryAction actionFactory;
         public FastName PlannerName = new FastName("PDDLPlanner");
-        public List<GenericBTAction> TempActionList = new List<GenericBTAction>();
+        public List<PActionNode> TempActionList = new List<PActionNode>();
         public PDDLPlanningRequest PlanningRequest;
         
         // Parallel execution configuration
@@ -132,7 +132,7 @@ namespace BehaviorTreeMainProject.Services.AIPlanning
         
 
         
-        private NodeGraph CreateNodeGraphWithExecutionMode(List<GenericBTAction> actions)
+        private NodeGraph CreateNodeGraphWithExecutionMode(List<PActionNode> actions)
         {
             var nodeGraph = new NodeGraph();
             
@@ -162,7 +162,7 @@ namespace BehaviorTreeMainProject.Services.AIPlanning
             }
         }
         
-        private NodeGraph CreateSequentialNodeGraph(List<GenericBTAction> actions, NodeGraph nodeGraph)
+        private NodeGraph CreateSequentialNodeGraph(List<PActionNode> actions, NodeGraph nodeGraph)
         {
             LoggingService.LogInfo($"🔧 CallPDDLPlanner: Creating sequential execution pattern");
             
@@ -177,7 +177,7 @@ namespace BehaviorTreeMainProject.Services.AIPlanning
             return nodeGraph;
         }
         
-        private NodeGraph CreateParallelNodeGraph(List<GenericBTAction> actions, NodeGraph nodeGraph)
+        private NodeGraph CreateParallelNodeGraph(List<PActionNode> actions, NodeGraph nodeGraph)
         {
             LoggingService.LogInfo($"🔧 CallPDDLPlanner: Creating parallel execution pattern");
             
@@ -198,7 +198,7 @@ namespace BehaviorTreeMainProject.Services.AIPlanning
             return nodeGraph;
         }
         
-        private NodeGraph CreateHybridNodeGraph(List<GenericBTAction> actions, NodeGraph nodeGraph)
+        private NodeGraph CreateHybridNodeGraph(List<PActionNode> actions, NodeGraph nodeGraph)
         {
             LoggingService.LogInfo($"🔧 CallPDDLPlanner: Creating hybrid execution pattern");
             

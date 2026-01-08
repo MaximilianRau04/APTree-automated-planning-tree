@@ -917,9 +917,9 @@ public class BlackboardWriter
     /// </summary>
     /// <param name="actionDefinitionStrings">Array of action definition strings</param>
     /// <returns>List of created and registered action instances</returns>
-    public List<GenericBTAction> CreateAndRegisterActionInstances(string[] actionDefinitionStrings)
+    public List<PActionNode> CreateAndRegisterActionInstances(string[] actionDefinitionStrings)
     {
-        List<GenericBTAction> createdActions = new List<GenericBTAction>();
+        List<PActionNode> createdActions = new List<PActionNode>();
         
         Console.WriteLine($"\n=== CREATING AND REGISTERING {actionDefinitionStrings.Length} ACTION INSTANCES ===");
         
@@ -977,7 +977,7 @@ public class BlackboardWriter
     /// </summary>
     /// <param name="actionDefinition">Action definition string</param>
     /// <returns>Created and registered action instance</returns>
-    public GenericBTAction CreateAndRegisterActionInstance(string actionDefinition)
+    public PActionNode CreateAndRegisterActionInstance(string actionDefinition)
     {
         var actions = CreateAndRegisterActionInstances(new string[] { actionDefinition });
         return actions.Count > 0 ? actions[0] : null;

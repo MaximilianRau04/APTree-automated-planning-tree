@@ -1,6 +1,6 @@
 import crftypedef._parser.CRFTypeDefParser;
 import crftypedef._ast.ASTWorld;
-import crftypedef._ast.ASTPropertyTypeDefinition;
+import crftypedef._ast.ASTPredicateTypeDefinition;
 import crftypedef._ast.ASTProperty;
 import crftypedef.CRFTypeDefMill;
 
@@ -11,26 +11,29 @@ import java.util.List;
 import java.util.ArrayList;
 
 /**
- * CRFPropertyParser - Reads CRFTypes model and generates grammar rules for ConcreteBT.mc4
+ * CRFPredicateParser - Reads CRFTypes model and generates predicate grammar rules for ConcreteBT.mc4
  * 
- * For each PropertyTypeDefinition like:
- *   define Beam as Element {
- *     lenght: DOUBLE_VALUE
- *     color: Name
+ * For each PredicateTypeDefinition like:
+ *   define predicatetype Holding {
+ *     item : Element
+ *     agent : Agent
  *   }
  * 
  * Generates a grammar rule:
- *   Beam extends Element = "Beam" name:Name "(" lenght:DOUBLE_VALUE color:Name ")";
+ *   Holding extends Predicate = "Holding" name:Name? "(" item:Element agent:Agent ")";
  */
-public class CRFPropertyParser {
+public class CRFPredicateTypeParser {
 
-    private static final String CRFTYPES_PATH = "src/test/resources/valid/CRFTypes/CRFPropertyTypes.bt";
+    private static final String CRFTYPES_PATH = "src/test/resources/valid/CRFTypes/CRFPredicateTypes.bt";
     private static final String CONCRETE_BT_PATH = "src/main/grammars/ConcreteBT.mc4";
+    
+    private static final String START_MARKER = "// === GENERATED PREDICATE RULES (DO NOT EDIT BELOW) ===";
+    private static final String END_MARKER = "// === END GENERATED PREDICATE RULES ===";
     
     public static void main(String[] args) {
         try {
-            System.out.println("=== CRF PROPERTY PARSER ===");
-            System.out.println("Generating grammar rules from CRFTypes model...\n");
+            System.out.println("=== CRF PREDICATE PARSER ===");
+            System.out.println("Generating predicate grammar rules from CRFTypes model...\n");
             
             // Initialize MontiCore mill
             CRFTypeDefMill.init();
@@ -40,12 +43,12 @@ public class CRFPropertyParser {
             List<String> grammarRules = parseAndGenerateRules(modelPath);
             
             if (grammarRules.isEmpty()) {
-                System.out.println("No PropertyTypeDefinitions found to generate.");
+                System.out.println("No PredicateTypeDefinitions found to generate.");
                 return;
             }
             
             // Display generated rules
-            System.out.println("=== GENERATED GRAMMAR RULES ===");
+            System.out.println("=== GENERATED PREDICATE GRAMMAR RULES ===");
             for (String rule : grammarRules) {
                 System.out.println(rule);
             }
@@ -54,7 +57,7 @@ public class CRFPropertyParser {
             String grammarPath = args.length > 1 ? args[1] : CONCRETE_BT_PATH;
             writeRulesToGrammar(grammarRules, grammarPath);
             
-            System.out.println("\n✓ Grammar rules successfully written to " + grammarPath);
+            System.out.println("\n✓ Predicate grammar rules successfully written to " + grammarPath);
             
         } catch (Exception e) {
             System.err.println("✗ ERROR: " + e.getMessage());
@@ -63,7 +66,7 @@ public class CRFPropertyParser {
     }
     
     /**
-     * Parse the CRFTypes model and generate grammar rules for each PropertyTypeDefinition
+     * Parse the CRFTypes model and generate grammar rules for each PredicateTypeDefinition
      */
     public static List<String> parseAndGenerateRules(String modelPath) throws IOException {
         List<String> rules = new ArrayList<>();
@@ -84,11 +87,11 @@ public class CRFPropertyParser {
         
         ASTWorld world = result.get();
         System.out.println("✓ Parsed model: " + modelPath);
-        System.out.println("  Found " + world.getPropertyTypeDefinitionList().size() + " PropertyTypeDefinitions\n");
+        System.out.println("  Found " + world.getPredicateTypeDefinitionList().size() + " PredicateTypeDefinitions\n");
         
-        // Generate a rule for each PropertyTypeDefinition
-        for (ASTPropertyTypeDefinition propTypeDef : world.getPropertyTypeDefinitionList()) {
-            String rule = generateGrammarRule(propTypeDef);
+        // Generate a rule for each PredicateTypeDefinition
+        for (ASTPredicateTypeDefinition predTypeDef : world.getPredicateTypeDefinitionList()) {
+            String rule = generateGrammarRule(predTypeDef);
             rules.add(rule);
         }
         
@@ -96,34 +99,30 @@ public class CRFPropertyParser {
     }
     
     /**
-     * Generate a grammar rule from a PropertyTypeDefinition
+     * Generate a grammar rule from a PredicateTypeDefinition
      * 
      * Input:
-     *   define Beam as Element {
-     *     lenght: DOUBLE_VALUE
-     *     color: Name
+     *   define predicatetype Holding {
+     *     item : Element
+     *     agent : Agent
      *   }
      * 
      * Output:
-     *   symbol Beam extends Element = "Beam" name:Name "(" lenght:DOUBLE_VALUE color:Name ")";
+     *   Holding extends Predicate = "Holding" name:Name? "(" item:Element agent:Agent ")";
      */
-    public static String generateGrammarRule(ASTPropertyTypeDefinition propTypeDef) {
-        String typeName = propTypeDef.getName();
-        String superType = propTypeDef.getSuperType();
-        List<ASTProperty> properties = propTypeDef.getPropertyList();
+    public static String generateGrammarRule(ASTPredicateTypeDefinition predTypeDef) {
+        String predicateName = predTypeDef.getName();
+        List<ASTProperty> properties = predTypeDef.getPropertyList();
         
         StringBuilder rule = new StringBuilder();
         
-        // Start: symbol TypeName extends SuperType = "TypeName" name:Name "("
-        rule.append("symbol ")
-            .append(typeName)
-            .append(" extends ")
-            .append(superType)
-            .append(" = \"")
-            .append(typeName)
-            .append("\" name:Name \"(\"");
+        // Start: PredicateName extends Predicate = "PredicateName" name:Name? "("
+        rule.append(predicateName)
+            .append(" extends Predicate = \"")
+            .append(predicateName)
+            .append("\" name:Name? \"(\"");
         
-        // Add properties: propName:propType
+        // Add properties: propName:Name@propType
         for (int i = 0; i < properties.size(); i++) {
             ASTProperty prop = properties.get(i);
             String propName = prop.getName();
@@ -131,7 +130,7 @@ public class CRFPropertyParser {
             
             rule.append(" ")
                 .append(propName)
-                .append(":")
+                .append(":Name@")
                 .append(propType);
         }
         
@@ -143,7 +142,7 @@ public class CRFPropertyParser {
     
     /**
      * Write the generated rules to the ConcreteBT.mc4 grammar file
-     * Inserts the rules between the grammar's curly brackets
+     * Inserts the rules between the predicate marker comments
      */
     public static void writeRulesToGrammar(List<String> rules, String grammarPath) throws IOException {
         Path path = Paths.get(grammarPath);
@@ -155,25 +154,20 @@ public class CRFPropertyParser {
         // Read the current grammar content
         String content = new String(Files.readAllBytes(path));
         
-        // Find the position to insert (before the closing brace, after existing content)
-        // Look for a marker comment or insert before the last }
-        String marker = "// === GENERATED RULES (DO NOT EDIT BELOW) ===";
-        String endMarker = "// === END GENERATED RULES ===";
-        
         // Build the rules block
         StringBuilder rulesBlock = new StringBuilder();
-        rulesBlock.append("\n\n").append(marker).append("\n");
+        rulesBlock.append("\n\n").append(START_MARKER).append("\n");
         for (String rule : rules) {
             rulesBlock.append(rule).append("\n");
         }
-        rulesBlock.append(endMarker).append("\n");
+        rulesBlock.append(END_MARKER).append("\n");
         
-        // Check if we already have generated rules - replace them
-        if (content.contains(marker)) {
-            int startIdx = content.indexOf(marker);
-            int endIdx = content.indexOf(endMarker);
+        // Check if we already have generated predicate rules - replace them
+        if (content.contains(START_MARKER)) {
+            int startIdx = content.indexOf(START_MARKER);
+            int endIdx = content.indexOf(END_MARKER);
             if (endIdx > startIdx) {
-                endIdx += endMarker.length();
+                endIdx += END_MARKER.length();
                 content = content.substring(0, startIdx) + rulesBlock.toString().trim() + content.substring(endIdx);
             }
         } else {

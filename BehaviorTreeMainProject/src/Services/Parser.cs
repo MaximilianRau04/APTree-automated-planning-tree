@@ -20,7 +20,7 @@ public static class Parser
         LoggingService.LogInfo($"🔧 Parser: ParseNodeGraph called with {actionInstanceStrings?.Count ?? 0} actions and {relationStrings?.Count ?? 0} relations");
         
         var nodeGraph = new NodeGraph();
-        var actionInstances = new Dictionary<string, GenericBTAction>();
+        var actionInstances = new Dictionary<string, PActionNode>();
         var blackboardWriter = new BlackboardWriter(blackboard);
         
         if (actionInstanceStrings == null || actionInstanceStrings.Count == 0)
@@ -183,7 +183,7 @@ public static class Parser
     /// Parses a relation definition like "source --[MEETS]--> target"
     /// Updated to handle simplified action names (without ActionInstance: prefix)
     /// </summary>
-    private static void ParseRelation(string relationLine, Dictionary<string, GenericBTAction> actionInstances, NodeGraph nodeGraph)
+    private static void ParseRelation(string relationLine, Dictionary<string, PActionNode> actionInstances, NodeGraph nodeGraph)
     {
         LoggingService.LogInfo($"🔧 Parser: ParseRelation called with line: {relationLine}");
         
@@ -271,7 +271,7 @@ public static class Parser
     /// <param name="simplifiedName">Simplified action name (e.g., "PickUpHL_lp1_fp1_r1")</param>
     /// <param name="actionInstances">Dictionary of action instances</param>
     /// <returns>The matching action instance or null if not found</returns>
-    private static GenericBTAction FindActionInstanceBySimplifiedName(string simplifiedName, Dictionary<string, GenericBTAction> actionInstances)
+    private static PActionNode FindActionInstanceBySimplifiedName(string simplifiedName, Dictionary<string, PActionNode> actionInstances)
     {
         LoggingService.LogInfo($"🔧 Parser: FindActionInstanceBySimplifiedName called with: {simplifiedName}");
         
@@ -550,11 +550,11 @@ public static class Parser
         try
         {
             // Get the assembly containing GenericBTAction types
-            var assembly = typeof(GenericBTAction).Assembly;
+            var assembly = typeof(PActionNode).Assembly;
             
             // Search for types that inherit from GenericBTAction
             var actionTypes = assembly.GetTypes()
-                .Where(t => t.IsSubclassOf(typeof(GenericBTAction)) && !t.IsAbstract)
+                .Where(t => t.IsSubclassOf(typeof(PActionNode)) && !t.IsAbstract)
                 .ToList();
             
             LoggingService.LogInfo($"🔧 Parser: Found {actionTypes.Count} action types: {string.Join(", ", actionTypes.Select(t => t.Name))}");
