@@ -7,7 +7,7 @@ using System.Linq;
 /// // This class manages connections and operations with Neo4j graph database
 // It's used to create a graph representation of predicates and their relationships
 /// </summary>
-public class Neo4jService : IDisposable
+public class EnvironmentGraph : IDisposable
 {
     private readonly IDriver _driver;
     private bool _disposed = false;
@@ -17,7 +17,7 @@ public class Neo4jService : IDisposable
 /// <param name="uri"> The URI of the Neo4j database   </param>
 /// <param name="user"> The username for the Neo4j database </param>
 /// <param name="password"> The password for the Neo4j database </param>
-    public Neo4jService(string uri, string user, string password)
+    public EnvironmentGraph(string uri, string user, string password)
     {
 
         _driver = GraphDatabase.Driver(uri, AuthTokens.Basic(user, password));

@@ -37,7 +37,7 @@ public class Blackboard<T> : IDisposable where T : class
     Dictionary<FastName, BTFlowNode_Dynamic> InjectedSubtreesValues = new();
    
     private readonly IDriver _driver;
-    private readonly Neo4jService _graphService;
+    private readonly EnvironmentGraph _envGraph;
 
     /// <summary>
     /// Controls whether the system is in planning phase (true) or execution phase (false)
@@ -55,7 +55,7 @@ public class Blackboard<T> : IDisposable where T : class
     public Blackboard(string uri, string user, string password)
     {
         _driver = GraphDatabase.Driver(uri, AuthTokens.Basic(user, password));
-        _graphService = new Neo4jService(uri, user, password);
+        _envGraph = new EnvironmentGraph(uri, user, password);
     }
 
     public bool TryGet(FastName key, out int value, int defaultvalue = 0)
@@ -794,7 +794,7 @@ public List<GenericBTAction> GetAllActionInstances()
     // Implement IDisposable to properly close Neo4j connection
     public void Dispose()
     {
-        _graphService?.Dispose();
+        _envGraph?.Dispose();
         
         // Close the blackboard tracking logger
         BlackboardTrackingLogger.Close();
@@ -804,7 +804,7 @@ public List<GenericBTAction> GetAllActionInstances()
     {
         try
         {
-            return await _graphService.TestConnection();
+            return await _envGraph.TestConnection();
         }
         catch (Exception ex)
         {
