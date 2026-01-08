@@ -407,7 +407,7 @@ public abstract class BTNodeBase : IBTNode
         LoggingService.LogInfo($"✅ BTNodeBase: {DebugDisplayName} - Tick method completed successfully, returning {LastStatus}");
     }
     /// <summary>
-    /// 
+    ///  
     /// </summary>
     /// <param name="InProvisionalResult"></param>
     /// <returns></returns>

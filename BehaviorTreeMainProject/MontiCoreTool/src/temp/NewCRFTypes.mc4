@@ -1,7 +1,0 @@
-grammar NewCRFTypes extends CRF, de.monticore.types.MCPrimitiveTypes {
-
-
-
-
-
-}

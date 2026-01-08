@@ -3,6 +3,9 @@ import crftypedef._ast.ASTWorld;
 import crftypedef._ast.ASTPropertyTypeDefinition;
 import crftypedef._ast.ASTProperty;
 import crftypedef.CRFTypeDefMill;
+import crftypedef._cocos.CRFTypeDefCoCoChecker;
+import CoCos.CRFTypeDef.NewTypesInheritFromCustomTypes;
+import de.se_rwth.commons.logging.Log;
 
 import java.io.*;
 import java.nio.file.*;
@@ -35,12 +38,17 @@ public class CRFPropertyTypeParser {
             // Initialize MontiCore mill
             CRFTypeDefMill.init();
             
-            // Parse the CRFTypes model
+            // Parse the CRFTypes model and validate COCOs
             String modelPath = args.length > 0 ? args[0] : CRFTYPES_PATH;
             List<String> grammarRules = parseAndGenerateRules(modelPath);
             
+            // Check if generation was successful (COCO validation passed)
             if (grammarRules.isEmpty()) {
-                System.out.println("No PropertyTypeDefinitions found to generate.");
+                if (Log.getErrorCount() > 0) {
+                    System.err.println("✗ Aborted: Context Condition validation failed. No grammar rules written.");
+                } else {
+                    System.out.println("No PropertyTypeDefinitions found to generate.");
+                }
                 return;
             }
             
@@ -84,6 +92,24 @@ public class CRFPropertyTypeParser {
         
         ASTWorld world = result.get();
         System.out.println("✓ Parsed model: " + modelPath);
+        
+        // === START CONTEXT CONDITION CHECKING ===
+        // Create the COCO checker
+        CRFTypeDefCoCoChecker checker = new CRFTypeDefCoCoChecker();
+        
+        // Register your custom rule
+        checker.addCoCo(new NewTypesInheritFromCustomTypes());
+        
+        // Run the check on the entire world (it will find all PropertyTypeDefinitions)
+        checker.checkAll(world);
+        
+        // Abort if any CoCo failed
+        if (Log.getErrorCount() > 0) {
+            System.err.println("✗ Context Condition errors found. Generation aborted.");
+            return rules; // Return empty list to prevent writing to file
+        }
+        // === END CONTEXT CONDITION CHECKING ===
+        
         System.out.println("  Found " + world.getPropertyTypeDefinitionList().size() + " PropertyTypeDefinitions\n");
         
         // Generate a rule for each PropertyTypeDefinition

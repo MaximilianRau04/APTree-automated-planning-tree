@@ -11,6 +11,6 @@ define FirstPosition as Location {
   id: NUMBER
 }
 
-define Robot as Agent {
+define Robot as Agnt {
   id: NUMBER
 }

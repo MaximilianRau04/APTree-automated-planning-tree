@@ -3,6 +3,7 @@ import crftypedef._ast.ASTWorld;
 import crftypedef._ast.ASTPredicateTypeDefinition;
 import crftypedef._ast.ASTProperty;
 import crftypedef.CRFTypeDefMill;
+import de.se_rwth.commons.logging.Log;
 
 import java.io.*;
 import java.nio.file.*;
@@ -68,35 +69,37 @@ public class CRFPredicateTypeParser {
     /**
      * Parse the CRFTypes model and generate grammar rules for each PredicateTypeDefinition
      */
-    public static List<String> parseAndGenerateRules(String modelPath) throws IOException {
-        List<String> rules = new ArrayList<>();
-        
-        // Check if file exists
-        File modelFile = new File(modelPath);
-        if (!modelFile.exists()) {
-            throw new FileNotFoundException("Model file not found: " + modelPath);
-        }
-        
-        // Create parser and parse
-        CRFTypeDefParser parser = new CRFTypeDefParser();
-        Optional<ASTWorld> result = parser.parse(modelPath);
-        
-        if (!result.isPresent()) {
-            throw new RuntimeException("Failed to parse model: " + modelPath);
-        }
-        
-        ASTWorld world = result.get();
-        System.out.println("✓ Parsed model: " + modelPath);
-        System.out.println("  Found " + world.getPredicateTypeDefinitionList().size() + " PredicateTypeDefinitions\n");
-        
-        // Generate a rule for each PredicateTypeDefinition
-        for (ASTPredicateTypeDefinition predTypeDef : world.getPredicateTypeDefinitionList()) {
-            String rule = generateGrammarRule(predTypeDef);
-            rules.add(rule);
-        }
-        
-        return rules;
+  public static List<String> parseAndGenerateRules(String modelPath) throws IOException {
+    List<String> rules = new ArrayList<>();
+    
+    // 1. Check if file exists
+    File modelFile = new File(modelPath);
+    if (!modelFile.exists()) {
+        throw new FileNotFoundException("Model file not found: " + modelPath);
     }
+    
+    // 2. Create parser and parse
+    CRFTypeDefParser parser = new CRFTypeDefParser();
+    Optional<ASTWorld> result = parser.parse(modelPath);
+    
+    if (!result.isPresent()) {
+        throw new RuntimeException("Failed to parse model: " + modelPath);
+    }
+    
+    ASTWorld world = result.get();
+    System.out.println("✓ Parsed model: " + modelPath);
+
+
+    System.out.println("  Found " + world.getPredicateTypeDefinitionList().size() + " PredicateTypeDefinitions\n");
+    
+    // 7. Generate a rule for each PredicateTypeDefinition
+    for (ASTPredicateTypeDefinition predTypeDef : world.getPredicateTypeDefinitionList()) {
+        String rule = generateGrammarRule(predTypeDef);
+        rules.add(rule);
+    }
+    
+    return rules;
+}
     
     /**
      * Generate a grammar rule from a PredicateTypeDefinition

@@ -184,17 +184,19 @@ task runMotionPlannerParser(type: JavaExec) {
     workingDir = projectDir
 }
 
-task runCRFPropertyParser(type: JavaExec) {
+task runCRFPropertyTypeParser(type: JavaExec) {
     dependsOn 'compileJava'
     classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'CRFPropertyParser'
+    mainClass = 'CRFPropertyTypeParser'
     workingDir = projectDir
 }
 
-task runCRFPredicateParser(type: JavaExec) {
+
+
+task runCRFPredicateTypeParser(type: JavaExec) {
     dependsOn 'compileJava'
     classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'CRFPredicateParser'
+    mainClass = 'CRFPredicateTypeParser'
     workingDir = projectDir
 }
 
