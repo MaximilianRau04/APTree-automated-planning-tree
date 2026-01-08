@@ -2,6 +2,7 @@
 python_service/pddl_env/
 python_service/__pycache__/
 python_service/*.pyc
+python_service/Plannerinputs/
 
 # C# build outputs
 bin/
@@ -21,6 +22,7 @@ Thumbs.db
 
 # Logs
 *.log
+WrittenLogs/*.csv
 
 # Java heap dumps
 *.hprof
