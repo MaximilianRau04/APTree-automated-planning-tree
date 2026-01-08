@@ -1,6 +1,6 @@
 define Beam as Element {
-  lenght: DOUBLE_VALUE
-  color: Name
+  lenght: int
+  color: String
 }
 
 define Plate as Element {
