@@ -1,0 +1,3 @@
+ParameterInstance: firstPosition {name = fp1}
+ParameterInstance: robot {r1}
+ParameterInstance: plate {plateA}

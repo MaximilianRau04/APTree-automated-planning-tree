@@ -1,0 +1,4 @@
+
+// Action instance definition
+
+ActionInstance:pickup (Element = b1, Agent = r1, Location = fp1, Tool = vg1)

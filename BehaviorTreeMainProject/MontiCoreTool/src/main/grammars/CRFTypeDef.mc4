@@ -1,14 +1,16 @@
 
-grammar CRFTypeDef extends BehaviorTree {
+grammar CRFTypeDef extends BehaviorTree, de.monticore.types.MCBasicTypes {
 
 //////////property definition
 // Parameter Type definition
   // 1. Root container
  World = (PropertyTypeDefinition | Property | PredicateTypeDefinition | State | ActionTypeDefinition)*;
 
-// 2. The Type System (The "Types")
-  interface symbol PropertyType ;
-  MCPrimitiveType implements PropertyType ;
+// 2. The Type System (The "Types") including all the allowed types
+  interface PropertyType ;
+
+  /////??????????????? This is not correct.
+  MCPrimitiveType implements PropertyType  ;
   abstract CustomProperty implements PropertyType ;
 
   
@@ -21,7 +23,8 @@ abstract symbol Tool     extends CustomProperty = name:Name ;
 abstract symbol  Agent    extends CustomProperty = name:Name;
 
   // definition of a property - accepts any Name as type (validated by CoCo if needed)
-     Property = name:Name ":" type:Name@PropertyType ;
+  //////???????????? can I have the type as type:Name@PropertyType   if the property type becomes a symbol?
+     Property = name:Name ":" type:Name ;
  
   // 5. The Dynamic Definition rule
 PropertyTypeDefinition = "define" name:Name "as" superType:Name "{" (Property)* "}";
@@ -60,13 +63,13 @@ enum ActionLevel = "HIGHLEVEL" | "MIDLEVEL" | "LOWLEVEL";
     ActionTypeDefinition = 
     "Action" typeName:Name "{"
         "acttype:" actLevel:ActionLevel
-        "parameters" "{" Property* "}"
+        "properties" "{" Property* "}"
         "preconditions" "{" preconditions:PredicateRef* "}"
         "effects" "{" effects:PredicateRef* "}"
     "}";
 
 // Simple predicate reference with Name arguments (comma-separated)
-PredicateRef = name:Name "(" (args:Name ("," args:Name)*)? ")";
+PredicateRef = name:Name@Predicate "(" (args:Name ("," args:Name)*)? ")";
 
 
  PlaceTimber extends PActionNode = "placetimber";

@@ -1,0 +1,15 @@
+BehaviorTree myTree {
+    Blackboard myBlackboard {
+        Object player;
+        Object target;
+    }
+    BTFlowNode RootNode {
+        decorator repeat
+        BTFlowNode sequence {
+            BTActionNode moveTo {
+                Object agent;
+                Object location;
+            }
+        }
+    }
+}
