@@ -6,10 +6,10 @@
   abstract symbol BTNode = name:Name (Decorator | Service)*; 
 
   // flow nodes
-  abstract  FlowNode extends BTNode =   (Service | Decorator | FlowNode | ActionNode |subtree:BehaviorTree)* ;
+  abstract  FlowNode extends BTNode =   (Service | Decorator | FlowNode | ActionNode)* ;
   //concrete flownodes
-  Sequence extends FlowNode = "Sequence" "{" (Service | Decorator | FlowNode | ActionNode |subtree:BehaviorTree)* "}";
-  Fallback extends FlowNode = "Fallback" "{" (Service | Decorator | FlowNode | ActionNode |subtree:BehaviorTree)* "}";
+  Sequence extends FlowNode = "Sequence" "{" (Service | Decorator | FlowNode | ActionNode)* "}";
+  Fallback extends FlowNode = "Fallback" "{" (Service | Decorator | FlowNode | ActionNode)* "}";
  
 
   // action nodes
