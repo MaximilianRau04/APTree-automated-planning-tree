@@ -34,16 +34,12 @@ PropertyTypeDefinition = "define" name:Name "as" superType:Name "{" (Property)* 
 //////// predicate definition
 
 
-
-//State
-State = "state" StateType? Name "{" Predicate* "}";    
-enum StateType = "PRECONDITION" | "EFFECT" | "INITIAL" | "GOAL"; 
-
 // Predicate type definition
 PredicateTypeDefinition = "define" "predicatetype" name:Name  "{" (Property)* "}";
 //predicateType
 abstract symbol Predicate = ["not"]? name:Name?;
 // predicate Instances
+//////???????????? this is a dummy predicate because the Grammar does not allow abstract nonterminals without implementation if it is not a component grammar
 IsAt extends Predicate = "IsAt";
 
 // Action type definition
@@ -53,7 +49,7 @@ abstract PActionNode extends ActionNode =
     actLevel: ActionLevel
     precondition:State
     effect:State
-    ("@" subtreeAnnotation:Name)? 
+    ("@" subtreeAnnotation:Name@BehaviorTree)? 
     ("{" (Decorator | Service)* "}")?
     ;
 

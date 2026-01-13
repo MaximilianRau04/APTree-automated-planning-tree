@@ -1,5 +1,8 @@
 grammar ConcreteBT extends CRFTypeDef {
 
+////////// ?????? I am not sure why do we get errors if we dont include this world thing!
+@Override
+World = (PropertyTypeDefinition | Property | PredicateTypeDefinition | State | ActionTypeDefinition | Beam | Plate | FirstPosition | Robot)*;
 
 // === GENERATED RULES (DO NOT EDIT BELOW) ===
 symbol Beam extends Element = "Beam" name:Name "(" lenght:DOUBLE_VALUE color:Name ")";
@@ -16,7 +19,7 @@ AtPlace extends Predicate = "AtPlace" name:Name? "(" item:Name@Element loc:Name@
 
 
 // === GENERATED ACTION RULES (DO NOT EDIT BELOW) ===
-PickUpHL extends PActionNode = "Action" "PickUpHL" name:Name "(" obj:Name@Element grabPos:Name@Location client:Name@Robot ")" ("{" (Decorator | Service)* "}")?  ("@" subtreeAnnotation:Name)?;
+PickUpHL extends PActionNode = "Action" "PickUpHL" name:Name "(" obj:Name@Element grabPos:Name@Location client:Name@Robot ")" ("{" (Decorator | Service)* "}")?  ("@" subtreeAnnotation:Name@BehaviorTree)?;
 astrule PickUpHL = method public crftypedef._ast.ASTActionLevel getActLevel() { if(actLevel==null){ actLevel=crftypedef._ast.ASTActionLevel.HIGHLEVEL; } return actLevel; } ;
 
 PlaceHL extends PActionNode = "Action" "PlaceHL" name:Name "(" obj:Name@Element targetPos:Name@Location client:Name@Robot ")" ("{" (Decorator | Service)* "}")? ;

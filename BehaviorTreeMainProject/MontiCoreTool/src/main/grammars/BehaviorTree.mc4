@@ -1,15 +1,15 @@
  grammar BehaviorTree extends  de.monticore.types.MCBasicTypes {
 
-  BehaviorTree = "BehaviorTree" Name "{" "root" root:FlowNode "}";
+  symbol BehaviorTree = "BehaviorTree" Name "{" "root" root:FlowNode "}";
 
   // abstract node class
   abstract symbol BTNode = name:Name (Decorator | Service)*; 
 
   // flow nodes
-  abstract  FlowNode extends BTNode =   (Service | Decorator | FlowNode | ActionNode)* ;
+  abstract  FlowNode extends BTNode =   (Service | Decorator | children:BTNode)* ;
   //concrete flownodes
-  Sequence extends FlowNode = "Sequence" "{" (Service | Decorator | FlowNode | ActionNode)* "}";
-  Fallback extends FlowNode = "Fallback" "{" (Service | Decorator | FlowNode | ActionNode)* "}";
+  Sequence extends FlowNode = "Sequence" "{" (Service | Decorator | children:BTNode)* "}";
+  Fallback extends FlowNode = "Fallback" "{" (Service | Decorator | children:BTNode)* "}";
  
 
   // action nodes
@@ -21,8 +21,8 @@
   abstract Service = "Service" name:Name;
   abstract Decorator = "Decorator" name:Name;
   //concrete examples of services
-  Inverter extends Decorator = "Decorator" name:Name;
-  CalculateDistance extends Service = "Service" name:Name;
+  GripperEmpty extends Decorator = "Decorator" name:Name;
+  CalcDist extends Service = "Service" name:Name;
 
 // tokens definition
 

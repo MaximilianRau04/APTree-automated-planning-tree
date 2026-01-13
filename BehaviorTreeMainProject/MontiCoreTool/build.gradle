@@ -229,6 +229,22 @@ task runAPTreeParser(type: JavaExec) {
     workingDir = projectDir
 }
 
+task runConcreteBTInstanceParser(type: JavaExec) {
+    description = 'Parses CRF Concrete Instance definitions (Beam, Robot, etc.)'
+    dependsOn 'compileJava'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'ConcreteBTInstanceParser'
+    workingDir = projectDir
+}
+
+task generateInstanceSymbols(type: JavaExec) {
+  description = 'Generates .sym files for each Element from CRFConcreteInstances.bt'
+  dependsOn 'compileJava'
+  classpath = sourceSets.main.runtimeClasspath
+  mainClass = 'InstanceSymbolsGenerator'
+  workingDir = projectDir
+}
+
 // Task to generate Class Diagram from grammar (shows AST structure)
 task generateASTClassDiagram(type: JavaExec) {
     dependsOn 'compileJava'

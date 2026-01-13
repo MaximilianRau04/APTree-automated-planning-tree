@@ -12,6 +12,8 @@ import behaviortree._ast.ASTActionNode;
 import behaviortree._ast.ASTBTNode;
 import behaviortree._ast.ASTDecorator;
 import concretebt._ast.*;
+import java.nio.file.Paths;
+import java.nio.file.Path;
 
 import java.util.Optional;
 import java.util.List;
@@ -43,6 +45,11 @@ public class APTreeParserTest {
             
             // Initialize MontiCore mill for the grammar
             DynamicBTFlowNodeMill.init();
+
+            // Add model path for serialized symbols (autoload via <name>.sym)
+            // Default output from InstanceSymbolsGenerator is target/symbols
+            Path symDir = Paths.get("target", "symbols");
+            DynamicBTFlowNodeMill.globalScope().getSymbolPath().addEntry(symDir.toAbsolutePath());
             
             // Define the file to parse
             String filePath = args.length > 0 ? args[0] : DEFAULT_PATH;
@@ -56,6 +63,7 @@ public class APTreeParserTest {
             }
             
             System.out.println("📂 Parsing file: " + filePath);
+            System.out.println("🔎 Symbol path entry: " + symDir.toAbsolutePath());
             System.out.println();
             
             // Create parser instance
@@ -71,6 +79,10 @@ public class APTreeParserTest {
                 
                 // Analyze the complete tree structure
                 analyzeBehaviorTree(behaviorTree);
+                
+                // Validate all referenced symbols are resolved (detect undefined instances)
+                System.out.println();
+                validateSymbolResolution(behaviorTree);
                 
                 // Print summary
                 printSummary();
@@ -334,6 +346,109 @@ public class APTreeParserTest {
         System.out.println("╠══════════════════════════════════════════════════════════════╣");
         System.out.println("║  ✓ PARSING COMPLETED SUCCESSFULLY                            ║");
         System.out.println("╚══════════════════════════════════════════════════════════════╝");
+    }
+
+    /**
+     * Validate that all typed references (@Element, @Location, @Agent, @Robot) are resolved.
+     * This detects instances that are referenced but not defined in CRFConcreteInstances.bt.
+     */
+    private static void validateSymbolResolution(ASTBehaviorTree behaviorTree) {
+        printSection("SYMBOL RESOLUTION VALIDATION");
+        
+        int unresolvedCount = 0;
+        int resolvedCount = 0;
+        
+        // Traverse all PickUpHL actions and validate their symbol references
+        unresolvedCount += validateActionSymbols(behaviorTree, resolvedCount);
+        
+        if (unresolvedCount == 0) {
+            System.out.println("✓ All " + resolvedCount + " symbol references resolved successfully.");
+        } else {
+            System.out.println("✗ Found " + unresolvedCount + " UNRESOLVED symbol references!");
+            System.out.println("  These instances are used but NOT defined in CRFConcreteInstances.bt");
+        }
+    }
+
+    /**
+     * Recursively validate PickUpHL and PlaceHL action nodes
+     */
+    private static int validateActionSymbols(ASTBehaviorTree behaviorTree, int resolved) {
+        int unresolved = 0;
+        
+        // Validate root FlowNode
+        if (behaviorTree.getRoot() != null) {
+            unresolved += validateFlowNodeActions(behaviorTree.getRoot());
+        }
+        
+        return unresolved;
+    }
+
+    /**
+     * Recursively check all FlowNodes for unresolved action symbols
+     */
+    private static int validateFlowNodeActions(ASTFlowNode node) {
+        int unresolved = 0;
+        
+        if (node instanceof ASTDynamicFlowNode) {
+            ASTDynamicFlowNode dyn = (ASTDynamicFlowNode) node;
+            
+            // Check NodeGraph actions
+            if (dyn.getNodeGraph() != null) {
+                unresolved += validateNodeGraphActions(dyn.getNodeGraph());
+            }
+            
+            // Recurse into nested flow nodes
+            for (ASTFlowNode nested : dyn.getFlowNodeList()) {
+                unresolved += validateFlowNodeActions(nested);
+            }
+        } else if (node instanceof ASTSequence) {
+            ASTSequence seq = (ASTSequence) node;
+            for (ASTFlowNode child : seq.getFlowNodeList()) {
+                unresolved += validateFlowNodeActions(child);
+            }
+        } else if (node instanceof ASTFallback) {
+            ASTFallback fb = (ASTFallback) node;
+            for (ASTFlowNode child : fb.getFlowNodeList()) {
+                unresolved += validateFlowNodeActions(child);
+            }
+        }
+        
+        return unresolved;
+    }
+
+    /**
+     * Validate all action nodes in a NodeGraph
+     */
+    private static int validateNodeGraphActions(ASTNodeGraph nodeGraph) {
+        int unresolved = 0;
+        
+        for (ASTBTNode node : nodeGraph.getBTNodeList()) {
+            if (node instanceof ASTPickUpHL) {
+                ASTPickUpHL pickup = (ASTPickUpHL) node;
+                
+                // Check if obj (Element) symbol is resolved
+                if (!pickup.isPresentObjSymbol()) {
+                    System.out.println("  ✗ PickUpHL '" + pickup.getName() + "': undefined Element '" + pickup.getObj() + "'");
+                    unresolved++;
+                } else {
+                    System.out.println("  ✓ PickUpHL '" + pickup.getName() + "': Element '" + pickup.getObj() + "' resolved");
+                }
+                
+                // Check if grabPos (Location) symbol is resolved
+                if (!pickup.isPresentGrabPosSymbol()) {
+                    System.out.println("  ✗ PickUpHL '" + pickup.getName() + "': undefined Location '" + pickup.getGrabPos() + "'");
+                    unresolved++;
+                }
+                
+                // Check if client (Robot) symbol is resolved
+                if (!pickup.isPresentClientSymbol()) {
+                    System.out.println("  ✗ PickUpHL '" + pickup.getName() + "': undefined Robot '" + pickup.getClient() + "'");
+                    unresolved++;
+                }
+            }
+        }
+        
+        return unresolved;
     }
     
     private static void printSuccess(String msg) {
