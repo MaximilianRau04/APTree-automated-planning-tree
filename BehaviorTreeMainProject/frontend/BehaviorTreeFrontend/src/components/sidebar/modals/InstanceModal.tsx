@@ -50,6 +50,7 @@ function BaseInstanceModal<TInstance extends AnyInstance>(
     negationLabel = "Negate",
     validatePropertyValue,
     propertyValidationHint,
+    additionalFields,
   } = props;
 
   const [nameValue, setNameValue] = useState(initialValue.name);
@@ -303,6 +304,10 @@ function BaseInstanceModal<TInstance extends AnyInstance>(
             </div>
           )}
 
+          {additionalFields ? (
+            <div className="form-group">{additionalFields}</div>
+          ) : null}
+
           <div className="form-group">
             <span className="modal-label">{propertyValuesLabel}</span>
             {selectedType && selectedType.properties.length > 0 ? (
@@ -414,6 +419,10 @@ export function PredicateInstanceModal(props: PredicateInstanceModalProps) {
 
 /** action instance modal configured with action-centric copy. */
 export function ActionInstanceModal(props: ActionInstanceModalProps) {
+  const [subtreeAnnotation, setSubtreeAnnotation] = useState(
+    () => props.initialValue.subtreeAnnotation ?? ""
+  );
+
   return (
     <BaseInstanceModal<ActionInstance>
       {...props}
@@ -429,6 +438,28 @@ export function ActionInstanceModal(props: ActionInstanceModalProps) {
       baseTypePrefixLabel={props.baseTypePrefixLabel ?? "Base action"}
       createButtonLabel={props.createButtonLabel ?? "Create Action Instance"}
       saveButtonLabel={props.saveButtonLabel ?? "Save Action Instance"}
+      additionalFields={
+        <>
+          <label className="modal-label" htmlFor="action-subtree-annotation">
+            Subtree Annotation (optional)
+          </label>
+          <input
+            id="action-subtree-annotation"
+            className="modal-input"
+            type="text"
+            value={subtreeAnnotation}
+            onChange={(event) => setSubtreeAnnotation(event.target.value)}
+            placeholder="e.g., PickUpSubtree"
+          />
+        </>
+      }
+      onSave={(value) => {
+        const trimmed = subtreeAnnotation.trim();
+        props.onSave({
+          ...value,
+          subtreeAnnotation: trimmed ? trimmed : undefined,
+        });
+      }}
     />
   );
 }

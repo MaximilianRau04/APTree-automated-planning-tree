@@ -26,6 +26,7 @@ export interface CanvasNode {
   preconditions?: PredicateInstance[];
   effects?: PredicateInstance[];
   typeId?: string;
+  hierarchyLevel?: number;
 }
 
 export const DEFAULT_CANVAS_NODE_WIDTH = 240;
@@ -36,8 +37,15 @@ export interface NodeConnection {
   id: string;
   sourceNodeId: string;
   targetNodeId: string;
-  sourcePort?: 'top' | 'right' | 'bottom' | 'left';
-  targetPort?: 'top' | 'right' | 'bottom' | 'left';
+  sourcePort?: "top" | "right" | "bottom" | "left";
+  targetPort?: "top" | "right" | "bottom" | "left";
+}
+
+/** represents a hierarchy separator line. */
+export interface HierarchySeparator {
+  id: string;
+  y: number;
+  label?: string;
 }
 
 /** details surfaced when inspecting an action parameter from the canvas. */
@@ -55,10 +63,14 @@ export interface ActionParameterDetail {
 export interface EditorCanvasProps {
   nodes: CanvasNode[];
   connections?: NodeConnection[];
+  separators?: HierarchySeparator[];
   onDropNode: (
     item: DraggedSidebarItem,
     position: { x: number; y: number }
   ) => void;
+  onDropSeparator?: (y: number) => void;
+  onMoveSeparator?: (id: string, y: number) => void;
+  onRemoveSeparator?: (id: string) => void;
   onMoveNode?: (
     nodeId: string,
     position: { x: number; y: number }
@@ -72,8 +84,8 @@ export interface EditorCanvasProps {
   onAddConnection?: (
     sourceNodeId: string,
     targetNodeId: string,
-    sourcePort: 'top' | 'right' | 'bottom' | 'left',
-    targetPort: 'top' | 'right' | 'bottom' | 'left'
+    sourcePort: "top" | "right" | "bottom" | "left",
+    targetPort: "top" | "right" | "bottom" | "left"
   ) => void;
   onRemoveConnection?: (connectionId: string) => void;
   onShowActionParameterDetail?: (detail: ActionParameterDetail) => void;

@@ -48,6 +48,13 @@ const CANVAS_LEVELS: Array<{ key: CanvasLevel; label: string }> = [
   { key: "low", label: "Low" },
 ];
 
+// Hierarchy level mapping
+const LEVEL_TO_HIERARCHY: Record<CanvasLevel, number> = {
+  high: 1,
+  mid: 2,
+  low: 3,
+};
+
 type CanvasGraph = {
   nodes: CanvasNode[];
   connections: NodeConnection[];
@@ -155,6 +162,7 @@ function App() {
     mid: { nodes: [], connections: [] },
     low: { nodes: [], connections: [] },
   }));
+  const [separators, setSeparators] = useState<Array<{ id: string; y: number; label?: string }>>([]);
   const [predicateModalState, setPredicateModalState] =
     useState<ActionPredicateModalState>(createInitialPredicateModalState);
   const [predicateManagerState, setPredicateManagerState] =
@@ -231,6 +239,28 @@ function App() {
 
     return hasChanges ? reconciled : rawActionInstances;
   }, [rawActionInstances, actionTypes]);
+
+  // Merge all nodes from all levels with hierarchy level information
+  const mergedNodes = useMemo(() => {
+    const allNodes: CanvasNode[] = [];
+    CANVAS_LEVELS.forEach(({ key }) => {
+      const levelNodes = graphs[key].nodes.map(node => ({
+        ...node,
+        hierarchyLevel: LEVEL_TO_HIERARCHY[key],
+      }));
+      allNodes.push(...levelNodes);
+    });
+    return allNodes;
+  }, [graphs]);
+
+  // Merge all connections from all levels
+  const mergedConnections = useMemo(() => {
+    const allConnections: NodeConnection[] = [];
+    CANVAS_LEVELS.forEach(({ key }) => {
+      allConnections.push(...graphs[key].connections);
+    });
+    return allConnections;
+  }, [graphs]);
 
   /**
    * resets the predicate modal state to its initial configuration.
@@ -556,7 +586,56 @@ function App() {
           return;
         }
 
-        setGraphs(nextGraphs);
+        const migrationNotices: string[] = [];
+        const migratedGraphs = (Object.keys(nextGraphs) as CanvasLevel[]).reduce(
+          (acc, level) => {
+            const graph = nextGraphs[level];
+            const nodes = graph.nodes.map((node) => {
+              if (node.kind !== "behaviorNode") {
+                return node;
+              }
+
+              if (node.sourceId === "selector") {
+                migrationNotices.push(
+                  'Migrated legacy flow node "Selector" -> "Fallback".'
+                );
+                return {
+                  ...node,
+                  sourceId: "fallback",
+                  name: node.name === "Selector" ? "Fallback" : node.name,
+                };
+              }
+
+              if (node.sourceId === "parallel") {
+                migrationNotices.push(
+                  'Replaced unsupported flow node "Parallel" with "Sequence".'
+                );
+                return {
+                  ...node,
+                  sourceId: "sequence",
+                  name: node.name === "Parallel" ? "Sequence" : node.name,
+                };
+              }
+
+              return node;
+            });
+
+            return {
+              ...acc,
+              [level]: {
+                ...graph,
+                nodes,
+              },
+            };
+          },
+          {} as Record<CanvasLevel, CanvasGraph>
+        );
+
+        if (migrationNotices.length > 0) {
+          window.alert(migrationNotices.join("\n"));
+        }
+
+        setGraphs(migratedGraphs);
         if (nextLevel) {
           setActiveLevel(nextLevel);
         }
@@ -657,6 +736,36 @@ function App() {
     },
     [activeLevel]
   );
+
+  /**
+   * handles dropping a separator line onto the canvas.
+   */
+  const handleDropSeparator = useCallback((y: number) => {
+    setSeparators((prev) => [
+      ...prev,
+      {
+        id: createId("separator"),
+        y,
+        label: `Level ${prev.length + 1}`,
+      },
+    ]);
+  }, []);
+
+  /**
+   * handles moving a separator line.
+   */
+  const handleMoveSeparator = useCallback((id: string, y: number) => {
+    setSeparators((prev) =>
+      prev.map((sep) => (sep.id === id ? { ...sep, y } : sep))
+    );
+  }, []);
+
+  /**
+   * handles removing a separator line.
+   */
+  const handleRemoveSeparator = useCallback((id: string) => {
+    setSeparators((prev) => prev.filter((sep) => sep.id !== id));
+  }, []);
 
   /**
    * handles moving an existing node within the editor canvas.
@@ -1257,28 +1366,15 @@ function App() {
             onImportCanvasGraph={handleImportCanvasGraphFile}
           />
           <div className="editor" role="main">
-            <div className="level-tabs" role="tablist" aria-label="Canvas Level">
-              {CANVAS_LEVELS.map((level) => (
-                <button
-                  key={level.key}
-                  type="button"
-                  className={`level-tab${
-                    activeLevel === level.key ? " is-active" : ""
-                  }`}
-                  role="tab"
-                  aria-selected={activeLevel === level.key}
-                  onClick={() => setActiveLevel(level.key)}
-                >
-                  {level.label}
-                </button>
-              ))}
-            </div>
-
             <div className="editor-canvas-wrap">
               <EditorCanvas
-                nodes={graphs[activeLevel].nodes}
-                connections={graphs[activeLevel].connections}
+                nodes={mergedNodes}
+                connections={mergedConnections}
+                separators={separators}
                 onDropNode={handleDropOnCanvas}
+                onDropSeparator={handleDropSeparator}
+                onMoveSeparator={handleMoveSeparator}
+                onRemoveSeparator={handleRemoveSeparator}
                 onMoveNode={handleMoveNode}
                 onResizeNode={handleResizeNode}
                 onRemoveNode={handleRemoveNode}

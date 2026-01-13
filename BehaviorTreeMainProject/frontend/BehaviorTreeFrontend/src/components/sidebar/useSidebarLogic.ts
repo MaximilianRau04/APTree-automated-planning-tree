@@ -869,6 +869,7 @@ export const useSidebarManager = (): SidebarManager => {
       name: value.name.trim(),
       type: actionType.name,
       typeId: actionType.id,
+      subtreeAnnotation: value.subtreeAnnotation?.trim() || undefined,
       propertyValues: sanitizedValues,
     };
 
@@ -1390,8 +1391,18 @@ export const useSidebarManager = (): SidebarManager => {
         }
 
         const assignments = parseAssignmentBlock(match[2].trim());
+        const subtreeAnnotationToken =
+          assignments.named["subtreeannotation"] ??
+          assignments.named["subtree"] ??
+          assignments.named["annotation"];
+        if (subtreeAnnotationToken !== undefined) {
+          delete assignments.named["subtreeannotation"];
+          delete assignments.named["subtree"];
+          delete assignments.named["annotation"];
+        }
         const instance = createEmptyActionInstance(definition);
         instance.name = pickInstanceDisplayName(definition.name, assignments);
+        instance.subtreeAnnotation = subtreeAnnotationToken?.trim() || undefined;
         instance.propertyValues = buildPropertyValuesFromAssignments(
           definition,
           assignments

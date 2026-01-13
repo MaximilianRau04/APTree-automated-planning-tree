@@ -22,6 +22,7 @@ import {
   Position,
   useReactFlow,
   useUpdateNodeInternals,
+  useViewport,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import {
@@ -32,7 +33,8 @@ import {
 import type {
   ActionParameterDetail,
   CanvasNode,
-  EditorCanvasProps,
+  EditorCanvasProps as BaseEditorCanvasProps,
+  HierarchySeparator,
 } from "./types";
 import {
   DEFAULT_CANVAS_NODE_HEIGHT,
@@ -50,7 +52,17 @@ import {
 } from "../sidebar/utils/constants";
 import "./EditorCanvas.css";
 
+type EditorCanvasProps = BaseEditorCanvasProps & {
+  separators?: HierarchySeparator[];
+  onDropSeparator?: (y: number) => void;
+  onMoveSeparator?: (id: string, y: number) => void;
+  onRemoveSeparator?: (id: string) => void;
+};
+
 type PortSide = "top" | "right" | "bottom" | "left";
+
+const DEFAULT_ACTION_NODE_WIDTH = 210;
+const DEFAULT_ACTION_NODE_HEIGHT = 150;
 
 const resolveNumericOffset = (value: string | number | undefined): number => {
   if (typeof value === "number") {
@@ -181,6 +193,20 @@ function isActionNode(node: CanvasNode) {
   return node.kind === "actionType" || node.kind === "actionInstance";
 }
 
+function resolveDefaultNodeSize(node: CanvasNode) {
+  if (isActionNode(node)) {
+    return {
+      width: DEFAULT_ACTION_NODE_WIDTH,
+      height: DEFAULT_ACTION_NODE_HEIGHT,
+    };
+  }
+
+  return {
+    width: DEFAULT_CANVAS_NODE_WIDTH,
+    height: DEFAULT_CANVAS_NODE_HEIGHT,
+  };
+}
+
 /**
  * behavior tree node component for the editor canvas.
  * @param param0 component props 
@@ -198,6 +224,11 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
   const actionInstance =
     isAction && node.kind === "actionInstance"
       ? data.actionInstanceMap.get(node.sourceId)
+      : undefined;
+
+  const subtreeAnnotation =
+    node.kind === "actionInstance"
+      ? actionInstance?.subtreeAnnotation?.trim()
       : undefined;
 
   const resolvedActionTypeId = isAction
@@ -311,8 +342,8 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
     <div className={nodeClasses.join(" ")}>
       <NodeResizer
         isVisible={selected}
-        minWidth={180}
-        minHeight={120}
+        minWidth={isAction ? 160 : 180}
+        minHeight={isAction ? 110 : 120}
         onResizeEnd={(_event, params) => {
           if (!data.onResizeNode && !data.onMoveNode) {
             return;
@@ -429,6 +460,9 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
 
       <span className="canvas-node-label">{node.name}</span>
       <span className="canvas-node-meta">{node.typeLabel}</span>
+      {subtreeAnnotation ? (
+        <span className="canvas-node-meta">@ {subtreeAnnotation}</span>
+      ) : null}
       {node.isNegated ? (
         <span className="canvas-node-badge" aria-label="Negated predicate">
           NOT
@@ -478,22 +512,20 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
         />
       ))}
 
-      {!isFlowNode
-        ? (Object.keys(portPositions) as PortSide[]).map((side) => (
-            <Handle
-              key={`target-${side}`}
-              type="target"
-              position={portPositions[side]}
-              id={`target-${side}`}
-              className="canvas-node-handle canvas-node-handle-hitbox canvas-node-handle-target"
-              style={{
-                ...TARGET_HANDLE_STYLES[side],
-                ...(targetHandleOverrides[side] ?? {}),
-              }}
-              isConnectableStart={false}
-            />
-          ))
-        : null}
+      {(Object.keys(portPositions) as PortSide[]).map((side) => (
+        <Handle
+          key={`target-${side}`}
+          type="target"
+          position={portPositions[side]}
+          id={`target-${side}`}
+          className="canvas-node-handle canvas-node-handle-hitbox canvas-node-handle-target"
+          style={{
+            ...TARGET_HANDLE_STYLES[side],
+            ...(targetHandleOverrides[side] ?? {}),
+          }}
+          isConnectableStart={false}
+        />
+      ))}
 
       {(isFlowNode || isAction) &&
         (Object.keys(portPositions) as PortSide[]).map((side) => (
@@ -588,6 +620,196 @@ function BehaviorEdge({
   );
 }
 
+/**
+ * Component to draw horizontal dashed lines separating hierarchy levels
+ */
+function HierarchyLevelSeparators({
+  separators,
+  onMove,
+  onRemove,
+}: {
+  separators: Array<{ id: string; y: number; label?: string }>;
+  onMove?: (id: string, y: number) => void;
+  onRemove?: (id: string) => void;
+}) {
+  const { screenToFlowPosition } = useReactFlow();
+  const viewport = useViewport();
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+
+  const handleMouseDown = useCallback(
+    (id: string, event: React.MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setDraggingId(id);
+    },
+    []
+  );
+
+  const handleMouseMove = useCallback(
+    (event: MouseEvent) => {
+      if (!draggingId || !onMove) return;
+
+      const flowPos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      onMove(draggingId, flowPos.y);
+    },
+    [draggingId, onMove, screenToFlowPosition]
+  );
+
+  const handleMouseUp = useCallback(() => {
+    setDraggingId(null);
+  }, []);
+
+  useEffect(() => {
+    if (draggingId !== null) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+      return () => {
+        window.removeEventListener("mousemove", handleMouseMove);
+        window.removeEventListener("mouseup", handleMouseUp);
+      };
+    }
+  }, [draggingId, handleMouseMove, handleMouseUp]);
+
+  return (
+    <>
+      <svg
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          pointerEvents: "none",
+          zIndex: 0,
+        }}
+      >
+        {separators.map((separator) => {
+          const screenY = separator.y * viewport.zoom + viewport.y;
+          const isDragging = draggingId === separator.id;
+          const isHovered = hoveredId === separator.id;
+          
+          return (
+            <g key={separator.id}>
+              <line
+                x1={0}
+                y1={screenY}
+                x2="100%"
+                y2={screenY}
+                stroke={
+                  isDragging
+                    ? "rgba(99, 102, 241, 0.8)"
+                    : isHovered
+                    ? "rgba(255, 255, 255, 0.6)"
+                    : "rgba(255, 255, 255, 0.3)"
+                }
+                strokeWidth={isDragging ? 3 : 2}
+                strokeDasharray="10 5"
+              />
+              {separator.label && (
+                <text
+                  x={20}
+                  y={screenY - 10}
+                  fill={
+                    isDragging
+                      ? "rgba(99, 102, 241, 1)"
+                      : "rgba(255, 255, 255, 0.6)"
+                  }
+                  fontSize="14"
+                  fontWeight="500"
+                  style={{ pointerEvents: "none" }}
+                >
+                  {separator.label}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+      {/* Draggable areas with delete buttons */}
+      {separators.map((separator) => {
+        const screenY = separator.y * viewport.zoom + viewport.y;
+        const isHovered = hoveredId === separator.id;
+        return (
+          <div key={separator.id}>
+            <div
+              onMouseEnter={() => setHoveredId(separator.id)}
+              onMouseLeave={() => setHoveredId(null)}
+              style={{
+                position: "absolute",
+                top: screenY - 12,
+                left: 0,
+                width: "100%",
+                height: 24,
+                zIndex: 100,
+                pointerEvents: "all",
+              }}
+            >
+              <div
+                onMouseDown={(e) => handleMouseDown(separator.id, e)}
+                style={{
+                  position: "absolute",
+                  top: 2,
+                  left: 0,
+                  width: "100%",
+                  height: 20,
+                  cursor:
+                    draggingId === separator.id ? "grabbing" : "ns-resize",
+                  zIndex: 100,
+                }}
+                title="Drag to move, click × to remove"
+              />
+              {isHovered && onRemove && (
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemove(separator.id);
+                  }}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    right: 20,
+                    width: 24,
+                    height: 24,
+                    borderRadius: "50%",
+                    border: "1px solid rgba(239, 68, 68, 0.7)",
+                    background: "rgba(239, 68, 68, 0.15)",
+                    color: "#ef4444",
+                    fontSize: "16px",
+                    fontWeight: 700,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    zIndex: 101,
+                    transition: "all 0.2s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(239, 68, 68, 0.25)";
+                    e.currentTarget.style.transform = "scale(1.1)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "rgba(239, 68, 68, 0.15)";
+                    e.currentTarget.style.transform = "scale(1)";
+                  }}
+                  aria-label="Remove separator"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 const nodeTypes: NodeTypes = { btNode: BehaviorTreeNode };
 const edgeTypes: EdgeTypes = { btEdge: BehaviorEdge };
 
@@ -600,7 +822,11 @@ function EditorCanvasInner(props: EditorCanvasProps) {
   const {
     nodes,
     connections = [],
+    separators = [],
     onDropNode,
+    onDropSeparator,
+    onMoveSeparator,
+    onRemoveSeparator,
     onMoveNode,
     onResizeNode,
     onRemoveNode,
@@ -640,8 +866,9 @@ function EditorCanvasInner(props: EditorCanvasProps) {
   const flowNodes = useMemo<FlowNode<BehaviorNodeData>[]>(
     () =>
       nodes.map((node) => {
-        const width = node.width ?? DEFAULT_CANVAS_NODE_WIDTH;
-        const height = node.height ?? DEFAULT_CANVAS_NODE_HEIGHT;
+        const defaults = resolveDefaultNodeSize(node);
+        const width = node.width ?? defaults.width;
+        const height = node.height ?? defaults.height;
 
         return {
           id: node.id,
@@ -770,7 +997,7 @@ function EditorCanvasInner(props: EditorCanvasProps) {
       }
 
       try {
-        const payload = JSON.parse(rawPayload) as DraggedSidebarItem;
+        const payload = JSON.parse(rawPayload) as DraggedSidebarItem | { kind: string };
         const bounds = wrapperRef.current?.getBoundingClientRect();
         if (!bounds) {
           return;
@@ -781,12 +1008,19 @@ function EditorCanvasInner(props: EditorCanvasProps) {
           y: event.clientY - bounds.top,
         });
 
-        onDropNode(payload, position);
+        // Check if it's a hierarchy separator
+        if ('kind' in payload && payload.kind === 'hierarchySeparator') {
+          if (onDropSeparator) {
+            onDropSeparator(position.y);
+          }
+        } else {
+          onDropNode(payload as DraggedSidebarItem, position);
+        }
       } catch (error) {
         console.error("Failed to parse sidebar drag payload", error);
       }
     },
-    [onDropNode, project]
+    [onDropNode, onDropSeparator, project]
   );
 
   /**
@@ -806,21 +1040,17 @@ function EditorCanvasInner(props: EditorCanvasProps) {
         node.kind === "actionType" || node.kind === "actionInstance";
       const isFlow = (node: CanvasNode) => node.category === FLOW_NODES_KEY;
 
-      // Rules:
-      // - Flow -> (Action/Service/Decorator/anything non-flow) is allowed (structure).
-      // - Action -> Action is allowed (plan/order/temporal relations).
-      // - Anything -> Flow is not allowed.
-      // - Flow -> Flow is not allowed.
       if (!sourceNode || !targetNode) {
         return;
       }
 
-      if (isFlow(targetNode)) {
+      // Disallow Action -> Flow; Flow can connect to Flow and non-Flow nodes.
+      if (isFlow(targetNode) && !isFlow(sourceNode)) {
         return;
       }
 
       if (isFlow(sourceNode)) {
-        // allow Flow -> non-flow
+        // allow Flow -> Flow and Flow -> Non-Flow
       } else if (isAction(sourceNode) && isAction(targetNode)) {
         // allow Action -> Action (plan graph)
       } else {
@@ -839,6 +1069,11 @@ function EditorCanvasInner(props: EditorCanvasProps) {
     [nodes, onAddConnection]
   );
 
+  /**
+   * handles edge mouse enter events on the canvas.
+   * @param event mouse event
+   * @param edge hovered edge data
+   */
   const handleEdgeMouseEnter = useCallback(
     (_event: React.MouseEvent, edge: FlowEdge) => {
       setHoveredEdgeId(edge.id);
@@ -846,6 +1081,9 @@ function EditorCanvasInner(props: EditorCanvasProps) {
     []
   );
 
+  /**
+   * handles edge mouse leave events on the canvas.
+   */
   const handleEdgeMouseLeave = useCallback(() => {
     setHoveredEdgeId(null);
   }, []);
@@ -918,6 +1156,11 @@ function EditorCanvasInner(props: EditorCanvasProps) {
           gap={32}
           size={2}
           color="rgba(99, 102, 241, 0.25)"
+        />
+        <HierarchyLevelSeparators
+          separators={separators}
+          onMove={onMoveSeparator}
+          onRemove={onRemoveSeparator}
         />
       </ReactFlow>
     </div>

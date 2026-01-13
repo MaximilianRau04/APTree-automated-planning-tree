@@ -470,8 +470,31 @@
   border: none;
   background: transparent;
   border-radius: var(--radius-lg);
-  padding: 18px 24px;
+  padding: 14px 18px;
+  gap: 6px;
   box-shadow: none;
+}
+
+.canvas-node-action .canvas-node-label {
+  font-size: 0.9rem;
+}
+
+.canvas-node-action .canvas-node-meta {
+  font-size: 0.8rem;
+}
+
+.canvas-node-action .canvas-node-state {
+  margin-top: 8px;
+  gap: 10px;
+}
+
+.canvas-node-action .canvas-node-actions {
+  margin-bottom: 6px;
+}
+
+.canvas-node-action .canvas-node-action-btn {
+  padding: 3px 8px;
+  font-size: 0.72rem;
 }
 
 .canvas-node-action:active,

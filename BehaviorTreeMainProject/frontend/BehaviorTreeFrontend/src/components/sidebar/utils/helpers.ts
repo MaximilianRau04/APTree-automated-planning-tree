@@ -148,6 +148,7 @@ export const createEmptyActionInstance = (
   id: createId("action-instance"),
   type: actionType?.name ?? "",
   typeId: actionType?.id ?? "",
+  subtreeAnnotation: "",
   propertyValues: actionType
     ? actionType.properties.reduce<Record<string, string>>(
         (acc, property) => {

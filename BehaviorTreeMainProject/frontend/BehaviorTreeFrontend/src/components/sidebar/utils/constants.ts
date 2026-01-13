@@ -21,21 +21,13 @@ export const FLOW_NODE_OPTIONS: FlowNodeOption[] = [
     defaultSuccessType: "ALL",
   },
   {
-    id: "selector",
-    label: "Selector",
+    id: "fallback",
+    label: "Fallback",
     typeLabel: "Flow Node",
     description:
       "Pick the first child that succeeds, falling back to the next on failure.",
     kind: "flow",
     defaultSuccessType: "ANY",
-  },
-  {
-    id: "parallel",
-    label: "Parallel",
-    typeLabel: "Flow Node",
-    description: "Run all children simultaneously and gather their results.",
-    kind: "flow",
-    defaultSuccessType: "ALL",
   },
 ];
 

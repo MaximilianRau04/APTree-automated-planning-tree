@@ -356,6 +356,51 @@ export default function Sidebar({ manager, onCreateBehaviorNode }: SidebarProps)
         saveLabel={categoryModalSaveLabel}
       />
 
+      {/* Canvas Tools Section */}
+      <SidebarSection
+        title="Canvas Tools"
+        isOpen={false}
+        iconLabel="T"
+      >
+        <div className="canvas-tools-items">
+          <div
+            className="canvas-tool-item"
+            draggable
+            onDragStart={(e) => {
+              const payload: { kind: string; type: string; name: string } = {
+                kind: "hierarchySeparator",
+                type: "dashed-line",
+                name: "Hierarchy Separator",
+              };
+              e.dataTransfer.setData(
+                "application/x-aptree-sidebar-item",
+                JSON.stringify(payload)
+              );
+              e.dataTransfer.effectAllowed = "copy";
+            }}
+            style={{
+              padding: "6px 10px",
+              margin: "4px 0",
+              cursor: "grab",
+              borderRadius: "4px",
+              backgroundColor: "rgba(99, 102, 241, 0.08)",
+              border: "1px dashed rgba(99, 102, 241, 0.4)",
+              textAlign: "center",
+              userSelect: "none",
+              fontSize: "11px",
+            }}
+          >
+            <div style={{ 
+              borderTop: "1px dashed rgba(255, 255, 255, 0.5)",
+              margin: "4px 0"
+            }} />
+            <span style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.6)" }}>
+              Separator Line
+            </span>
+          </div>
+        </div>
+      </SidebarSection>
+
       {visibleCategories.map((categoryKey) => {
         const displayTitle = categoryTitles[categoryKey] ?? categoryKey;
         const iconLabel = displayTitle.charAt(0).toUpperCase();

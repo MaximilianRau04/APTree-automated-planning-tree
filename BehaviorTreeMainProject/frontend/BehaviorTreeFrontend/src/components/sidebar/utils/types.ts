@@ -48,7 +48,10 @@ export interface PredicateInstance extends ParameterInstance {
 export type ActionType = ParameterType;
 
 /** concrete action instance referencing an action type. */
-export type ActionInstance = ParameterInstance;
+export interface ActionInstance extends ParameterInstance {
+  /** optional subtree reference rendered as '@ <Name>' in the backend grammar */
+  subtreeAnnotation?: string;
+}
 
 export type DataCategory = string;
 
@@ -190,6 +193,8 @@ export interface TypedInstanceModalProps<
     property: TypeProperty
   ) => boolean;
   propertyValidationHint?: string;
+  /** optional extra form controls rendered between type selector and property values */
+  additionalFields?: ReactNode;
 }
 
 export type ParameterInstanceModalProps = TypedInstanceModalProps<ParameterInstance>;

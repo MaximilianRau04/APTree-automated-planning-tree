@@ -86,7 +86,7 @@ export default function BtNodeWizardModal({
               >
                 <span className="wizard-card-title">Flow Node</span>
                 <span className="wizard-card-copy">
-                  Add control-flow structures like Sequence or Selector nodes to the canvas.
+                    Add control-flow structures like Sequence or Fallback nodes to the canvas.
                 </span>
               </button>
               <button

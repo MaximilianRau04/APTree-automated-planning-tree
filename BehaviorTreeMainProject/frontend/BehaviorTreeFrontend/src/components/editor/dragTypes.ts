@@ -20,6 +20,7 @@ export type DragEntityKind =
   | "actionType"
   | "actionInstance"
   | "behaviorNode"
+  | "hierarchySeparator"
   | "generic";
 
 // defines the structure of the data payload when dragging an item from the sidebar
