@@ -21,12 +21,14 @@ grammar DynamicBTFlowNode extends ConcreteBT, PlanningService {
 
     // NodeGraph definition - separate top-level production
     NodeGraph = "Nodegraph" Name "{"
-                    (BTNode)*
-                    (Relation)*
-                "}";                     
-   
-     Relation = 
-    "relation" source:Name@BTNode "--[" temptype:TemporalType "]-->" target:Name@BTNode ";";
+    (GraphNode)*
+    "}";
+
+GraphNode = "action" node:Name@BTNode "{"
+    (outgoing:Relation)*
+"}";
+
+Relation = "--[" temptype:TemporalType "]-->" targetNode:Name@BTNode ";";
     
 
 

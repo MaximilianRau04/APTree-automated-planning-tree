@@ -2,7 +2,7 @@ grammar ConcreteBT extends CRFTypeDef {
 
 ////////// ?????? I am not sure why do we get errors if we dont include this world thing!
 @Override
-World = (PropertyTypeDefinition | Property | PredicateTypeDefinition | State | ActionTypeDefinition | Beam | Plate | FirstPosition | Robot)*;
+World = (PropertyTypeDefinition | Property | PredicateTypeDefinition | ActionTypeDefinition | Beam | Plate | FirstPosition | Robot)*;
 
 // === GENERATED RULES (DO NOT EDIT BELOW) ===
 symbol Beam extends Element = "Beam" name:Name "(" lenght:DOUBLE_VALUE color:Name ")";

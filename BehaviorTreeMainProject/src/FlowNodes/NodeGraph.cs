@@ -4,25 +4,6 @@ using BehaviorTreeMainProject.Services;
 using System;
 using BehaviorTreeMainProject.Log.Services;
 
-/// <summary>
-/// Represents a node in the behavior tree graph with order and temporal constraints
-/// </summary>
-public class GraphNode
-{
-    public PActionNode ActionNode { get; set; }
-    public List<GraphNode> OrderSuccessors { get; set; } = new();
-    public List<GraphNode> OrderPredecessors { get; set; } = new();
-    public Dictionary<GraphNode, TemporalConstraint> TemporalConstraints { get; set; } = new();
-    public float StartTime { get; set; } = 0f;
-    public float EndTime { get; set; } = 0f;
-    public bool IsExecuting { get; set; } = false;
-    public bool IsCompleted { get; set; } = false;
-
-    public GraphNode(PActionNode actionNode)
-    {
-        ActionNode = actionNode;
-    }
-}
 
 /// <summary>
 /// Manages a graph of behavior tree action nodes with order relations and temporal constraints
@@ -91,14 +72,14 @@ public class NodeGraph
         var toNode = nodeMap[to];
         
         // Check if relation already exists
-        if (fromNode.OrderSuccessors.Contains(toNode))
+        if (fromNode.Successors.Any(r => r.To == toNode))
         {
             LoggingService.LogWarning($"⚠️ NodeGraph: Order relation already exists: {from.InstanceName.ToString()} → {to.InstanceName.ToString()}");
             return;
         }
         
         // Check for potential circular dependency by checking if 'to' is already a predecessor of 'from'
-        if (toNode.OrderSuccessors.Contains(fromNode))
+        if (toNode.Successors.Any(r => r.To == fromNode))
         {
             LoggingService.LogError($"❌ NodeGraph: Circular dependency detected: {from.InstanceName.ToString()} ↔ {to.InstanceName.ToString()}");
             LoggingService.LogError($"❌ NodeGraph: {to.InstanceName.ToString()} is already a successor of {from.InstanceName.ToString()}");
@@ -116,22 +97,23 @@ public class NodeGraph
         }
         
         // Log the current state before adding the relation
-        LoggingService.LogInfo($"🔍 NodeGraph: Before adding relation - {from.InstanceName.ToString()} has {fromNode.OrderSuccessors.Count} successors");
-        LoggingService.LogInfo($"🔍 NodeGraph: Before adding relation - {to.InstanceName.ToString()} has {toNode.OrderPredecessors.Count} predecessors");
+        LoggingService.LogInfo($"🔍 NodeGraph: Before adding relation - {from.InstanceName.ToString()} has {fromNode.Successors.Count} successors");
+        LoggingService.LogInfo($"🔍 NodeGraph: Before adding relation - {to.InstanceName.ToString()} has {toNode.Predecessors.Count} predecessors");
         
-        // Add the relation
-        fromNode.OrderSuccessors.Add(toNode);
-        toNode.OrderPredecessors.Add(fromNode);
+        // Create and add the relation with a default temporal constraint (PRECEDES)
+        var relation = new Relation(fromNode, toNode, TemporalConstraint.PRECEDES);
+        fromNode.Successors.Add(relation);
+        toNode.Predecessors.Add(relation);
         
         LoggingService.LogInfo($"✅ NodeGraph: Added order relation: {from.InstanceName.ToString()} → {to.InstanceName.ToString()}");
-        LoggingService.LogInfo($"🔍 NodeGraph: {from.InstanceName.ToString()} now has {fromNode.OrderSuccessors.Count} successors");
-        LoggingService.LogInfo($"🔍 NodeGraph: {to.InstanceName.ToString()} now has {toNode.OrderPredecessors.Count} predecessors");
+        LoggingService.LogInfo($"🔍 NodeGraph: {from.InstanceName.ToString()} now has {fromNode.Successors.Count} successors");
+        LoggingService.LogInfo($"🔍 NodeGraph: {to.InstanceName.ToString()} now has {toNode.Predecessors.Count} predecessors");
         
         // Log all predecessors of the target node after adding the relation
         LoggingService.LogInfo($"🔍 NodeGraph: {to.InstanceName.ToString()} predecessors after adding relation:");
-        foreach (var pred in toNode.OrderPredecessors)
+        foreach (var predRelation in toNode.Predecessors)
         {
-            LoggingService.LogInfo($"   - {pred.ActionNode.InstanceName.ToString()}");
+            LoggingService.LogInfo($"   - {predRelation.From.ActionNode.InstanceName.ToString()}");
         }
     }
 
@@ -150,10 +132,26 @@ public class NodeGraph
 
         var fromNode = nodeMap[from];
         var toNode = nodeMap[to];
-        fromNode.TemporalConstraints[toNode] = constraint;
         
-        LoggingService.LogInfo($"✅ NodeGraph: Added temporal constraint: {from.InstanceName.ToString()} {constraint} {to.InstanceName.ToString()}");
-        LoggingService.LogInfo($"🔍 NodeGraph: {from.InstanceName.ToString()} now has {fromNode.TemporalConstraints.Count} temporal constraints");
+        // Find the existing relation
+        var existingRelation = fromNode.Successors.FirstOrDefault(r => r.To == toNode);
+        
+        if (existingRelation != null)
+        {
+            // Update the constraint on existing relation
+            existingRelation.tempType = constraint;
+            LoggingService.LogInfo($"✅ NodeGraph: Updated temporal constraint on existing relation: {from.InstanceName.ToString()} {constraint} {to.InstanceName.ToString()}");
+        }
+        else
+        {
+            // Create a new relation with this constraint
+            var newRelation = new Relation(fromNode, toNode, constraint);
+            fromNode.Successors.Add(newRelation);
+            toNode.Predecessors.Add(newRelation);
+            LoggingService.LogInfo($"✅ NodeGraph: Created new relation with constraint: {from.InstanceName.ToString()} {constraint} {to.InstanceName.ToString()}");
+        }
+        
+        LoggingService.LogInfo($"🔍 NodeGraph: {from.InstanceName.ToString()} now has {fromNode.Successors.Count} relations");
     }
 
     /// <summary>
@@ -201,36 +199,34 @@ public class NodeGraph
             LoggingService.LogInfo($"   🔍 NodeGraph: ===== Checking node {node.ActionNode.InstanceName.ToString()} =====");
             LoggingService.LogInfo($"   🔍 NodeGraph: Node completed: {node.IsCompleted}, executing: {node.IsExecuting}");
             LoggingService.LogInfo($"   🔍 NodeGraph: Node LastStatus: {node.ActionNode.LastStatus}");
-            LoggingService.LogInfo($"   🔍 NodeGraph: Has predecessors: {node.OrderPredecessors.Any()}");
-            LoggingService.LogInfo($"   🔍 NodeGraph: Has successors: {node.OrderSuccessors.Any()}");
-            LoggingService.LogInfo($"   🔍 NodeGraph: Has temporal constraints: {node.TemporalConstraints.Any()}");
+            LoggingService.LogInfo($"   🔍 NodeGraph: Has predecessors: {node.Predecessors.Any()}");
+            LoggingService.LogInfo($"   🔍 NodeGraph: Has successors: {node.Successors.Any()}");
             
-            if (node.OrderPredecessors.Any())
+            if (node.Predecessors.Any())
             {
                 LoggingService.LogInfo($"   🔍 NodeGraph: All predecessors completed: {AllPredecessorsCompleted(node)}");
                 LoggingService.LogInfo($"   🔍 NodeGraph: Predecessor details:");
-                foreach (var pred in node.OrderPredecessors)
+                foreach (var predRelation in node.Predecessors)
                 {
+                    var pred = predRelation.From;
                     LoggingService.LogInfo($"     - {pred.ActionNode.InstanceName.ToString()}: IsCompleted={pred.IsCompleted}, IsExecuting={pred.IsExecuting}, LastStatus={pred.ActionNode.LastStatus}");
                 }
             }
             
-            if (node.OrderSuccessors.Any())
+            if (node.Successors.Any())
             {
                 LoggingService.LogInfo($"   🔍 NodeGraph: Successor details:");
-                foreach (var succ in node.OrderSuccessors)
+                foreach (var succRelation in node.Successors)
                 {
+                    var succ = succRelation.To;
                     LoggingService.LogInfo($"     - {succ.ActionNode.InstanceName.ToString()}: IsCompleted={succ.IsCompleted}, IsExecuting={succ.IsExecuting}, LastStatus={succ.ActionNode.LastStatus}");
                 }
             }
             
-            if (node.TemporalConstraints.Any())
+            LoggingService.LogInfo($"   🔍 NodeGraph: Relations:");
+            foreach (var relation in node.Successors)
             {
-                LoggingService.LogInfo($"   🔍 NodeGraph: Temporal constraint details:");
-                foreach (var constraint in node.TemporalConstraints)
-                {
-                    LoggingService.LogInfo($"     - {node.ActionNode.InstanceName.ToString()} --[{constraint.Value}]--> {constraint.Key.ActionNode.InstanceName.ToString()}");
-                }
+                LoggingService.LogInfo($"     - {node.ActionNode.InstanceName.ToString()} --[{relation.tempType}]--> {relation.To.ActionNode.InstanceName.ToString()}");
             }
             
             // A node can execute if:
@@ -238,7 +234,7 @@ public class NodeGraph
             // 2. Either it has no predecessors (first in sequence) OR all its predecessors are completed
             // 3. Any temporal constraints are satisfied
             bool canExecuteNode = CanExecuteNode(node);
-            bool allPredecessorsCompleted = node.OrderPredecessors.Count == 0 || AllPredecessorsCompleted(node);
+            bool allPredecessorsCompleted = node.Predecessors.Count == 0 || AllPredecessorsCompleted(node);
             
             LoggingService.LogInfo($"   🔍 NodeGraph: CanExecuteNode result: {canExecuteNode}");
             LoggingService.LogInfo($"   🔍 NodeGraph: AllPredecessorsCompleted result: {allPredecessorsCompleted}");
@@ -299,7 +295,7 @@ public class NodeGraph
 
         // For nodes with no order predecessors (first in sequence), don't check temporal constraints
         // They should be able to start execution immediately
-        if (!node.OrderPredecessors.Any())
+        if (!node.Predecessors.Any())
         {
             LoggingService.LogInfo($"   ✅ NodeGraph: First node {node.ActionNode.InstanceName.ToString()} can execute (no predecessors)");
             return true;
@@ -315,24 +311,22 @@ public class NodeGraph
 
         // Now check temporal constraints from other nodes
         LoggingService.LogInfo($"   🔍 NodeGraph: Checking temporal constraints for {node.ActionNode.InstanceName.ToString()}");
-        foreach (var otherNode in nodes)
+        foreach (var relation in node.Predecessors)
         {
-            if (otherNode == node) continue;
+            var otherNode = relation.From;
+            var temporalConstraint = relation.tempType;
             
-            if (otherNode.TemporalConstraints.TryGetValue(node, out var temporalConstraint))
-            {
-                LoggingService.LogInfo($"   🔍 NodeGraph: Checking temporal constraint {temporalConstraint} from {otherNode.ActionNode.InstanceName.ToString()} to {node.ActionNode.InstanceName.ToString()}");
-                LoggingService.LogInfo($"   🔍 NodeGraph: Other node status - IsCompleted: {otherNode.IsCompleted}, IsExecuting: {otherNode.IsExecuting}");
+            LoggingService.LogInfo($"   🔍 NodeGraph: Checking temporal constraint {temporalConstraint} from {otherNode.ActionNode.InstanceName.ToString()} to {node.ActionNode.InstanceName.ToString()}");
+            LoggingService.LogInfo($"   🔍 NodeGraph: Other node status - IsCompleted: {otherNode.IsCompleted}, IsExecuting: {otherNode.IsExecuting}");
 
-                if (!IsTemporalConstraintSatisfied(otherNode, node, temporalConstraint))
-                {
-                    LoggingService.LogInfo($"   ❌ NodeGraph: Temporal constraint {temporalConstraint} not satisfied");
-                    return false;
-                }
-                else
-                {
-                    LoggingService.LogInfo($"   ✅ NodeGraph: Temporal constraint {temporalConstraint} satisfied");
-                }
+            if (!IsTemporalConstraintSatisfied(otherNode, node, temporalConstraint))
+            {
+                LoggingService.LogInfo($"   ❌ NodeGraph: Temporal constraint {temporalConstraint} not satisfied");
+                return false;
+            }
+            else
+            {
+                LoggingService.LogInfo($"   ✅ NodeGraph: Temporal constraint {temporalConstraint} satisfied");
             }
         }
 
@@ -346,11 +340,12 @@ public class NodeGraph
     private bool AllPredecessorsCompleted(GraphNode node)
     {
         LoggingService.LogInfo($"🔍 DEBUG: AllPredecessorsCompleted called for {node.ActionNode.InstanceName.ToString()}");
-        LoggingService.LogInfo($"🔍 DEBUG: Number of predecessors: {node.OrderPredecessors.Count}");
+        LoggingService.LogInfo($"🔍 DEBUG: Number of predecessors: {node.Predecessors.Count}");
         
         bool allCompleted = true;
-        foreach (var pred in node.OrderPredecessors)
+        foreach (var predRelation in node.Predecessors)
         {
+            var pred = predRelation.From;
             LoggingService.LogInfo($"🔍 DEBUG: Predecessor {pred.ActionNode.InstanceName.ToString()}: IsCompleted={pred.IsCompleted}");
             if (!pred.IsCompleted)
             {
@@ -610,20 +605,15 @@ public class NodeGraph
             LoggingService.LogInfo($"📊 NodeGraph: Node: {node.ActionNode.InstanceName.ToString()}");
             LoggingService.LogInfo($"   - IsCompleted: {node.IsCompleted}");
             LoggingService.LogInfo($"   - IsExecuting: {node.IsExecuting}");
-            LoggingService.LogInfo($"   - Predecessors ({node.OrderPredecessors.Count}):");
-            foreach (var pred in node.OrderPredecessors)
+            LoggingService.LogInfo($"   - Predecessors ({node.Predecessors.Count}):");
+            foreach (var predRelation in node.Predecessors)
             {
-                LoggingService.LogInfo($"     * {pred.ActionNode.InstanceName.ToString()}");
+                LoggingService.LogInfo($"     * {predRelation.From.ActionNode.InstanceName.ToString()} [{predRelation.tempType}]");
             }
-            LoggingService.LogInfo($"   - Successors ({node.OrderSuccessors.Count}):");
-            foreach (var succ in node.OrderSuccessors)
+            LoggingService.LogInfo($"   - Successors ({node.Successors.Count}):");
+            foreach (var succRelation in node.Successors)
             {
-                LoggingService.LogInfo($"     * {succ.ActionNode.InstanceName.ToString()}");
-            }
-            LoggingService.LogInfo($"   - Temporal Constraints ({node.TemporalConstraints.Count}):");
-            foreach (var kvp in node.TemporalConstraints)
-            {
-                LoggingService.LogInfo($"     * {node.ActionNode.InstanceName.ToString()} {kvp.Value} {kvp.Key.ActionNode.InstanceName.ToString()}");
+                LoggingService.LogInfo($"     * {succRelation.To.ActionNode.InstanceName.ToString()} [{succRelation.tempType}]");
             }
         }
         LoggingService.LogInfo($"📊 NodeGraph: === END GRAPH STRUCTURE ===");
@@ -643,9 +633,9 @@ public class NodeGraph
         tempVisited.Add(node);
 
         // Process all successors first (depth-first)
-        foreach (var successor in node.OrderSuccessors)
+        foreach (var succRelation in node.Successors)
         {
-            TopologicalSort(successor, visited, tempVisited, result);
+            TopologicalSort(succRelation.To, visited, tempVisited, result);
         }
 
         tempVisited.Remove(node);
