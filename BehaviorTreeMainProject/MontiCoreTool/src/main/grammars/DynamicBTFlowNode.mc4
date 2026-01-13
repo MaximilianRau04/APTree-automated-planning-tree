@@ -1,6 +1,6 @@
 grammar DynamicBTFlowNode extends ConcreteBT, PlanningService {
 
- //overriding the parent class to not allow single nodes in it
+ //????????????? Override is not the best thing to do here. but if I extend, would it add a separate property for root? or it replaces the existing one
 
 @Override
   BehaviorTree = "BehaviorTree" Name "{" "root" root:DynamicFlowNode "}";
