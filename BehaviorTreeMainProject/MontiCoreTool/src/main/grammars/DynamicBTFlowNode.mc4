@@ -1,4 +1,4 @@
-grammar DynamicBTFlowNode extends ConcreteBT, PlanningService {
+grammar DynamicBTFlowNode extends PlanningService {
 
  //????????????? Override is not the best thing to do here. but if I extend, would it add a separate property for root? or it replaces the existing one
 
@@ -21,14 +21,14 @@ grammar DynamicBTFlowNode extends ConcreteBT, PlanningService {
 
     // NodeGraph definition - separate top-level production
     NodeGraph = "Nodegraph" Name "{"
-    (GraphNode)*
+    (nodes:GraphNode)*
     "}";
 
 GraphNode = "action" node:Name@BTNode "{"
-    (outgoing:Relation)*
+    (successors:Relation)*
 "}";
 
-Relation = "--[" temptype:TemporalType "]-->" targetNode:Name@BTNode ";";
+Relation = "--[" temptype:TemporalType "]-->" target:Name@BTNode ";";
     
 
 
