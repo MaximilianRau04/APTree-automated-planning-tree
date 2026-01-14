@@ -49,6 +49,10 @@
     background var(--transition-fast);
 }
 
+.canvas-node-dynamic {
+  padding-right: 104px;
+}
+
 .canvas-node:active {
   cursor: grabbing;
 }
@@ -80,11 +84,19 @@
 }
 
 
-.canvas-node-success {
+.canvas-node-pill-row {
   position: absolute;
   top: 6px;
   left: 50%;
   transform: translate(-50%, -130%);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 3;
+  pointer-events: auto;
+}
+
+.canvas-node-pill {
   padding: 4px 12px;
   border-radius: var(--radius-pill, 999px);
   border: 1px solid color-mix(in srgb, var(--accent) 65%, transparent);
@@ -94,13 +106,16 @@
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  cursor: pointer;
   box-shadow: 0 6px 12px rgba(14, 165, 233, 0.18);
   transition: background var(--transition-fast),
     border-color var(--transition-fast),
     color var(--transition-fast),
     box-shadow var(--transition-fast),
     transform var(--transition-fast);
+}
+
+.canvas-node-success {
+  cursor: pointer;
 }
 
 .canvas-node-success:hover {
@@ -238,6 +253,70 @@
   opacity: 1;
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+.canvas-node-root {
+  border-color: color-mix(in srgb, var(--accent) 75%, var(--border-subtle));
+  box-shadow: 0 16px 34px rgba(99, 102, 241, 0.28);
+}
+
+.canvas-node-root-toggle {
+  position: absolute;
+  top: 12px;
+  right: 76px;
+  width: 28px;
+  height: 28px;
+  border: 1px solid color-mix(in srgb, var(--text-muted) 45%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-panel) 85%, var(--accent) 15%);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.2;
+  transition: opacity var(--transition-fast), transform var(--transition-fast),
+    background var(--transition-fast), color var(--transition-fast),
+    border-color var(--transition-fast);
+  z-index: 3;
+}
+
+/* Dynamic flow nodes: place root toggle below edit/delete to avoid label overlap. */
+.canvas-node-dynamic .canvas-node-root-toggle {
+  top: 44px;
+  right: 28px;
+}
+
+.react-flow__node:hover .canvas-node-root-toggle,
+.react-flow__node-selected .canvas-node-root-toggle {
+  opacity: 1;
+}
+
+.canvas-node-root-toggle:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--surface-panel) 80%, var(--accent) 20%);
+}
+
+.canvas-node-root-toggle:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.canvas-node-root-toggle.is-root {
+  opacity: 1;
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface-panel) 82%);
+}
+
+.canvas-node-root-pill {
+  border-color: color-mix(in srgb, var(--accent) 65%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-panel) 86%);
+  box-shadow: 0 6px 12px rgba(99, 102, 241, 0.18);
+  pointer-events: none;
 }
 
 .canvas-node-meta {

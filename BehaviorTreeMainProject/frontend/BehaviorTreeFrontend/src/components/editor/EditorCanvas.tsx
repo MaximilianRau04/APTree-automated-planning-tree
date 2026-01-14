@@ -22,7 +22,6 @@ import {
   Position,
   useReactFlow,
   useUpdateNodeInternals,
-  useViewport,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import {
@@ -30,6 +29,7 @@ import {
   isSidebarDrag,
   type DraggedSidebarItem,
 } from "./dragTypes";
+import HierarchyLevelSeparators from "./HierarchyLevelSeparators";
 import type {
   ActionParameterDetail,
   CanvasNode,
@@ -82,8 +82,10 @@ interface BehaviorNodeData {
   predicateTypeMap: Map<string, PredicateType>;
   actionTypeMap: Map<string, ActionType>;
   actionInstanceMap: Map<string, ActionInstance>;
+  isRoot?: boolean;
   onRemoveNode?: (nodeId: string) => void;
   onEditNode?: (nodeId: string) => void;
+  onSetRootNode?: (nodeId: string, hierarchyLevel?: number) => void;
   onCycleFlowSuccessType?: (nodeId: string) => void;
   onManageActionPredicates?: (
     nodeId: string,
@@ -287,6 +289,10 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
 
   const nodeClasses = ["canvas-node", `canvas-node-${node.kind}`];
 
+  if (data.isRoot) {
+    nodeClasses.push("canvas-node-root");
+  }
+
   if (node.category === FLOW_NODES_KEY) {
     nodeClasses.push("canvas-node-flow");
   } else if (node.category === DECORATOR_NODES_KEY) {
@@ -297,6 +303,10 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
 
   if (isAction) {
     nodeClasses.push("canvas-node-action");
+  }
+
+  if (node.sourceId === "dynamic-flow-node") {
+    nodeClasses.push("canvas-node-dynamic");
   }
 
   const portStyleOverrides: Partial<Record<PortSide, CSSProperties>> = {};
@@ -405,26 +415,87 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
         </div>
       ) : null}
 
-      {node.successType ? (
-        data.onCycleFlowSuccessType ? (
+      {node.successType || data.isRoot ? (
+        <div className="canvas-node-pill-row" aria-hidden={!data.onCycleFlowSuccessType}>
+          {node.successType ? (
+            data.onCycleFlowSuccessType ? (
+              <button
+                type="button"
+                className="canvas-node-success canvas-node-pill"
+                onMouseDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  data.onCycleFlowSuccessType?.(id);
+                }}
+                title="Click to cycle success type"
+                aria-label={`Success type ${node.successType}. Click to cycle.`}
+              >
+                {node.successType}
+              </button>
+            ) : (
+              <span className="canvas-node-success canvas-node-pill" aria-hidden="true">
+                {node.successType}
+              </span>
+            )
+          ) : null}
+
+          {data.isRoot ? (
+            <span className="canvas-node-root-pill canvas-node-pill" aria-hidden="true">
+              ROOT
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      {isFlowNode && node.sourceId === "dynamic-flow-node" ? (
+        <>
           <button
             type="button"
-            className="canvas-node-success"
+            className={
+              data.isRoot
+                ? "canvas-node-root-toggle is-root"
+                : "canvas-node-root-toggle"
+            }
             onMouseDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();
-              data.onCycleFlowSuccessType?.(id);
+              data.onSetRootNode?.(id, node.hierarchyLevel);
             }}
-            title="Click to cycle success type"
-            aria-label={`Success type ${node.successType}. Click to cycle.`}
+            title={
+              data.isRoot
+                ? "Unset root dynamic flow node"
+                : "Set as root dynamic flow node"
+            }
+            aria-label={
+              data.isRoot
+                ? "Unset root dynamic flow node"
+                : "Set as root dynamic flow node"
+            }
           >
-            {node.successType}
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path
+                d="M4 8l4 4 4-7 4 7 4-4v10H4V8z"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinejoin="round"
+              />
+            </svg>
           </button>
-        ) : (
-          <span className="canvas-node-success" aria-hidden="true">
-            {node.successType}
-          </span>
-        )
+        </>
+      ) : null}
+
+      {isFlowNode && node.sourceId === "dynamic-flow-node" ? (
+        <span className="canvas-node-meta">
+          ChildType: {node.childType ?? "ALLACTION"}
+        </span>
       ) : null}
 
       {data.onEditNode ? (
@@ -620,196 +691,6 @@ function BehaviorEdge({
   );
 }
 
-/**
- * Component to draw horizontal dashed lines separating hierarchy levels
- */
-function HierarchyLevelSeparators({
-  separators,
-  onMove,
-  onRemove,
-}: {
-  separators: Array<{ id: string; y: number; label?: string }>;
-  onMove?: (id: string, y: number) => void;
-  onRemove?: (id: string) => void;
-}) {
-  const { screenToFlowPosition } = useReactFlow();
-  const viewport = useViewport();
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
-
-  const handleMouseDown = useCallback(
-    (id: string, event: React.MouseEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-      setDraggingId(id);
-    },
-    []
-  );
-
-  const handleMouseMove = useCallback(
-    (event: MouseEvent) => {
-      if (!draggingId || !onMove) return;
-
-      const flowPos = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-      onMove(draggingId, flowPos.y);
-    },
-    [draggingId, onMove, screenToFlowPosition]
-  );
-
-  const handleMouseUp = useCallback(() => {
-    setDraggingId(null);
-  }, []);
-
-  useEffect(() => {
-    if (draggingId !== null) {
-      window.addEventListener("mousemove", handleMouseMove);
-      window.addEventListener("mouseup", handleMouseUp);
-      return () => {
-        window.removeEventListener("mousemove", handleMouseMove);
-        window.removeEventListener("mouseup", handleMouseUp);
-      };
-    }
-  }, [draggingId, handleMouseMove, handleMouseUp]);
-
-  return (
-    <>
-      <svg
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          pointerEvents: "none",
-          zIndex: 0,
-        }}
-      >
-        {separators.map((separator) => {
-          const screenY = separator.y * viewport.zoom + viewport.y;
-          const isDragging = draggingId === separator.id;
-          const isHovered = hoveredId === separator.id;
-          
-          return (
-            <g key={separator.id}>
-              <line
-                x1={0}
-                y1={screenY}
-                x2="100%"
-                y2={screenY}
-                stroke={
-                  isDragging
-                    ? "rgba(99, 102, 241, 0.8)"
-                    : isHovered
-                    ? "rgba(255, 255, 255, 0.6)"
-                    : "rgba(255, 255, 255, 0.3)"
-                }
-                strokeWidth={isDragging ? 3 : 2}
-                strokeDasharray="10 5"
-              />
-              {separator.label && (
-                <text
-                  x={20}
-                  y={screenY - 10}
-                  fill={
-                    isDragging
-                      ? "rgba(99, 102, 241, 1)"
-                      : "rgba(255, 255, 255, 0.6)"
-                  }
-                  fontSize="14"
-                  fontWeight="500"
-                  style={{ pointerEvents: "none" }}
-                >
-                  {separator.label}
-                </text>
-              )}
-            </g>
-          );
-        })}
-      </svg>
-      {/* Draggable areas with delete buttons */}
-      {separators.map((separator) => {
-        const screenY = separator.y * viewport.zoom + viewport.y;
-        const isHovered = hoveredId === separator.id;
-        return (
-          <div key={separator.id}>
-            <div
-              onMouseEnter={() => setHoveredId(separator.id)}
-              onMouseLeave={() => setHoveredId(null)}
-              style={{
-                position: "absolute",
-                top: screenY - 12,
-                left: 0,
-                width: "100%",
-                height: 24,
-                zIndex: 100,
-                pointerEvents: "all",
-              }}
-            >
-              <div
-                onMouseDown={(e) => handleMouseDown(separator.id, e)}
-                style={{
-                  position: "absolute",
-                  top: 2,
-                  left: 0,
-                  width: "100%",
-                  height: 20,
-                  cursor:
-                    draggingId === separator.id ? "grabbing" : "ns-resize",
-                  zIndex: 100,
-                }}
-                title="Drag to move, click × to remove"
-              />
-              {isHovered && onRemove && (
-                <button
-                  type="button"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemove(separator.id);
-                  }}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    right: 20,
-                    width: 24,
-                    height: 24,
-                    borderRadius: "50%",
-                    border: "1px solid rgba(239, 68, 68, 0.7)",
-                    background: "rgba(239, 68, 68, 0.15)",
-                    color: "#ef4444",
-                    fontSize: "16px",
-                    fontWeight: 700,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                    zIndex: 101,
-                    transition: "all 0.2s",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "rgba(239, 68, 68, 0.25)";
-                    e.currentTarget.style.transform = "scale(1.1)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "rgba(239, 68, 68, 0.15)";
-                    e.currentTarget.style.transform = "scale(1)";
-                  }}
-                  aria-label="Remove separator"
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </>
-  );
-}
-
 const nodeTypes: NodeTypes = { btNode: BehaviorTreeNode };
 const edgeTypes: EdgeTypes = { btEdge: BehaviorEdge };
 
@@ -823,6 +704,7 @@ function EditorCanvasInner(props: EditorCanvasProps) {
     nodes,
     connections = [],
     separators = [],
+    rootNodeIdsByHierarchyLevel = {},
     onDropNode,
     onDropSeparator,
     onMoveSeparator,
@@ -831,6 +713,7 @@ function EditorCanvasInner(props: EditorCanvasProps) {
     onResizeNode,
     onRemoveNode,
     onEditNode,
+    onSetRootNode,
     onAddConnection,
     onRemoveConnection,
     onManageActionPredicates,
@@ -879,8 +762,13 @@ function EditorCanvasInner(props: EditorCanvasProps) {
             predicateTypeMap,
             actionTypeMap,
             actionInstanceMap,
+            isRoot:
+              node.hierarchyLevel !== undefined
+                ? rootNodeIdsByHierarchyLevel[node.hierarchyLevel] === node.id
+                : false,
             onRemoveNode,
             onEditNode,
+            onSetRootNode,
             onCycleFlowSuccessType,
             onManageActionPredicates,
             onEditActionPredicate,
@@ -898,8 +786,10 @@ function EditorCanvasInner(props: EditorCanvasProps) {
       predicateTypeMap,
       actionTypeMap,
       actionInstanceMap,
+      rootNodeIdsByHierarchyLevel,
       onRemoveNode,
       onEditNode,
+      onSetRootNode,
       onCycleFlowSuccessType,
       onManageActionPredicates,
       onEditActionPredicate,
@@ -1039,22 +929,55 @@ function EditorCanvasInner(props: EditorCanvasProps) {
       const isAction = (node: CanvasNode) =>
         node.kind === "actionType" || node.kind === "actionInstance";
       const isFlow = (node: CanvasNode) => node.category === FLOW_NODES_KEY;
+      const isDecorator = (node: CanvasNode) =>
+        node.category === DECORATOR_NODES_KEY;
+      const isService = (node: CanvasNode) => node.category === SERVICE_NODES_KEY;
+      const isAttachmentNode = (node: CanvasNode) =>
+        isDecorator(node) || isService(node);
+      const isAttachableHost = (node: CanvasNode) => isFlow(node) || isAction(node);
+      const isDynamicFlowNode = (node: CanvasNode) =>
+        isFlow(node) && node.sourceId === "dynamic-flow-node";
 
       if (!sourceNode || !targetNode) {
         return;
       }
 
-      // Disallow Action -> Flow; Flow can connect to Flow and non-Flow nodes.
+      if (isAttachmentNode(targetNode)) {
+        const alreadyAttached = connections.some(
+          (entry) => entry.targetNodeId === targetNode.id
+        );
+        if (alreadyAttached) {
+          return;
+        }
+      }
+
+      if (isAttachmentNode(targetNode) && !isAttachableHost(sourceNode)) {
+        return;
+      }
+      if (isAttachmentNode(sourceNode)) {
+        return;
+      }
+
       if (isFlow(targetNode) && !isFlow(sourceNode)) {
         return;
       }
 
-      if (isFlow(sourceNode)) {
-        // allow Flow -> Flow and Flow -> Non-Flow
-      } else if (isAction(sourceNode) && isAction(targetNode)) {
-        // allow Action -> Action (plan graph)
-      } else {
+      if (!isFlow(sourceNode) && !isAction(sourceNode)) {
         return;
+      }
+
+      if (isAction(sourceNode) && !(isAction(targetNode) || isAttachmentNode(targetNode))) {
+        return;
+      }
+
+      if (isDynamicFlowNode(sourceNode) && !isAttachmentNode(targetNode)) {
+        const childType = sourceNode.childType ?? "ALLACTION";
+        if (childType === "ALLACTION" && !isAction(targetNode)) {
+          return;
+        }
+        if (childType === "ALLFLOW" && !isFlow(targetNode)) {
+          return;
+        }
       }
 
       const sourcePort = resolvePortFromHandle(connection.sourceHandle, "right");
@@ -1066,7 +989,7 @@ function EditorCanvasInner(props: EditorCanvasProps) {
         targetPort
       );
     },
-    [nodes, onAddConnection]
+    [connections, nodes, onAddConnection]
   );
 
   /**

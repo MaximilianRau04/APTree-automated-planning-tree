@@ -29,6 +29,15 @@ export const FLOW_NODE_OPTIONS: FlowNodeOption[] = [
     kind: "flow",
     defaultSuccessType: "ANY",
   },
+  {
+    id: "dynamic-flow-node",
+    label: "Dynamic Flow Node",
+    typeLabel: "Flow Node",
+    description:
+      "Dynamic FlowNode with SuccessCriteria/ChildType/NodeGraph semantics.",
+    kind: "flow",
+    defaultSuccessType: "ALL",
+  },
 ];
 
 /** canonical decorator-node definitions made available to users. */
@@ -75,6 +84,14 @@ export const SERVICE_NODE_OPTIONS: ServiceNodeOption[] = [
     typeLabel: "Service",
     description:
       "Continuously synchronize key values into the blackboard while active.",
+    kind: "service",
+  },
+  {
+    id: "planning-service",
+    label: "Planning Service",
+    typeLabel: "Service",
+    description:
+      "Grammar service for planning integration (e.g., PDDL planner).",
     kind: "service",
   },
 ];

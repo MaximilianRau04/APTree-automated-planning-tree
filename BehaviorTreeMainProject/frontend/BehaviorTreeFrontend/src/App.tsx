@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import "./App.css";
 import Header from "./components/header/Header.tsx";
 import Sidebar from "./components/sidebar/Sidebar.tsx";
@@ -6,8 +6,6 @@ import { useSidebarManager } from "./components/sidebar/useSidebarLogic";
 import EditorCanvas from "./components/editor/EditorCanvas.tsx";
 import type {
   ActionParameterDetail,
-  CanvasNode,
-  NodeConnection,
 } from "./components/editor/types";
 import {
   DEFAULT_CANVAS_NODE_HEIGHT,
@@ -25,6 +23,7 @@ import {
 import { PredicateInstanceModal } from "./components/sidebar/modals/InstanceModal";
 import ActionParameterDetailsModal from "./components/editor/modals/ActionParameterDetailsModal.tsx";
 import ActionPredicateManagerModal from "./components/editor/modals/ActionPredicateManagerModal.tsx";
+import DynamicFlowNodeModal from "./components/editor/modals/DynamicFlowNodeModal";
 import {
   clonePredicateInstance,
   createEmptyPredicateInstance,
@@ -34,40 +33,21 @@ import type {
   ActionInstance,
   BehaviorNodeOption,
   PredicateInstance,
+  FlowSuccessType,
 } from "./components/sidebar/utils/types";
 import { PREDICATE_TYPE_CATALOG } from "./constants/predicateCatalog";
 import { PREDICATE_INSTANCES_KEY } from "./components/sidebar/utils/constants";
-
-type ThemeMode = "light" | "dark";
-
-type CanvasLevel = "high" | "mid" | "low";
-
-const CANVAS_LEVELS: Array<{ key: CanvasLevel; label: string }> = [
-  { key: "high", label: "High" },
-  { key: "mid", label: "Mid" },
-  { key: "low", label: "Low" },
-];
-
-// Hierarchy level mapping
-const LEVEL_TO_HIERARCHY: Record<CanvasLevel, number> = {
-  high: 1,
-  mid: 2,
-  low: 3,
-};
-
-type CanvasGraph = {
-  nodes: CanvasNode[];
-  connections: NodeConnection[];
-};
-
-type ExportedCanvasGraphsV1 = {
-  version: 1;
-  exportedAt: string;
-  activeLevel: CanvasLevel;
-  graphs: Record<CanvasLevel, CanvasGraph>;
-};
-
-const STORAGE_KEY = "aptree-preferred-theme";
+import { useThemePreference } from "./hooks/useThemePreference";
+import {
+  createEmptyGraphs,
+  HIERARCHY_TO_LEVEL,
+  mergeConnections,
+  mergeNodesWithHierarchy,
+  parseCanvasGraphImport,
+  type CanvasGraph,
+  type CanvasLevel,
+  type ExportedCanvasGraphsV1,
+} from "./utils/canvasGraphs";
 
 type ActionPredicateCollection = "precondition" | "effect";
 type PredicateCollectionKey = "preconditions" | "effects";
@@ -123,45 +103,15 @@ const createInitialPredicateManagerState = (): ActionPredicateManagerState => ({
 });
 
 /**
- * retrieves the initial theme mode based on user preference or system settings.
- * @returns initial theme mode
- */
-function getInitialTheme(): ThemeMode {
-  if (typeof window === "undefined") {
-    return "dark";
-  }
-
-  const storedTheme = window.localStorage.getItem(
-    STORAGE_KEY
-  ) as ThemeMode | null;
-  if (storedTheme === "light" || storedTheme === "dark") {
-    return storedTheme;
-  }
-
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
-}
-
-/**
  * application root component.
  * @returns main application element
  */
 function App() {
-  const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
-  const [userLockedTheme, setUserLockedTheme] = useState<boolean>(() => {
-    if (typeof window === "undefined") {
-      return false;
-    }
-    const savedTheme = window.localStorage.getItem(STORAGE_KEY);
-    return savedTheme === "light" || savedTheme === "dark";
-  });
+  const { theme, toggleTheme } = useThemePreference();
   const [activeLevel, setActiveLevel] = useState<CanvasLevel>("high");
-  const [graphs, setGraphs] = useState<Record<CanvasLevel, CanvasGraph>>(() => ({
-    high: { nodes: [], connections: [] },
-    mid: { nodes: [], connections: [] },
-    low: { nodes: [], connections: [] },
-  }));
+  const [graphs, setGraphs] = useState<Record<CanvasLevel, CanvasGraph>>(() =>
+    createEmptyGraphs()
+  );
   const [separators, setSeparators] = useState<Array<{ id: string; y: number; label?: string }>>([]);
   const [predicateModalState, setPredicateModalState] =
     useState<ActionPredicateModalState>(createInitialPredicateModalState);
@@ -170,6 +120,22 @@ function App() {
   const [, setPendingManagerReopen] = useState<PendingManagerReopen>(null);
   const [parameterDetail, setParameterDetail] =
     useState<ActionParameterDetail | null>(null);
+
+  const [dynamicFlowNodeState, setDynamicFlowNodeState] = useState<{
+    isOpen: boolean;
+    level: CanvasLevel | null;
+    nodeId: string | null;
+    draft: {
+      successType: FlowSuccessType;
+      childType: "ALLACTION" | "ALLFLOW";
+      nodeGraphName: string;
+      temporalRelations: Array<{
+        fromNodeId: string;
+        toNodeId: string;
+        temporalType: "MEETS" | "BEFORE" | "AFTER" | "OVERLAPS" | "DURING";
+      }>;
+    } | null;
+  }>({ isOpen: false, level: null, nodeId: null, draft: null });
   const sidebarManager = useSidebarManager();
   const {
     importParameterInstancesFromText,
@@ -240,27 +206,16 @@ function App() {
     return hasChanges ? reconciled : rawActionInstances;
   }, [rawActionInstances, actionTypes]);
 
-  // Merge all nodes from all levels with hierarchy level information
-  const mergedNodes = useMemo(() => {
-    const allNodes: CanvasNode[] = [];
-    CANVAS_LEVELS.forEach(({ key }) => {
-      const levelNodes = graphs[key].nodes.map(node => ({
-        ...node,
-        hierarchyLevel: LEVEL_TO_HIERARCHY[key],
-      }));
-      allNodes.push(...levelNodes);
-    });
-    return allNodes;
-  }, [graphs]);
+  const mergedNodes = useMemo(() => mergeNodesWithHierarchy(graphs), [graphs]);
+  const mergedConnections = useMemo(() => mergeConnections(graphs), [graphs]);
 
-  // Merge all connections from all levels
-  const mergedConnections = useMemo(() => {
-    const allConnections: NodeConnection[] = [];
-    CANVAS_LEVELS.forEach(({ key }) => {
-      allConnections.push(...graphs[key].connections);
-    });
-    return allConnections;
-  }, [graphs]);
+  const rootNodeIdsByHierarchyLevel = useMemo(() => {
+    return {
+      1: graphs.high.rootNodeId ?? null,
+      2: graphs.mid.rootNodeId ?? null,
+      3: graphs.low.rootNodeId ?? null,
+    } as Record<number, string | null>;
+  }, [graphs.high.rootNodeId, graphs.low.rootNodeId, graphs.mid.rootNodeId]);
 
   /**
    * resets the predicate modal state to its initial configuration.
@@ -368,45 +323,7 @@ function App() {
     setParameterDetail(null);
   }, []);
 
-  /**
-   * applies the current theme to the document root and persists the preference.
-   */
-  useEffect(() => {
-    const root = document.documentElement;
-    root.dataset.theme = theme;
-    root.style.colorScheme = theme;
-    window.localStorage.setItem(STORAGE_KEY, theme);
-  }, [theme]);
-
-  /**
-   * listens for system theme changes if the user has not locked their preference.
-   */
-  useEffect(() => {
-    if (typeof window === "undefined" || userLockedTheme) {
-      return;
-    }
-
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleSystemChange = (event: MediaQueryListEvent) => {
-      setTheme(event.matches ? "dark" : "light");
-    };
-
-    if (typeof mediaQuery.addEventListener === "function") {
-      mediaQuery.addEventListener("change", handleSystemChange);
-      return () => mediaQuery.removeEventListener("change", handleSystemChange);
-    }
-
-    mediaQuery.addListener(handleSystemChange);
-    return () => mediaQuery.removeListener(handleSystemChange);
-  }, [userLockedTheme]);
-
-  /**
-   * toggles the application theme between light and dark modes.
-   */
-  const handleToggleTheme = () => {
-    setTheme((current) => (current === "light" ? "dark" : "light"));
-    setUserLockedTheme(true);
-  };
+  // Theme logic extracted to useThemePreference
 
   /**
    * handles importing instances from a file using the provided importer function.
@@ -467,6 +384,9 @@ function App() {
     [handleImportFromFile, importParameterInstancesFromText]
   );
 
+  /**
+   * handles importing predicate instances from a file.
+   */
   const handleImportPredicateInstancesFile = useCallback(
     (file: File) =>
       handleImportFromFile(
@@ -477,6 +397,9 @@ function App() {
     [handleImportFromFile, importPredicateInstancesFromText]
   );
 
+  /**
+   * handles importing action instances from a file.
+   */
   const handleImportActionInstancesFile = useCallback(
     (file: File) =>
       handleImportFromFile(
@@ -487,7 +410,75 @@ function App() {
     [handleImportFromFile, importActionInstancesFromText]
   );
 
+  /**
+   * handles exporting the current canvas graphs to a JSON file.
+   */
   const handleExportCanvasGraph = useCallback(() => {
+    const graphsToValidate = Object.entries(graphs) as Array<
+      [CanvasLevel, CanvasGraph]
+    >;
+    for (const [level, graph] of graphsToValidate) {
+      const hasAnyNodes = graph.nodes.length > 0;
+      if (!hasAnyNodes) {
+        continue;
+      }
+
+      const rootId = graph.rootNodeId ?? null;
+      const root = rootId ? graph.nodes.find((n) => n.id === rootId) : null;
+
+      if (!rootId || !root || root.category !== "flowNodes" || root.sourceId !== "dynamic-flow-node") {
+        window.alert(
+          `Export blocked: Graph '${level}' must have a Dynamic Flow Node root (DynamicBTFlowNode.mc4). Use the crown icon on a Dynamic Flow Node.`
+        );
+        return;
+      }
+
+      const dynamicFlowNodes = graph.nodes.filter(
+        (n) => n.category === "flowNodes" && n.sourceId === "dynamic-flow-node"
+      );
+      const byId = new Map(graph.nodes.map((n) => [n.id, n] as const));
+      const isAttachment = (n: (typeof graph.nodes)[number]) =>
+        n.category === "decorators" || n.category === "services";
+      const isAction = (n: (typeof graph.nodes)[number]) =>
+        n.kind === "actionType" || n.kind === "actionInstance";
+
+      for (const node of dynamicFlowNodes) {
+        if (!node.nodeGraphName || !node.nodeGraphName.trim()) {
+          window.alert(
+            `Export blocked: Dynamic Flow Node '${node.name}' in graph '${level}' is missing Nodegraph Name.`
+          );
+          return;
+        }
+
+        const childIds = graph.connections
+          .filter((c) => c.sourceNodeId === node.id)
+          .map((c) => c.targetNodeId);
+
+        const children = childIds
+          .map((id) => byId.get(id))
+          .filter((entry): entry is (typeof graph.nodes)[number] => Boolean(entry))
+          .filter((entry) => !isAttachment(entry));
+
+        const actionChildIdSet = new Set(
+          children.filter(isAction).map((child) => child.id)
+        );
+
+        const relations = node.temporalRelations ?? [];
+        const hasInvalidRelation = relations.some(
+          (rel) =>
+            !actionChildIdSet.has(rel.fromNodeId) ||
+            !actionChildIdSet.has(rel.toNodeId)
+        );
+
+        if (hasInvalidRelation) {
+          window.alert(
+            `Export blocked: Dynamic Flow Node '${node.name}' in graph '${level}' has temporal relations that reference non-action children. (DynamicBTFlowNode.mc4: Nodegraph uses 'action' graph nodes.)`
+          );
+          return;
+        }
+      }
+    }
+
     const payload: ExportedCanvasGraphsV1 = {
       version: 1,
       exportedAt: new Date().toISOString(),
@@ -509,135 +500,22 @@ function App() {
     URL.revokeObjectURL(url);
   }, [activeLevel, graphs]);
 
+  /**
+   * handles importing canvas graphs from a file.
+   */
   const handleImportCanvasGraphFile = useCallback(
     async (file: File) => {
       try {
         const text = await file.text();
-        const parsed: unknown = JSON.parse(text);
+        const parsedResult = parseCanvasGraphImport(text);
 
-        const isCanvasLevel = (value: unknown): value is CanvasLevel =>
-          value === "high" || value === "mid" || value === "low";
-
-        const isCanvasGraph = (value: unknown): value is CanvasGraph => {
-          if (!value || typeof value !== "object") {
-            return false;
-          }
-
-          const graph = value as CanvasGraph;
-          return Array.isArray(graph.nodes) && Array.isArray(graph.connections);
-        };
-
-        const isV1 = (value: unknown): value is ExportedCanvasGraphsV1 => {
-          if (!value || typeof value !== "object") {
-            return false;
-          }
-
-          const obj = value as Partial<ExportedCanvasGraphsV1>;
-          if (obj.version !== 1) {
-            return false;
-          }
-          if (!isCanvasLevel(obj.activeLevel)) {
-            return false;
-          }
-          if (!obj.graphs || typeof obj.graphs !== "object") {
-            return false;
-          }
-
-          const graphsObj = obj.graphs as Record<string, unknown>;
-          return (
-            isCanvasGraph(graphsObj.high) &&
-            isCanvasGraph(graphsObj.mid) &&
-            isCanvasGraph(graphsObj.low)
-          );
-        };
-
-        let nextGraphs: Record<CanvasLevel, CanvasGraph> | null = null;
-        let nextLevel: CanvasLevel | null = null;
-
-        if (isV1(parsed)) {
-          nextGraphs = parsed.graphs;
-          nextLevel = parsed.activeLevel;
-        } else if (parsed && typeof parsed === "object") {
-          // lenient fallback: allow importing a raw graphs object
-          const obj = parsed as Record<string, unknown>;
-          const candidateGraphs = obj.graphs && typeof obj.graphs === "object" ? (obj.graphs as Record<string, unknown>) : obj;
-
-          if (
-            isCanvasGraph(candidateGraphs.high) &&
-            isCanvasGraph(candidateGraphs.mid) &&
-            isCanvasGraph(candidateGraphs.low)
-          ) {
-            nextGraphs = {
-              high: candidateGraphs.high as CanvasGraph,
-              mid: candidateGraphs.mid as CanvasGraph,
-              low: candidateGraphs.low as CanvasGraph,
-            };
-          }
-
-          if (isCanvasLevel(obj.activeLevel)) {
-            nextLevel = obj.activeLevel;
-          }
+        if (parsedResult.migrationNotices.length > 0) {
+          window.alert(parsedResult.migrationNotices.join("\n"));
         }
 
-        if (!nextGraphs) {
-          window.alert(
-            "Import failed: JSON did not match the expected canvas graph format."
-          );
-          return;
-        }
-
-        const migrationNotices: string[] = [];
-        const migratedGraphs = (Object.keys(nextGraphs) as CanvasLevel[]).reduce(
-          (acc, level) => {
-            const graph = nextGraphs[level];
-            const nodes = graph.nodes.map((node) => {
-              if (node.kind !== "behaviorNode") {
-                return node;
-              }
-
-              if (node.sourceId === "selector") {
-                migrationNotices.push(
-                  'Migrated legacy flow node "Selector" -> "Fallback".'
-                );
-                return {
-                  ...node,
-                  sourceId: "fallback",
-                  name: node.name === "Selector" ? "Fallback" : node.name,
-                };
-              }
-
-              if (node.sourceId === "parallel") {
-                migrationNotices.push(
-                  'Replaced unsupported flow node "Parallel" with "Sequence".'
-                );
-                return {
-                  ...node,
-                  sourceId: "sequence",
-                  name: node.name === "Parallel" ? "Sequence" : node.name,
-                };
-              }
-
-              return node;
-            });
-
-            return {
-              ...acc,
-              [level]: {
-                ...graph,
-                nodes,
-              },
-            };
-          },
-          {} as Record<CanvasLevel, CanvasGraph>
-        );
-
-        if (migrationNotices.length > 0) {
-          window.alert(migrationNotices.join("\n"));
-        }
-
-        setGraphs(migratedGraphs);
-        if (nextLevel) {
-          setActiveLevel(nextLevel);
+        setGraphs(parsedResult.graphs);
+        if (parsedResult.activeLevel) {
+          setActiveLevel(parsedResult.activeLevel);
         }
 
         setParameterDetail(null);
@@ -653,13 +531,76 @@ function App() {
   );
 
   /**
+   * sets the root node for the specified hierarchy level.
+   */
+  const handleSetRootNode = useCallback(
+    (nodeId: string, hierarchyLevel?: number) => {
+      const level: CanvasLevel = hierarchyLevel
+        ? HIERARCHY_TO_LEVEL[hierarchyLevel] ?? activeLevel
+        : activeLevel;
+
+      setGraphs((prev) => {
+        const graph = prev[level];
+        const candidate = graph.nodes.find((n) => n.id === nodeId);
+        if (
+          !candidate ||
+          candidate.category !== "flowNodes" ||
+          candidate.sourceId !== "dynamic-flow-node"
+        ) {
+          window.alert("Root must be a Dynamic Flow Node (DynamicBTFlowNode.mc4).");
+          return prev;
+        }
+
+        const nextRoot = graph.rootNodeId === nodeId ? null : nodeId;
+
+        return {
+          ...prev,
+          [level]: {
+            ...graph,
+            rootNodeId: nextRoot,
+          },
+        };
+      });
+    },
+    [activeLevel]
+  );
+
+  /**
    * opens the appropriate sidebar edit modal for the node's source item, if available.
    */
   const handleEditNodeFromCanvas = useCallback(
     (nodeId: string) => {
-      const node = graphs[activeLevel].nodes.find((entry) => entry.id === nodeId);
-      if (!node) {
+      const locateNode = (): { level: CanvasLevel; node: (typeof graphs)[CanvasLevel]["nodes"][number] } | null => {
+        const levels: CanvasLevel[] = ["high", "mid", "low"];
+        for (const level of levels) {
+          const found = graphs[level].nodes.find((entry) => entry.id === nodeId);
+          if (found) {
+            return { level, node: found };
+          }
+        }
+        return null;
+      };
+
+      const located = locateNode();
+      if (!located) {
         console.warn("Unable to edit node; node not found", nodeId);
+        return;
+      }
+
+      const node = located.node;
+
+      if (node.sourceId === "dynamic-flow-node") {
+        setDynamicFlowNodeState({
+          isOpen: true,
+          level: located.level,
+          nodeId,
+          draft: {
+            successType: node.successType ?? FLOW_SUCCESS_TYPES[0],
+            childType: node.childType ?? "ALLACTION",
+            nodeGraphName: node.nodeGraphName ?? `${node.name.replace(/\s+/g, "")}Graph`,
+            temporalRelations: node.temporalRelations ?? [],
+          },
+        });
         return;
       }
 
@@ -681,8 +622,12 @@ function App() {
       const item = items[index];
       openEditModal(category, index, item);
     },
-    [activeLevel, getItemsForCategory, graphs, openEditModal]
+    [getItemsForCategory, graphs, openEditModal]
   );
+
+  const closeDynamicFlowNodeModal = useCallback(() => {
+    setDynamicFlowNodeState({ isOpen: false, level: null, nodeId: null, draft: null });
+  }, []);
 
   /**
    * handles dropping a sidebar item onto the editor canvas.
@@ -695,11 +640,17 @@ function App() {
         if (option) {
           setGraphs((prev) => {
             const graph = prev[activeLevel];
+            const created = createBehaviorNode({ option, position });
+            const nextRootNodeId =
+              option.id === "dynamic-flow-node" && !graph.rootNodeId
+                ? created.id
+                : graph.rootNodeId;
             return {
               ...prev,
               [activeLevel]: {
                 ...graph,
-                nodes: [...graph.nodes, createBehaviorNode({ option, position })],
+                nodes: [...graph.nodes, created],
+                rootNodeId: nextRootNodeId,
               },
             };
           });
@@ -709,6 +660,10 @@ function App() {
 
       setGraphs((prev) => {
         const graph = prev[activeLevel];
+        const isDynamicFlowNode = item.category === "flowNodes" && item.id === "dynamic-flow-node";
+        const nextNodeGraphName = isDynamicFlowNode
+          ? `${item.name.replace(/\s+/g, "")}Graph`
+          : undefined;
         return {
           ...prev,
           [activeLevel]: {
@@ -728,6 +683,13 @@ function App() {
                 height: DEFAULT_CANVAS_NODE_HEIGHT,
                 isNegated: item.isNegated,
                 typeId: item.typeId,
+                ...(isDynamicFlowNode
+                  ? {
+                      childType: "ALLACTION" as const,
+                      nodeGraphName: nextNodeGraphName,
+                      temporalRelations: [],
+                    }
+                  : null),
               },
             ],
           },
@@ -827,14 +789,19 @@ function App() {
   const handleRemoveNode = useCallback((nodeId: string) => {
     setGraphs((prev) => {
       const graph = prev[activeLevel];
+      const nextNodes = graph.nodes.filter((node) => node.id !== nodeId);
+      const nextConnections = graph.connections.filter(
+        (conn) => conn.sourceNodeId !== nodeId && conn.targetNodeId !== nodeId
+      );
+
+      const nextRoot = graph.rootNodeId === nodeId ? null : graph.rootNodeId;
       return {
         ...prev,
         [activeLevel]: {
-          nodes: graph.nodes.filter((node) => node.id !== nodeId),
-          connections: graph.connections.filter(
-            (conn) =>
-              conn.sourceNodeId !== nodeId && conn.targetNodeId !== nodeId
-          ),
+          ...graph,
+          nodes: nextNodes,
+          connections: nextConnections,
+          rootNodeId: nextRoot,
         },
       };
     });
@@ -1358,7 +1325,7 @@ function App() {
         <div className="main-content">
           <Header
             theme={theme}
-            onToggleTheme={handleToggleTheme}
+            onToggleTheme={toggleTheme}
             onImportParameterInstances={handleImportParameterInstancesFile}
             onImportPredicateInstances={handleImportPredicateInstancesFile}
             onImportActionInstances={handleImportActionInstancesFile}
@@ -1371,6 +1338,7 @@ function App() {
                 nodes={mergedNodes}
                 connections={mergedConnections}
                 separators={separators}
+                rootNodeIdsByHierarchyLevel={rootNodeIdsByHierarchyLevel}
                 onDropNode={handleDropOnCanvas}
                 onDropSeparator={handleDropSeparator}
                 onMoveSeparator={handleMoveSeparator}
@@ -1379,6 +1347,7 @@ function App() {
                 onResizeNode={handleResizeNode}
                 onRemoveNode={handleRemoveNode}
                 onEditNode={handleEditNodeFromCanvas}
+                onSetRootNode={handleSetRootNode}
                 onAddConnection={handleAddConnection}
                 onRemoveConnection={handleRemoveConnection}
                 onShowActionParameterDetail={handleShowActionParameterDetail}
@@ -1425,6 +1394,82 @@ function App() {
       <ActionParameterDetailsModal
         detail={parameterDetail}
         onClose={handleCloseActionParameterDetail}
+      />
+
+      <DynamicFlowNodeModal
+        isOpen={dynamicFlowNodeState.isOpen}
+        node={
+          dynamicFlowNodeState.level && dynamicFlowNodeState.nodeId
+            ? graphs[dynamicFlowNodeState.level].nodes.find(
+                (n) => n.id === dynamicFlowNodeState.nodeId
+              ) ?? null
+            : null
+        }
+        nodes={
+          dynamicFlowNodeState.level
+            ? graphs[dynamicFlowNodeState.level].nodes
+            : []
+        }
+        connections={
+          dynamicFlowNodeState.level
+            ? graphs[dynamicFlowNodeState.level].connections.map((c) => ({
+                sourceNodeId: c.sourceNodeId,
+                targetNodeId: c.targetNodeId,
+              }))
+            : []
+        }
+        draft={dynamicFlowNodeState.draft}
+        onChangeDraft={(patch) => {
+          setDynamicFlowNodeState((prev) =>
+            prev.draft
+              ? {
+                  ...prev,
+                  draft: {
+                    ...prev.draft,
+                    ...patch,
+                  },
+                }
+              : prev
+          );
+        }}
+        onClose={closeDynamicFlowNodeModal}
+        onSave={() => {
+          if (!dynamicFlowNodeState.level || !dynamicFlowNodeState.nodeId || !dynamicFlowNodeState.draft) {
+            closeDynamicFlowNodeModal();
+            return;
+          }
+
+          const level = dynamicFlowNodeState.level;
+          const nodeId = dynamicFlowNodeState.nodeId;
+          const draft = dynamicFlowNodeState.draft;
+
+          setGraphs((prev) => {
+            const graph = prev[level];
+            const index = graph.nodes.findIndex((n) => n.id === nodeId);
+            if (index === -1) {
+              return prev;
+            }
+
+            const nextNodes = [...graph.nodes];
+            nextNodes[index] = {
+              ...nextNodes[index],
+              successType: draft.successType,
+              childType: draft.childType,
+              nodeGraphName: draft.nodeGraphName,
+              temporalRelations: draft.temporalRelations,
+            };
+
+            return {
+              ...prev,
+              [level]: {
+                ...graph,
+                nodes: nextNodes,
+              },
+            };
+          });
+
+          closeDynamicFlowNodeModal();
+        }}
       />
     </>
   );

@@ -96,7 +96,7 @@ export default function BtNodeWizardModal({
               >
                 <span className="wizard-card-title">Decorator Node</span>
                 <span className="wizard-card-copy">
-                  Wrap a single child node to extend or modify its runtime behavior.
+                  Attach a decorator to a flow/action node to modify its runtime behavior.
                 </span>
               </button>
               <button
@@ -106,7 +106,7 @@ export default function BtNodeWizardModal({
               >
                 <span className="wizard-card-title">Service Node</span>
                 <span className="wizard-card-copy">
-                  Attach background logic such as sensors or blackboard updates to a branch.
+                  Attach a service to a flow/action node to run background logic while that node is active.
                 </span>
               </button>
             </div>

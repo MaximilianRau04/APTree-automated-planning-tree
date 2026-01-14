@@ -23,10 +23,21 @@ export interface CanvasNode {
   height?: number;
   isNegated?: boolean;
   successType?: FlowSuccessType;
+  childType?: "ALLACTION" | "ALLFLOW";
+  nodeGraphName?: string;
+  temporalRelations?: DynamicTemporalRelation[];
   preconditions?: PredicateInstance[];
   effects?: PredicateInstance[];
   typeId?: string;
   hierarchyLevel?: number;
+}
+
+export type TemporalType = "MEETS" | "BEFORE" | "AFTER" | "OVERLAPS" | "DURING";
+
+export interface DynamicTemporalRelation {
+  fromNodeId: string;
+  toNodeId: string;
+  temporalType: TemporalType;
 }
 
 export const DEFAULT_CANVAS_NODE_WIDTH = 240;
@@ -64,6 +75,8 @@ export interface EditorCanvasProps {
   nodes: CanvasNode[];
   connections?: NodeConnection[];
   separators?: HierarchySeparator[];
+  /** Root node ids per hierarchy level (1..n), used for rendering root badges. */
+  rootNodeIdsByHierarchyLevel?: Record<number, string | null | undefined>;
   onDropNode: (
     item: DraggedSidebarItem,
     position: { x: number; y: number }
@@ -81,6 +94,8 @@ export interface EditorCanvasProps {
   ) => void;
   onRemoveNode?: (nodeId: string) => void;
   onEditNode?: (nodeId: string) => void;
+  /** Marks the given node as root for its hierarchy level (or active level fallback). */
+  onSetRootNode?: (nodeId: string, hierarchyLevel?: number) => void;
   onAddConnection?: (
     sourceNodeId: string,
     targetNodeId: string,

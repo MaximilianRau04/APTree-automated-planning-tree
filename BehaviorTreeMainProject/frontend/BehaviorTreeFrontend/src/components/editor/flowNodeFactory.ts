@@ -47,5 +47,12 @@ export function createBehaviorNode({
     width: DEFAULT_CANVAS_NODE_WIDTH,
     height: DEFAULT_CANVAS_NODE_HEIGHT,
     successType,
+    ...(option.id === "dynamic-flow-node"
+      ? {
+          childType: "ALLACTION" as const,
+          nodeGraphName: `${option.label.replace(/\s+/g, "")}Graph`,
+          temporalRelations: [],
+        }
+      : null),
   };
 }
