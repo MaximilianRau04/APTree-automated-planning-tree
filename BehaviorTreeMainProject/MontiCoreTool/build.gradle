@@ -24,6 +24,14 @@ generateMCGrammars {
   // Reasonable defaults are used, further details: https://monticore.github.io/monticore/docs/Gradle/
 }
 
+// Configure source sets to include MontiCore 7.8.0+ generated sources
+sourceSets {
+  main {
+    java {
+      srcDir 'target/generated-sources/monticore/sourcecode'
+    }
+  }
+}
 
 java {
   // Configure the java toolchain to use Java 11 (overriding the locally installed JDK)
