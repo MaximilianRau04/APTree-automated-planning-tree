@@ -4,7 +4,6 @@ BehaviorTree APTree {
         ALLFLOW 
         Nodegraph firstgraph {    
             FlowNode plateseq {
-                Service mypddlplanner1
                 ALL
                 ALLACTION
                 Nodegraph mypddlplanner1result {
@@ -15,7 +14,6 @@ BehaviorTree APTree {
                 }
             } 
             FlowNode bemasseq {
-                Service mypddlplanner1
                 ANY
                 ALLACTION
                 Nodegraph secondnodegraph{

@@ -104,6 +104,8 @@ publishing {
 
 tasks.withType(JavaCompile) {
   options.encoding = 'UTF-8'
+  options.incremental = true
+  outputs.cacheIf { true }
 }
 
 test {
@@ -221,11 +223,11 @@ task runDynamicFlowNodeParser(type: JavaExec) {
     workingDir = projectDir
 }
 
-task runAPTreeParser(type: JavaExec) {
+task runAPTreeTool(type: JavaExec) {
     description = 'Parses and analyzes the APTree behavior tree model'
     dependsOn 'compileJava'
     classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'APTreeParserTest'
+    mainClass = 'APTreeTool'
     workingDir = projectDir
 }
 

@@ -13,8 +13,8 @@ symbol Robot extends Agent = "Robot" name:Name "(" id:NUMBER ")";
 
 
 // === GENERATED PREDICATE RULES (DO NOT EDIT BELOW) ===
-Holding extends Predicate = "Holding" name:Name? "(" item:Name@Element agent:Name@Agent ")";
-AtPlace extends Predicate = "AtPlace" name:Name? "(" item:Name@Element loc:Name@Location ")";
+Holding extends Predicate = "Holding" name:Name "(" item:Name@Element agent:Name@Agent ")";
+AtPlace extends Predicate = "AtPlace" name:Name "(" item:Name@Element loc:Name@Location ")";
 // === END GENERATED PREDICATE RULES ===
 
 
