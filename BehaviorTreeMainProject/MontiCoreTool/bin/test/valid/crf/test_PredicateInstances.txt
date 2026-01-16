@@ -1,4 +1,0 @@
-//predicate instances
-
-PredicateInstance: isAt(myObject = b1, location = fp1)
-PredicateInstance: hasTool(agent = r1, tool = vg1)
