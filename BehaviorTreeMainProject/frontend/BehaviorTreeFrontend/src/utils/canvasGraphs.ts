@@ -1,4 +1,5 @@
 import type { CanvasNode, NodeConnection } from "../components/editor/types";
+import { GRAMMAR_CONSTRAINTS, TEMPORAL_TYPES as GRAMMAR_TEMPORAL_TYPES } from "../generated/aptreeGrammar";
 
 export type CanvasLevel = "high" | "mid" | "low";
 
@@ -181,7 +182,7 @@ export function parseCanvasGraphImport(text: string): ParseResult {
           };
         }
 
-        if (node.sourceId === "dynamic-flow-node") {
+        if (GRAMMAR_CONSTRAINTS.rootNode.sourceId && node.sourceId === GRAMMAR_CONSTRAINTS.rootNode.sourceId) {
           const childType = node.childType === "ALLACTION" || node.childType === "ALLFLOW"
             ? node.childType
             : "ALLACTION";
@@ -189,7 +190,7 @@ export function parseCanvasGraphImport(text: string): ParseResult {
             ? node.nodeGraphName
             : `${(node.name ?? "Dynamic").replace(/\s+/g, "")}Graph`;
 
-          const allowedTemporalTypes = new Set(["MEETS", "BEFORE", "AFTER", "OVERLAPS", "DURING"]);
+          const allowedTemporalTypes = new Set<string>(GRAMMAR_TEMPORAL_TYPES);
           const temporalRelations = Array.isArray(node.temporalRelations)
             ? node.temporalRelations.filter((entry) => {
                 if (!entry || typeof entry !== "object") {
@@ -235,7 +236,7 @@ export function parseCanvasGraphImport(text: string): ParseResult {
     {} as Record<CanvasLevel, CanvasGraph>
   );
 
-  // Validate root node references (must exist and be a DynamicFlowNode).
+  // Validate root node references (must exist and match grammar constraints).
   (Object.keys(migratedGraphs) as CanvasLevel[]).forEach((level) => {
     const graph = migratedGraphs[level];
     if (!graph.rootNodeId) {
@@ -251,9 +252,12 @@ export function parseCanvasGraphImport(text: string): ParseResult {
       return;
     }
 
-    if (root.category !== "flowNodes" || root.sourceId !== "dynamic-flow-node") {
+    const rootCategory = GRAMMAR_CONSTRAINTS.rootNode.category;
+    const rootSourceId = GRAMMAR_CONSTRAINTS.rootNode.sourceId;
+
+    if (root.category !== rootCategory || (rootSourceId ? root.sourceId !== rootSourceId : false)) {
       migrationNotices.push(
-        `Root node for ${level} must be a Dynamic Flow Node (DynamicBTFlowNode.mc4); clearing root selection.`
+        `Root node for ${level} did not match generated grammar constraints; clearing root selection.`
       );
       graph.rootNodeId = null;
     }

@@ -4,7 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "npm run gen:grammar",
     "dev": "vite",
+    "gen:grammar": "node ./scripts/gen-grammar.mjs",
+    "prebuild": "npm run gen:grammar",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "format": "eslint . --fix",

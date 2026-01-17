@@ -8,6 +8,7 @@ import {
   FLOW_NODES_KEY,
   SERVICE_NODES_KEY,
 } from "../sidebar/utils/constants";
+import { GRAMMAR_CONSTRAINTS } from "../../generated/aptreeGrammar";
 
 /** maps sidebar option kind to the target sidebar category stored on the node. */
 const categoryByKind = {
@@ -47,7 +48,8 @@ export function createBehaviorNode({
     width: DEFAULT_CANVAS_NODE_WIDTH,
     height: DEFAULT_CANVAS_NODE_HEIGHT,
     successType,
-    ...(option.id === "dynamic-flow-node"
+    ...(GRAMMAR_CONSTRAINTS.rootNode.sourceId &&
+    option.id === GRAMMAR_CONSTRAINTS.rootNode.sourceId
       ? {
           childType: "ALLACTION" as const,
           nodeGraphName: `${option.label.replace(/\s+/g, "")}Graph`,

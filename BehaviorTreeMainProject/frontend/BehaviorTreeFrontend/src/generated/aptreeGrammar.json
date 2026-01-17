@@ -1,0 +1,35 @@
+{
+  "generatedAt": "2026-01-17T17:47:01.756Z",
+  "source": "../../MontiCoreTool/src/main/grammars/DynamicBTFlowNode.mc4",
+  "enums": {
+    "SuccessCriteria": [
+      "ALL",
+      "ANY",
+      "COUNT",
+      "PERCENTAGE",
+      "SIGNAL"
+    ],
+    "TemporalType": [
+      "MEETS",
+      "BEFORE",
+      "AFTER",
+      "OVERLAPS",
+      "DURING"
+    ],
+    "ChildType": [
+      "ALLACTION",
+      "ALLFLOW"
+    ]
+  },
+  "constraints": {
+    "behaviorTreeRootNonterminal": "DynamicFlowNode",
+    "rootNode": {
+      "category": "flowNodes",
+      "sourceId": "dynamic-flow-node"
+    },
+    "nodeGraph": {
+      "graphNodeKeyword": "action",
+      "relationNodeKind": "action"
+    }
+  }
+}

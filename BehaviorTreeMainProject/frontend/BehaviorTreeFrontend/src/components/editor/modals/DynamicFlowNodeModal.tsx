@@ -5,14 +5,7 @@ import type {
   TemporalType,
 } from "../types";
 import { FLOW_SUCCESS_TYPES, type FlowSuccessType } from "../../sidebar/utils/types";
-
-const TEMPORAL_TYPES: TemporalType[] = [
-  "MEETS",
-  "BEFORE",
-  "AFTER",
-  "OVERLAPS",
-  "DURING",
-];
+import { GRAMMAR_CONSTRAINTS, TEMPORAL_TYPES } from "../../../generated/aptreeGrammar";
 
 interface DynamicFlowNodeModalProps {
   isOpen: boolean;
@@ -69,9 +62,13 @@ export default function DynamicFlowNodeModal({
       .filter((entry) => !isAttachmentNode(entry));
   }, [connections, node, nodes]);
 
-  // DynamicBTFlowNode.mc4 NodeGraph uses explicit "action" graph nodes.
-  // Therefore we only allow temporal relations between Action children.
-  const relationNodes = useMemo(() => children.filter(isActionNode), [children]);
+  // Only restrict relation endpoints if the grammar says NodeGraph uses action nodes.
+  const relationNodes = useMemo(() => {
+    if (GRAMMAR_CONSTRAINTS.nodeGraph.relationNodeKind === "action") {
+      return children.filter(isActionNode);
+    }
+    return children;
+  }, [children]);
 
   const childOptions = useMemo(
     () => relationNodes.map((c) => ({ id: c.id, label: c.name })),
@@ -120,7 +117,7 @@ export default function DynamicFlowNodeModal({
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content type-modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>Dynamic Flow Node</h3>
+          <h3>{`Root Node (${GRAMMAR_CONSTRAINTS.behaviorTreeRootNonterminal})`}</h3>
           <button className="modal-close-btn" onClick={onClose}>
             &times;
           </button>
@@ -205,7 +202,9 @@ export default function DynamicFlowNodeModal({
             <label className="modal-label">Temporal Relations (NodeGraph)</label>
             {childOptions.length === 0 ? (
               <p className="category-modal-text">
-                Add action children (connect actions from this Dynamic Flow Node) to create relations.
+                {GRAMMAR_CONSTRAINTS.nodeGraph.relationNodeKind === "action"
+                  ? "Add action children (connect actions from this node) to create relations."
+                  : "Add child nodes (connect from this node) to create relations."}
               </p>
             ) : (
               <>

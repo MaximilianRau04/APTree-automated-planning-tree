@@ -221,6 +221,14 @@ task runDynamicFlowNodeParser(type: JavaExec) {
     workingDir = projectDir
 }
 
+// Generates frontend TS constants/types from MontiCore grammars.
+task generateFrontendGrammarArtifacts(type: JavaExec) {
+  dependsOn 'compileJava'
+  classpath = sourceSets.main.runtimeClasspath
+  mainClass = 'FrontendGrammarSyncGenerator'
+  workingDir = projectDir
+}
+
 task runAPTreeParser(type: JavaExec) {
     description = 'Parses and analyzes the APTree behavior tree model'
     dependsOn 'compileJava'

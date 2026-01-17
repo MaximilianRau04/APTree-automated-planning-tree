@@ -51,6 +51,7 @@ import {
   SERVICE_NODES_KEY,
 } from "../sidebar/utils/constants";
 import "./EditorCanvas.css";
+import { GRAMMAR_CONSTRAINTS } from "../../generated/aptreeGrammar";
 
 type EditorCanvasProps = BaseEditorCanvasProps & {
   separators?: HierarchySeparator[];
@@ -305,7 +306,7 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
     nodeClasses.push("canvas-node-action");
   }
 
-  if (node.sourceId === "dynamic-flow-node") {
+  if (GRAMMAR_CONSTRAINTS.rootNode.sourceId && node.sourceId === GRAMMAR_CONSTRAINTS.rootNode.sourceId) {
     nodeClasses.push("canvas-node-dynamic");
   }
 
@@ -447,7 +448,7 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
         </div>
       ) : null}
 
-      {isFlowNode && node.sourceId === "dynamic-flow-node" ? (
+      {isFlowNode && (GRAMMAR_CONSTRAINTS.rootNode.sourceId ? node.sourceId === GRAMMAR_CONSTRAINTS.rootNode.sourceId : true) ? (
         <>
           <button
             type="button"
@@ -463,13 +464,13 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
             }}
             title={
               data.isRoot
-                ? "Unset root dynamic flow node"
-                : "Set as root dynamic flow node"
+                ? "Unset root node"
+                : "Set as root node"
             }
             aria-label={
               data.isRoot
-                ? "Unset root dynamic flow node"
-                : "Set as root dynamic flow node"
+                ? "Unset root node"
+                : "Set as root node"
             }
           >
             <svg
@@ -492,7 +493,7 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
         </>
       ) : null}
 
-      {isFlowNode && node.sourceId === "dynamic-flow-node" ? (
+      {isFlowNode && GRAMMAR_CONSTRAINTS.rootNode.sourceId && node.sourceId === GRAMMAR_CONSTRAINTS.rootNode.sourceId ? (
         <span className="canvas-node-meta">
           ChildType: {node.childType ?? "ALLACTION"}
         </span>
@@ -936,7 +937,9 @@ function EditorCanvasInner(props: EditorCanvasProps) {
         isDecorator(node) || isService(node);
       const isAttachableHost = (node: CanvasNode) => isFlow(node) || isAction(node);
       const isDynamicFlowNode = (node: CanvasNode) =>
-        isFlow(node) && node.sourceId === "dynamic-flow-node";
+        isFlow(node) &&
+        Boolean(GRAMMAR_CONSTRAINTS.rootNode.sourceId) &&
+        node.sourceId === GRAMMAR_CONSTRAINTS.rootNode.sourceId;
 
       if (!sourceNode || !targetNode) {
         return;

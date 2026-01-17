@@ -38,6 +38,7 @@ import type {
 import { PREDICATE_TYPE_CATALOG } from "./constants/predicateCatalog";
 import { PREDICATE_INSTANCES_KEY } from "./components/sidebar/utils/constants";
 import { useThemePreference } from "./hooks/useThemePreference";
+import { GRAMMAR_CONSTRAINTS } from "./generated/aptreeGrammar";
 import {
   createEmptyGraphs,
   HIERARCHY_TO_LEVEL,
@@ -414,6 +415,10 @@ function App() {
    * handles exporting the current canvas graphs to a JSON file.
    */
   const handleExportCanvasGraph = useCallback(() => {
+    const rootCategory = GRAMMAR_CONSTRAINTS.rootNode.category;
+    const rootSourceId = GRAMMAR_CONSTRAINTS.rootNode.sourceId;
+    const relationNodeKind = GRAMMAR_CONSTRAINTS.nodeGraph.relationNodeKind;
+
     const graphsToValidate = Object.entries(graphs) as Array<
       [CanvasLevel, CanvasGraph]
     >;
@@ -426,26 +431,39 @@ function App() {
       const rootId = graph.rootNodeId ?? null;
       const root = rootId ? graph.nodes.find((n) => n.id === rootId) : null;
 
-      if (!rootId || !root || root.category !== "flowNodes" || root.sourceId !== "dynamic-flow-node") {
+      const isValidRoot =
+        Boolean(rootId) &&
+        Boolean(root) &&
+        root?.category === rootCategory &&
+        (rootSourceId ? root?.sourceId === rootSourceId : true);
+
+      if (!isValidRoot) {
         window.alert(
-          `Export blocked: Graph '${level}' must have a Dynamic Flow Node root (DynamicBTFlowNode.mc4). Use the crown icon on a Dynamic Flow Node.`
+          `Export blocked: Graph '${level}' must have a valid root node (generated from grammar: ${GRAMMAR_CONSTRAINTS.behaviorTreeRootNonterminal}).`
         );
         return;
       }
 
-      const dynamicFlowNodes = graph.nodes.filter(
-        (n) => n.category === "flowNodes" && n.sourceId === "dynamic-flow-node"
+      // NodeGraph constraints apply to nodes following the grammar root node type.
+      const nodeGraphHosts = graph.nodes.filter(
+        (n) => n.category === rootCategory && (rootSourceId ? n.sourceId === rootSourceId : true)
       );
       const byId = new Map(graph.nodes.map((n) => [n.id, n] as const));
       const isAttachment = (n: (typeof graph.nodes)[number]) =>
         n.category === "decorators" || n.category === "services";
       const isAction = (n: (typeof graph.nodes)[number]) =>
         n.kind === "actionType" || n.kind === "actionInstance";
+      const isRelationNode = (n: (typeof graph.nodes)[number]) => {
+        if (relationNodeKind === "action") {
+          return isAction(n);
+        }
+        return true;
+      };
 
-      for (const node of dynamicFlowNodes) {
+      for (const node of nodeGraphHosts) {
         if (!node.nodeGraphName || !node.nodeGraphName.trim()) {
           window.alert(
-            `Export blocked: Dynamic Flow Node '${node.name}' in graph '${level}' is missing Nodegraph Name.`
+            `Export blocked: Node '${node.name}' in graph '${level}' is missing Nodegraph Name.`
           );
           return;
         }
@@ -459,20 +477,20 @@ function App() {
           .filter((entry): entry is (typeof graph.nodes)[number] => Boolean(entry))
           .filter((entry) => !isAttachment(entry));
 
-        const actionChildIdSet = new Set(
-          children.filter(isAction).map((child) => child.id)
+        const allowedRelationChildIdSet = new Set(
+          children.filter(isRelationNode).map((child) => child.id)
         );
 
         const relations = node.temporalRelations ?? [];
         const hasInvalidRelation = relations.some(
           (rel) =>
-            !actionChildIdSet.has(rel.fromNodeId) ||
-            !actionChildIdSet.has(rel.toNodeId)
+            !allowedRelationChildIdSet.has(rel.fromNodeId) ||
+            !allowedRelationChildIdSet.has(rel.toNodeId)
         );
 
         if (hasInvalidRelation) {
           window.alert(
-            `Export blocked: Dynamic Flow Node '${node.name}' in graph '${level}' has temporal relations that reference non-action children. (DynamicBTFlowNode.mc4: Nodegraph uses 'action' graph nodes.)`
+            `Export blocked: Node '${node.name}' in graph '${level}' has temporal relations that reference invalid children (per generated grammar constraints).`
           );
           return;
         }
@@ -542,12 +560,17 @@ function App() {
       setGraphs((prev) => {
         const graph = prev[level];
         const candidate = graph.nodes.find((n) => n.id === nodeId);
+        const rootCategory = GRAMMAR_CONSTRAINTS.rootNode.category;
+        const rootSourceId = GRAMMAR_CONSTRAINTS.rootNode.sourceId;
+
         if (
           !candidate ||
-          candidate.category !== "flowNodes" ||
-          candidate.sourceId !== "dynamic-flow-node"
+          candidate.category !== rootCategory ||
+          (rootSourceId ? candidate.sourceId !== rootSourceId : false)
         ) {
-          window.alert("Root must be a Dynamic Flow Node (DynamicBTFlowNode.mc4).");
+          window.alert(
+            `Root must match the grammar root node (generated: ${GRAMMAR_CONSTRAINTS.behaviorTreeRootNonterminal}).`
+          );
           return prev;
         }
 
@@ -589,7 +612,8 @@ function App() {
 
       const node = located.node;
 
-      if (node.sourceId === "dynamic-flow-node") {
+      const rootSourceId = GRAMMAR_CONSTRAINTS.rootNode.sourceId;
+      if (rootSourceId && node.sourceId === rootSourceId) {
         setDynamicFlowNodeState({
           isOpen: true,
           level: located.level,
@@ -641,8 +665,9 @@ function App() {
           setGraphs((prev) => {
             const graph = prev[activeLevel];
             const created = createBehaviorNode({ option, position });
+            const rootSourceId = GRAMMAR_CONSTRAINTS.rootNode.sourceId;
             const nextRootNodeId =
-              option.id === "dynamic-flow-node" && !graph.rootNodeId
+              rootSourceId && option.id === rootSourceId && !graph.rootNodeId
                 ? created.id
                 : graph.rootNodeId;
             return {
@@ -660,7 +685,11 @@ function App() {
 
       setGraphs((prev) => {
         const graph = prev[activeLevel];
-        const isDynamicFlowNode = item.category === "flowNodes" && item.id === "dynamic-flow-node";
+        const rootSourceId = GRAMMAR_CONSTRAINTS.rootNode.sourceId;
+        const isDynamicFlowNode =
+          item.category === "flowNodes" &&
+          Boolean(rootSourceId) &&
+          item.id === rootSourceId;
         const nextNodeGraphName = isDynamicFlowNode
           ? `${item.name.replace(/\s+/g, "")}Graph`
           : undefined;

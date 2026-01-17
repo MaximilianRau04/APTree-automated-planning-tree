@@ -8,93 +8,29 @@ import type {
   ServiceNodeOption,
   StructuredItem,
 } from "./types";
+import {
+  GENERATED_ACTION_TYPES,
+  GENERATED_DECORATOR_NODE_OPTIONS,
+  GENERATED_FLOW_NODE_OPTIONS,
+  GENERATED_PREDICATE_TYPES,
+  GENERATED_SERVICE_NODE_OPTIONS,
+} from "../../../generated/sidebarTemplates";
+import {
+  GENERATED_DRAGGABLE_NODE_CATEGORIES,
+  GENERATED_SIDEBAR_CATEGORY_DEFINITIONS,
+} from "../../../generated/sidebarCategories";
 
 /** canonical flow-node definitions displayed in the BT node wizard. */
-export const FLOW_NODE_OPTIONS: FlowNodeOption[] = [
-  {
-    id: "sequence",
-    label: "Sequence",
-    typeLabel: "Flow Node",
-    description:
-      "Execute children in order and fail on the first child that fails.",
-    kind: "flow",
-    defaultSuccessType: "ALL",
-  },
-  {
-    id: "fallback",
-    label: "Fallback",
-    typeLabel: "Flow Node",
-    description:
-      "Pick the first child that succeeds, falling back to the next on failure.",
-    kind: "flow",
-    defaultSuccessType: "ANY",
-  },
-  {
-    id: "dynamic-flow-node",
-    label: "Dynamic Flow Node",
-    typeLabel: "Flow Node",
-    description:
-      "Dynamic FlowNode with SuccessCriteria/ChildType/NodeGraph semantics.",
-    kind: "flow",
-    defaultSuccessType: "ALL",
-  },
-];
+export const FLOW_NODE_OPTIONS: FlowNodeOption[] =
+  GENERATED_FLOW_NODE_OPTIONS as unknown as FlowNodeOption[];
 
 /** canonical decorator-node definitions made available to users. */
-export const DECORATOR_NODE_OPTIONS: DecoratorNodeOption[] = [
-  {
-    id: "inverter",
-    label: "Inverter",
-    typeLabel: "Decorator",
-    description:
-      "Flip the child node result from success to failure and vice versa.",
-    kind: "decorator",
-  },
-  {
-    id: "repeat-until-success",
-    label: "Repeat Until Success",
-    typeLabel: "Decorator",
-    description:
-      "Retry the child node until it succeeds or reaches a retry limit.",
-    kind: "decorator",
-  },
-  {
-    id: "cooldown",
-    label: "Cooldown",
-    typeLabel: "Decorator",
-    description:
-      "Ensure the child node executes only after a specified cooldown period.",
-    kind: "decorator",
-  },
-];
+export const DECORATOR_NODE_OPTIONS: DecoratorNodeOption[] =
+  GENERATED_DECORATOR_NODE_OPTIONS as unknown as DecoratorNodeOption[];
 
 /** canonical service-node definitions exposed in the sidebar. */
-export const SERVICE_NODE_OPTIONS: ServiceNodeOption[] = [
-  {
-    id: "sensing-service",
-    label: "Sensing Service",
-    typeLabel: "Service",
-    description:
-      "Run periodic sensor checks alongside the behavior tree branch.",
-    kind: "service",
-  },
-  {
-    id: "blackboard-sync",
-    label: "Blackboard Sync",
-    typeLabel: "Service",
-    description:
-      "Continuously synchronize key values into the blackboard while active.",
-    kind: "service",
-  },
-  {
-    id: "planning-service",
-    label: "Planning Service",
-    typeLabel: "Service",
-    description:
-      "Grammar service for planning integration (e.g., PDDL planner).",
-    kind: "service",
-  },
-];
+export const SERVICE_NODE_OPTIONS: ServiceNodeOption[] =
+  GENERATED_SERVICE_NODE_OPTIONS as unknown as ServiceNodeOption[];
 
 /** combined behavior-node catalog leveraged by the sidebar and canvas. */
 export const BEHAVIOR_NODE_OPTIONS: BehaviorNodeOption[] = [
@@ -126,55 +62,23 @@ const mapBehaviorOptionToItem = (
  * central configuration describing each sidebar category including labels and defaults.
  * @returns ordered category configuration list consumed across the sidebar
  */
-export const CATEGORY_CONFIG: CategoryConfig[] = [
-  {
-    key: BLACKBOARD_KEY,
-    title: "Blackboard",
-    addLabel: "Add Variable",
-    defaultItems: [
-      { id: "variable-health", name: "health", type: "Integer" },
-      { id: "variable-target", name: "target", type: "Agent" },
-    ],
-  },
-  {
-    key: BT_NODES_KEY,
-    title: "Behavior Tree Nodes",
-    addLabel: "Add Behavior Node",
-  },
-  {
-    key: DECORATOR_NODES_KEY,
-    title: "Decorator Templates",
-    addLabel: "Add Decorator",
-    defaultItems: DECORATOR_NODE_OPTIONS.map(mapBehaviorOptionToItem),
-  },
-  {
-    key: SERVICE_NODES_KEY,
-    title: "Service Templates",
-    addLabel: "Add Service",
-    defaultItems: SERVICE_NODE_OPTIONS.map(mapBehaviorOptionToItem),
-  },
-  {
-    key: "paramTypes",
-    title: "Parameter Types",
-    addLabel: "Add Parameter Type",
-  },
-  {
-    key: "paramInstances",
-    title: "Parameter Instances",
-    addLabel: "Add Parameter Instance",
-  },
-  {
-    key: "predTypes",
-    title: "Predicate Types",
-    addLabel: "Add Predicate Type",
-  },
-  {
-    key: "predInstances",
-    title: "Predicate Instances",
-    addLabel: "Add Predicate Instance",
-  },
-  { key: "actions", title: "Action Types", addLabel: "Add Action Type" },
-];
+const DEFAULT_ITEMS_BY_CATEGORY: Partial<Record<DataCategory, StructuredItem[]>> = {
+  [DECORATOR_NODES_KEY]: DECORATOR_NODE_OPTIONS.map(mapBehaviorOptionToItem),
+  [SERVICE_NODES_KEY]: SERVICE_NODE_OPTIONS.map(mapBehaviorOptionToItem),
+  predTypes: GENERATED_PREDICATE_TYPES as unknown as StructuredItem[],
+  actions: GENERATED_ACTION_TYPES as unknown as StructuredItem[],
+};
+
+export const CATEGORY_CONFIG: CategoryConfig[] =
+  GENERATED_SIDEBAR_CATEGORY_DEFINITIONS.map((definition) => {
+    const defaultItems = DEFAULT_ITEMS_BY_CATEGORY[definition.key];
+    return {
+      key: definition.key,
+      title: definition.title,
+      addLabel: definition.addLabel,
+      ...(defaultItems ? { defaultItems } : {}),
+    };
+  });
 
 /**
  * provides default data entries mapped by category, cloning template defaults where available.
@@ -226,6 +130,5 @@ export const PREDICATE_INSTANCES_KEY: DataCategory = "predInstances";
 export const ACTION_TYPES_KEY: DataCategory = "actions";
 export const ACTION_INSTANCES_KEY: DataCategory = "actionInstances";
 export const FLOW_NODES_KEY: DataCategory = "flowNodes";
-export const DRAGGABLE_NODE_CATEGORIES: readonly DataCategory[] = [
-  ACTION_INSTANCES_KEY,
-];
+export const DRAGGABLE_NODE_CATEGORIES: readonly DataCategory[] =
+  GENERATED_DRAGGABLE_NODE_CATEGORIES as unknown as DataCategory[];
