@@ -1,5 +1,6 @@
 import dynamicbtflownode._parser.DynamicBTFlowNodeParser;
 import dynamicbtflownode._ast.ASTDynamicFlowNode;
+import dynamicbtflownode._ast.ASTGraphNode;
 import dynamicbtflownode._ast.ASTNodeGraph;
 import dynamicbtflownode._ast.ASTRelation;
 import dynamicbtflownode.DynamicBTFlowNodeMill;
@@ -92,25 +93,18 @@ public class DynamicFlowNodeParserTest {
         ASTNodeGraph nodeGraph = flowNode.getNodeGraph();
         System.out.println("\n--- NODE GRAPH: " + nodeGraph.getName() + " ---");
         
-        // Display BTNodes in the graph
-        System.out.println("\n  Nodes:");
-        List<ASTBTNode> nodes = nodeGraph.getBTNodeList();
-        if (nodes.isEmpty()) {
-            System.out.println("    (none)");
-        } else {
-            for (ASTBTNode node : nodes) {
-                System.out.println("    - " + node.getName() + " (" + node.getClass().getSimpleName() + ")");
-            }
-        }
+        // Display Nodes AND Relations in the graph
+        System.out.println("\n  Nodes & Relations:");
+        List<ASTGraphNode> graphNodes = nodeGraph.getNodesList();
         
-        // Display relations
-        System.out.println("\n  Relations:");
-        List<ASTRelation> relations = nodeGraph.getRelationList();
-        if (relations.isEmpty()) {
-            System.out.println("    (none)");
+        if (graphNodes.isEmpty()) {
+             System.out.println("    (none)");
         } else {
-            for (ASTRelation rel : relations) {
-                System.out.println("    - " + rel.getSource() + " --[" + rel.getTemptype().name() + "]--> " + rel.getTarget());
+            for (ASTGraphNode gNode : graphNodes) {
+                System.out.println("    - Node: " + gNode.getNode().getName());
+                for (ASTRelation rel : gNode.getSuccessorsList()) {
+                    System.out.println("      -> Relation: [" + rel.getTemptype().name() + "] --> " + rel.getTarget());
+                }
             }
         }
         

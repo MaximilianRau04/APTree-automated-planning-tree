@@ -979,7 +979,7 @@ namespace BehaviorTreeMainProject
         /// </summary>
         private BTFlowNode_Dynamic CreateFFSubtree(SubtreeConfiguration config, string instanceName, Dictionary<string, object> customParameters)
         {
-            var subtreeTree = new BTInstance();
+            var subtreeTree = new BehaviorTree();
             subtreeTree.Initialise(LinkedBlackboard, $"{config.Name}_Subtree_{instanceName}");
 
             var dynamicFlowNode = new BTFlowNode_Dynamic(
@@ -1021,7 +1021,7 @@ namespace BehaviorTreeMainProject
         /// </summary>
         private BTFlowNode_Dynamic CreateENHSPSubtree(SubtreeConfiguration config, string instanceName, Dictionary<string, object> customParameters)
         {
-            var subtreeTree = new BTInstance();
+            var subtreeTree = new BehaviorTree();
             subtreeTree.Initialise(LinkedBlackboard, $"{config.Name}_Subtree_{instanceName}");
 
             var dynamicFlowNode = new BTFlowNode_Dynamic(
@@ -1062,7 +1062,7 @@ namespace BehaviorTreeMainProject
         /// </summary>
         private BTFlowNode_Dynamic CreateLamaFirstSubtree(SubtreeConfiguration config, string instanceName, Dictionary<string, object> customParameters)
         {
-            var subtreeTree = new BTInstance();
+            var subtreeTree = new BehaviorTree();
             subtreeTree.Initialise(LinkedBlackboard, $"{config.Name}_Subtree_{instanceName}");
 
             var dynamicFlowNode = new BTFlowNode_Dynamic(
@@ -1104,7 +1104,7 @@ namespace BehaviorTreeMainProject
         /// </summary>
         private BTFlowNode_Dynamic CreateGOAPSubtree(SubtreeConfiguration config, string instanceName, Dictionary<string, object> customParameters)
         {
-            var subtreeTree = new BTInstance();
+            var subtreeTree = new BehaviorTree();
             subtreeTree.Initialise(LinkedBlackboard, $"{config.Name}_Subtree_{instanceName}");
 
             var dynamicFlowNode = new BTFlowNode_Dynamic(
@@ -1198,7 +1198,7 @@ namespace BehaviorTreeMainProject
         /// </summary>
         private BTFlowNode_Dynamic CreateStateChartSubtree(SubtreeConfiguration config, string instanceName, Dictionary<string, object> customParameters)
         {
-            var subtreeTree = new BTInstance();
+            var subtreeTree = new BehaviorTree();
             subtreeTree.Initialise(LinkedBlackboard, $"{config.Name}_Subtree_{instanceName}");
 
             var dynamicFlowNode = new BTFlowNode_Dynamic(

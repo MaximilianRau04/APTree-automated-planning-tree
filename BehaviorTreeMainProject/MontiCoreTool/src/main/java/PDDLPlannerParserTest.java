@@ -66,9 +66,9 @@ public class PDDLPlannerParserTest {
         System.out.println("PDDL PLANNER SERVICE");
         System.out.println("========================================\n");
         
-        System.out.println("Domain:  " + plannerService.getDomain());
-        System.out.println("Problem: " + plannerService.getProblem());
-        System.out.println("Planner: " + plannerService.getPlanner());
+        System.out.println("Planner Name: " + plannerService.getPlanner());
+        // Domain and problem are properties of the resolved PDDLPlanner symbol, 
+        // which requires symbol table resolution not available in this simple print.
         
         System.out.println("\n========================================");
     }

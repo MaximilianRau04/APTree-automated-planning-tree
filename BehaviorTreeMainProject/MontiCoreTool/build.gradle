@@ -24,6 +24,14 @@ generateMCGrammars {
   // Reasonable defaults are used, further details: https://monticore.github.io/monticore/docs/Gradle/
 }
 
+// Configure source sets to include MontiCore 7.8.0+ generated sources
+sourceSets {
+  main {
+    java {
+      srcDir 'target/generated-sources/monticore/sourcecode'
+    }
+  }
+}
 
 java {
   // Configure the java toolchain to use Java 11 (overriding the locally installed JDK)
@@ -59,9 +67,9 @@ repositories {
     mavenLocal()
   }
   maven {
-    credentials.username mavenUser
-    credentials.password mavenPassword
-    url repo
+    credentials.username = mavenUser
+    credentials.password = mavenPassword
+    url = repo
   }
 }
 
@@ -73,7 +81,7 @@ java {
 sourcesJar.dependsOn project.collect { it.tasks.withType(MCGenTask) }
 
 // generated java doc contains errors, disable for now
-javadoc.failOnError(false)
+javadoc.failOnError = false
 
 shadowJar { // all in one jar
   manifest {
@@ -94,8 +102,8 @@ publishing {
     }
   }
   repositories.maven {
-    credentials.username mavenUser
-    credentials.password mavenPassword
+    credentials.username = mavenUser
+    credentials.password = mavenPassword
     def releasesRepoUrl = "https://nexus.se.rwth-aachen.de/content/repositories/monticore-releases/"
     def snapshotsRepoUrl = "https://nexus.se.rwth-aachen.de/content/repositories/monticore-snapshots/"
     url = version.endsWith("SNAPSHOT") ? snapshotsRepoUrl : releasesRepoUrl
@@ -104,6 +112,8 @@ publishing {
 
 tasks.withType(JavaCompile) {
   options.encoding = 'UTF-8'
+  options.incremental = true
+  outputs.cacheIf { true }
 }
 
 test {
@@ -111,9 +121,9 @@ test {
 }
 
 task testReport(type: TestReport) {
-  destinationDir = file("$buildDir/reports/allTests")
+  destinationDirectory = file("$buildDir/reports/allTests")
   // Include the results from the 'test' task
-  reportOn tasks.withType(Test)
+  testResults.from(tasks.withType(Test))
 }
 
 
@@ -221,11 +231,11 @@ task runDynamicFlowNodeParser(type: JavaExec) {
     workingDir = projectDir
 }
 
-task runAPTreeParser(type: JavaExec) {
+task runAPTreeTool(type: JavaExec) {
     description = 'Parses and analyzes the APTree behavior tree model'
     dependsOn 'compileJava'
     classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'APTreeParserTest'
+    mainClass = 'APTreeTool'
     workingDir = projectDir
 }
 

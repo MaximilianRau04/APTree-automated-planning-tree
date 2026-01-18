@@ -11,3 +11,4 @@ target/
 gradle/
 gradlew.bat
 gradlew
+*.hprof
