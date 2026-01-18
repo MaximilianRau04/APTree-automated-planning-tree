@@ -1,4 +1,4 @@
-public class BTInstance : IBehaviorTree
+public class BehaviorTree : IBehaviorTree
 {
     public string DebugDisplayName { get; set; } = "Behavior Tree";
 
@@ -6,7 +6,7 @@ public class BTInstance : IBehaviorTree
 
     public BTFlowNodeBase RootNode { get;  set; }
 
-    public BTInstance()
+    public BehaviorTree()
     {
         DebugDisplayName = "Default Tree";
         LinkedBlackboard = null;

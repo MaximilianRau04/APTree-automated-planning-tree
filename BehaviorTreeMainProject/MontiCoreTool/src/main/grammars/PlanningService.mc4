@@ -1,17 +1,16 @@
 grammar PlanningService extends ConcreteBT {
 
 
-  abstract PService extends Service;
+  abstract PService extends Service = name:Name planner:Name@Planner;
 
-  // Added keywords "domain" and "problem" to make the model readable
-  PDDLPlannerService extends PService = "Planning Service" planner:Name@Planner ;
+  PDDLPlannerService extends PService = name:Name "Planning Service" planner:Name@Planner ;
   
   // 2. Planner hierarchy
   abstract symbol Planner = name:Name;
 
   PDDLPlanner extends Planner = "PDDLPlanner" name:Name ("domain" domain:Name@Domain)?   ("problem" problem:Name)?;
 
- symbol Domain = "domain" "Level" actLev:ActionLevel;
+  symbol Domain = "domain" name:Name "Level" actLev:ActionLevel;
 
 
 }

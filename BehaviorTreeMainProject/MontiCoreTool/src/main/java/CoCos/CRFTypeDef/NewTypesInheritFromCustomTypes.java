@@ -3,7 +3,6 @@ package CoCos.CRFTypeDef;
 import java.util.Set;
 
 import crftypedef._ast.ASTPropertyTypeDefinition;
-import crftypedef._ast.ASTState;
 import crftypedef._cocos.CRFTypeDefASTPropertyTypeDefinitionCoCo;
 import de.se_rwth.commons.logging.Log;
 

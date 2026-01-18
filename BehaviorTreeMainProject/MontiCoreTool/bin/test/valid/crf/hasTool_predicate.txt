@@ -1,4 +1,0 @@
-predicate hasTool {
-    agent - Agent,
-    tool - Tool
-}

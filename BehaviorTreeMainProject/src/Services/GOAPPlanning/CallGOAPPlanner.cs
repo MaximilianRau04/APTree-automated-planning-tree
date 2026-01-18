@@ -16,14 +16,14 @@ public class CallGOAPPlanner : BTServicePlanner
   
     public FastName PlannerName = new FastName("GOAPPlanner");
 
-    public CallGOAPPlanner(BTInstance InOwningTree, GOAPPlanningRequest InPlanningRequest) 
+    public CallGOAPPlanner(BehaviorTree InOwningTree, GOAPPlanningRequest InPlanningRequest) 
         : base(InOwningTree, new RestPlannerCommunicator("http://localhost:5002"), InPlanningRequest) // Different port for GOAP planner
     {
         this.blackboard = InOwningTree.LinkedBlackboard;
         this.actionFactory = FactoryAction.Instance;
     }
     
-    public CallGOAPPlanner(BTInstance InOwningTree, IPlannerCommunicator customCommunicator, GOAPPlanningRequest InPlanningRequest) 
+    public CallGOAPPlanner(BehaviorTree InOwningTree, IPlannerCommunicator customCommunicator, GOAPPlanningRequest InPlanningRequest) 
         : base(InOwningTree, customCommunicator, InPlanningRequest)
     {
         this.blackboard = InOwningTree.LinkedBlackboard;

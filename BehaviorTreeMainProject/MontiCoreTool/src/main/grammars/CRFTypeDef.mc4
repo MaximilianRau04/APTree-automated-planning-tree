@@ -23,7 +23,7 @@ abstract symbol Tool     extends CustomProperty = name:Name ;
 abstract symbol  Agent    extends CustomProperty = name:Name;
 
   // definition of a property - accepts any Name as type (validated by CoCo if needed)
-  //////???????????? can I have the type as type:Name@PropertyType   if the property type becomes a symbol?
+  //////???????????? can I have the type as type:Name@PropertyType   if the property type becomes a symbol? I wanna make sure the type is always one of the defined names or nonterminals implementing PropertyType
      Property = name:Name ":" type:Name ;
  
   // 5. The Dynamic Definition rule
@@ -36,10 +36,11 @@ PropertyTypeDefinition = "define" name:Name "as" superType:Name "{" (Property)* 
 // Predicate type definition
 PredicateTypeDefinition = "define" "predicatetype" name:Name  "{" (Property)* "}";
 //predicateType
-abstract symbol Predicate = ["not"]? name:Name?;
+////???????????????????? how can I use "!" in the concrete syntax?
+abstract symbol Predicate = ["not"]? name:Name;
 // predicate Instances
 //////???????????? this is a dummy predicate because the Grammar does not allow abstract nonterminals without implementation if it is not a component grammar
-IsAt extends Predicate = "IsAt";
+IsAt extends Predicate = "IsAt" name:Name;
 
 // Action type definition
 

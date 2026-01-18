@@ -1,46 +1,36 @@
-grammar DynamicBTFlowNode extends CRF {
+grammar DynamicBTFlowNode extends PlanningService {
 
-    // Dynamic BTflow node definition - separate production to avoid conflicts
-    DynamicBTFlowNode = "BTFlownode" Name "{"
-                    ParametersBlock
-                    PreconditionState
-                    EffectState
-                    CostDefinition
-                    SuccessDefinition
-                    NodeGraphDefinition
-                "}";
+ //????????????? Override is not the best thing to do here. but if I extend, would it add a separate property for root? or it replaces the existing one
 
-    CostDefinition = "cost:" INTEGER_VALUE ";"; 
-    SuccessDefinition = "success:" SuccessType ";";
-    SuccessType = "ALL" | "ANY" | "COUNT" | "PERCENTAGE" | "SIGNAL";  
+@Override
+  BehaviorTree = "BehaviorTree" name:Name "{" "Root" root:DynamicFlowNode "}";
+    // Dynamic BTflow node definition - separate node type with different keyword
+    DynamicFlowNode extends FlowNode = 
+      "FlowNode" name:Name "{" 
+          (Decorator | Service)*     
+          succri:SuccessCriteria
+          childType:ChildType
+          nodeGraph:NodeGraph 
+      "}";
 
-    // NodeGraph definition
-    NodeGraphDefinition = "Nodegraph" "{"
-                    NodesDefinition
-                    RelationsDefinition
-                    PlannerDefinition
-                "}";                     
-
-    NodesDefinition = (NodeDefinition)*;
-    RelationsDefinition = (RelationDefinition)*;
-
-    NodeDefinition = "BTNodeBase" Name "{" (Parameter ("," Parameter)*)? "}";
+    //enums
+    enum SuccessCriteria = "ALL" | "ANY" | "COUNT" | "PERCENTAGE" | "SIGNAL";
+    enum TemporalType = "MEETS" | "BEFORE" | "AFTER" | "OVERLAPS" | "DURING";
+    enum ChildType = "ALLACTION" | "ALLFLOW"; 
     
-    RelationDefinition = SourceNode "->" TargetNode "{"
-                    PriorityDefinition
-                    TemporalDefinition 
-                "}";
+
+    // NodeGraph definition - separate top-level production
+    NodeGraph = "Nodegraph" name:Name "{"
+    (nodes:GraphNode)*
+    "}";
+
+GraphNode = node:BTNode ("{"
+    (successors:Relation)+
+"}")?;
+
+
+Relation = "--[" temptype:TemporalType "]-->" target:Name@BTNode ";";
     
-    SourceNode = Name;
-    TargetNode = Name;
-    
-    PriorityDefinition = "priority:" "Order" "=" BOOLEAN_VALUE ",";
-    TemporalDefinition = "temporal:" TemporalType;
-    TemporalType = "MEETS" | "BEFORE" | "AFTER" | "OVERLAPS" | "DURING";
-    
-    PlannerDefinition = "planner" "{" PlannerTypeDefinition "}";
-    PlannerTypeDefinition = "type" "=" PlannerType;
-    PlannerType = "GOAPPlanner" | "FSMPlanner" | "PDDLPlanner" | "ManualPlanner";
 
 
 }
