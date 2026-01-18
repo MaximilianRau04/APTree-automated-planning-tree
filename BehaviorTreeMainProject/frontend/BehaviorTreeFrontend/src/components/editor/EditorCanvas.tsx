@@ -525,6 +525,7 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
             data.onRemoveNode?.(id);
           }}
           aria-label={`Remove ${node.name}`}
+          title="Delete"
         >
           ×
         </button>
