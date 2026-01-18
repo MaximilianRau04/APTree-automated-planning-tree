@@ -96,7 +96,8 @@ const oldestOutputMtime = Math.min(
   ...outputFiles.map((file) => statMtimeMs(file) ?? -1)
 );
 
-const needsGen = oldestOutputMtime < 0 || latestInputMtime > oldestOutputMtime;
+const forceRegen = process.env.FORCE_REGEN === "1";
+const needsGen = forceRegen || oldestOutputMtime < 0 || latestInputMtime > oldestOutputMtime;
 
 if (!needsGen) {
   console.log(
@@ -146,7 +147,7 @@ function extractEnum(enumName) {
  */
 function extractRootNonterminal() {
   const match = dynamicGrammarText.match(
-    /BehaviorTree\s*=.*?(?:"root"|root)\s+root:([A-Za-z_][A-Za-z0-9_]*)/s
+    /BehaviorTree\s*=.*?\broot\s*:\s*([A-Za-z_][A-Za-z0-9_]*)/s
   );
   if (!match) {
     throw new Error("Could not parse BehaviorTree root nonterminal");
@@ -160,10 +161,7 @@ function extractRootNonterminal() {
  */
 function extractGraphNodeKeyword() {
   const match = dynamicGrammarText.match(/GraphNode\s*=\s*"([^"]+)"/m);
-  if (!match) {
-    throw new Error("Could not parse GraphNode keyword literal");
-  }
-  return match[1];
+  return match ? match[1] : null;
 }
 
 /**
@@ -365,6 +363,7 @@ const sidebarCategoryDefinitions = [
   { key: "predTypes", title: "Predicate Types", addLabel: "Add Predicate Type" },
   { key: "predInstances", title: "Predicate Instances", addLabel: "Add Predicate Instance" },
   { key: "actions", title: "Action Types", addLabel: "Add Action Type" },
+  { key: "actionInstances", title: "Action Instances", addLabel: "Add Action Instance" },
 ];
 
 // Sidebar categories that support dragging items onto the canvas.

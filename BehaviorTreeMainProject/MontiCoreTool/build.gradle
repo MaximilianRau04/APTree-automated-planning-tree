@@ -233,7 +233,9 @@ task runDynamicFlowNodeParser(type: JavaExec) {
 
 task runAPTreeTool(type: JavaExec) {
     description = 'Parses and analyzes the APTree behavior tree model'
-    dependsOn 'compileJava'
+  // Ensure referenced instance symbols (Beam/Robot/etc.) exist for name resolution.
+  dependsOn 'compileJava'
+  dependsOn 'generateInstanceSymbols'
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'APTreeTool'
     workingDir = projectDir

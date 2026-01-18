@@ -14,6 +14,11 @@ public class APTreeTool {
   public static void main(String[] args) {
     // Standard MontiCore logging setup
     Log.init();
+    try {
+      Log.enableFailQuick(false);
+    } catch (Throwable ignored) {
+      // Older/newer logging versions may not expose this API; ignore gracefully.
+    }
     APTreeTool tool = new APTreeTool();
     String filePath = args.length > 0 ? args[0] : "src/test/resources/valid/behavior_trees/APTree.bt";
     tool.run(filePath);
@@ -40,6 +45,10 @@ public class APTreeTool {
         // 4. Create Symbol Table
         IDynamicBTFlowNodeGlobalScope gs = DynamicBTFlowNodeMill.globalScope();
         IDynamicBTFlowNodeArtifactScope as = DynamicBTFlowNodeMill.scopesGenitorDelegator().createFromAST(ast);
+
+        if (!as.isPresentName()) {
+          as.setName(ast.getName());
+        }
         as.setEnclosingScope(gs);
         
         // 5. Run CoCo Checks
@@ -54,9 +63,9 @@ public class APTreeTool {
     
         System.out.println("✓ SUCCESS: Model parsed and symbols checked successfully!");
 
-    } catch (Exception e) {
-        System.err.println("tool run failed: " + e.getMessage());
-        e.printStackTrace();
+      } catch (Throwable t) {
+        System.err.println("tool run failed: " + t.getMessage());
+        t.printStackTrace();
     }
   }
 }

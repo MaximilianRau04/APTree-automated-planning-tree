@@ -7,6 +7,7 @@
     "predev": "npm run gen:grammar",
     "dev": "vite",
     "gen:grammar": "node ./scripts/gen-grammar.mjs",
+    "verify:grammar-sync": "node ./scripts/verify-grammar-sync.mjs",
     "prebuild": "npm run gen:grammar",
     "build": "tsc -b && vite build",
     "lint": "eslint .",

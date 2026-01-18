@@ -1,0 +1,10 @@
+BehaviorTree DemoDynamicBTFlowNode {
+  Root FlowNode rootNode {
+    ALL
+    ALLACTION
+    Nodegraph demoGraph {
+      Action a1
+      Action a2
+    }
+  }
+}

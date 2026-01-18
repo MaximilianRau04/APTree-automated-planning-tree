@@ -4,6 +4,12 @@ import concretebt._symboltable.ConcreteBTArtifactScope;
 import concretebt._symboltable.IConcreteBTArtifactScope;
 import concretebt._symboltable.ConcreteBTSymbols2Json;
 import crftypedef._symboltable.ElementSymbol;
+import crftypedef._symboltable.LocationSymbol;
+import crftypedef._symboltable.AgentSymbol;
+import concretebt._symboltable.BeamSymbol;
+import concretebt._symboltable.PlateSymbol;
+import concretebt._symboltable.FirstPositionSymbol;
+import concretebt._symboltable.RobotSymbol;
 import concretebt.ConcreteBTMill;
 import de.se_rwth.commons.logging.Log;
 
@@ -56,26 +62,28 @@ public class InstanceSymbolsGenerator {
             // Build initial artifact scope from AST
             IConcreteBTArtifactScope initial = ConcreteBTMill.scopesGenitorDelegator().createFromAST(world);
 
-            // Collect all Element symbols (covers Beam/Plate/Robot/FirstPosition)
-            Collection<ElementSymbol> elements = initial.getElementSymbols().values();
-            if (elements.isEmpty()) {
-                System.out.println("⚠ No Element symbols found to serialize.");
+            int count = 0;
+
+            // Beam/Plate (Element)
+            for (BeamSymbol beam : initial.getBeamSymbols().values()) {
+                count += writeSym(outPath, beam.getName(), beam);
+            }
+            for (PlateSymbol plate : initial.getPlateSymbols().values()) {
+                count += writeSym(outPath, plate.getName(), plate);
             }
 
-            // Serialize each Element into its own artifact scope named <symbol>.sym
-            int count = 0;
-            for (ElementSymbol el : elements) {
-                String name = el.getName();
-                ConcreteBTArtifactScope single = new ConcreteBTArtifactScope();
-                single.setName(name); // ensures loader searches <name>.sym
-                single.add(el);       // add as ElementSymbol
+            // FirstPosition (Location)
+            for (FirstPositionSymbol fp : initial.getFirstPositionSymbols().values()) {
+                count += writeSym(outPath, fp.getName(), fp);
+            }
 
-                String json = new ConcreteBTSymbols2Json().serialize(single);
-                Path symPath = outPath.resolve(name + ".sym");
-                try (FileWriter fw = new FileWriter(symPath.toFile())) {
-                    fw.write(json);
-                }
-                count++;
+            // Robot (Agent)
+            for (RobotSymbol robot : initial.getRobotSymbols().values()) {
+                count += writeSym(outPath, robot.getName(), robot);
+            }
+
+            if (count == 0) {
+                System.out.println("⚠ No instance symbols found to serialize.");
             }
 
             System.out.println("✓ Wrote " + count + " symbol file(s) to: " + outPath.toAbsolutePath());
@@ -100,5 +108,43 @@ public class InstanceSymbolsGenerator {
             return null;
         }
         return res.get();
+    }
+
+    private static int writeSym(Path outDir, String name, Object symbol) throws IOException {
+        if (name == null || name.isBlank() || symbol == null) {
+            return 0;
+        }
+
+        ConcreteBTArtifactScope single = new ConcreteBTArtifactScope();
+        single.setName(name); // ensures loader searches <name>.sym
+
+        // Add general symbols so general resolvers can find them.
+        if (symbol instanceof ElementSymbol) {
+            single.add((ElementSymbol) symbol);
+        }
+        if (symbol instanceof LocationSymbol) {
+            single.add((LocationSymbol) symbol);
+        }
+        if (symbol instanceof AgentSymbol) {
+            single.add((AgentSymbol) symbol);
+        }
+
+        // Also add the concrete symbols so concrete resolvers can find them.
+        if (symbol instanceof BeamSymbol) {
+            single.add((BeamSymbol) symbol);
+        } else if (symbol instanceof PlateSymbol) {
+            single.add((PlateSymbol) symbol);
+        } else if (symbol instanceof FirstPositionSymbol) {
+            single.add((FirstPositionSymbol) symbol);
+        } else if (symbol instanceof RobotSymbol) {
+            single.add((RobotSymbol) symbol);
+        }
+
+        String json = new ConcreteBTSymbols2Json().serialize(single);
+        Path symPath = outDir.resolve(name + ".sym");
+        try (FileWriter fw = new FileWriter(symPath.toFile())) {
+            fw.write(json);
+        }
+        return 1;
     }
 }
