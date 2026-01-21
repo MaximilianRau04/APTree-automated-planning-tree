@@ -59,6 +59,47 @@ import {
   summarizeImport,
 } from "./utils/importParsing";
 
+type TypesAndInstancesImportV1 = {
+  version: number;
+  data: Partial<Record<
+    | typeof PARAM_TYPES_KEY
+    | typeof PARAM_INSTANCES_KEY
+    | typeof PREDICATE_TYPES_KEY
+    | typeof PREDICATE_INSTANCES_KEY
+    | typeof ACTION_TYPES_KEY
+    | typeof ACTION_INSTANCES_KEY,
+    unknown
+  >>;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function mergeById<T extends { id: string }>(existing: T[], incoming: T[]) {
+  const byId = new Map(existing.map((item) => [item.id, item] as const));
+  let imported = 0;
+  let skipped = 0;
+  for (const item of incoming) {
+    if (!item?.id) {
+      skipped += 1;
+      continue;
+    }
+    if (byId.has(item.id)) {
+      byId.set(item.id, item);
+      imported += 1;
+      continue;
+    }
+    byId.set(item.id, item);
+    imported += 1;
+  }
+  return {
+    next: Array.from(byId.values()),
+    imported,
+    skipped,
+  };
+}
+
 /**
  * normalizes type definitions by trimming fields and ensuring property ids.
  * @param value type definition being persisted
@@ -1204,6 +1245,202 @@ export const useSidebarManager = (): SidebarManager => {
     setSearchQueries((prev) => ({ ...prev, [category]: value }));
   };
 
+  const parseTypeProperties = (rawValue: string, line: number, errors: string[]) => {
+    const trimmed = rawValue.trim();
+    if (!trimmed) {
+      return [];
+    }
+
+    const entries = trimmed
+      .split(/[;|]/)
+      .map((segment) => segment.trim())
+      .filter(Boolean);
+
+    const properties = entries
+      .map((entry) => {
+        const match = entry.match(/^(.+?)\s*[:=]\s*(.+)$/);
+        if (!match) {
+          errors.push(`Zeile ${line}: Ungültiges Property-Format "${entry}" (erwartet name:type).`);
+          return null;
+        }
+        return {
+          id: "",
+          name: match[1].trim(),
+          valueType: match[2].trim(),
+        };
+      })
+      .filter(Boolean);
+
+    return properties as Array<{ id: string; name: string; valueType: string }>;
+  };
+
+  const parseTypeLine = (
+    prefix: "ParameterType" | "PredicateType" | "ActionType",
+    trimmed: string
+  ) => {
+    const paren = trimmed.match(new RegExp(`^${prefix}:\\s*([^\\s({]+)\\s*(?:\\(([^)]*)\\))?\\s*$`, "i"));
+    if (paren) {
+      return { name: paren[1].trim(), block: (paren[2] ?? "").trim() };
+    }
+
+    const brace = trimmed.match(new RegExp(`^${prefix}:\\s*([^\\s{]+)\\s*\\{([^}]*)\\}\\s*$`, "i"));
+    if (brace) {
+      return { name: brace[1].trim(), block: (brace[2] ?? "").trim() };
+    }
+
+    return null;
+  };
+
+  const importParameterTypesFromText = useCallback(
+    (rawText: string): ImportReport => {
+      const lines = rawText.split(/\r?\n/);
+      const created: ParameterType[] = [];
+      const errors: string[] = [];
+      let processed = 0;
+
+      lines.forEach((line, index) => {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) {
+          return;
+        }
+
+        if (!trimmed.toLowerCase().startsWith("parametertype")) {
+          return;
+        }
+
+        processed += 1;
+        const parsed = parseTypeLine("ParameterType", trimmed);
+        if (!parsed) {
+          errors.push(`Zeile ${index + 1}: Ungültiges ParameterType-Format.`);
+          return;
+        }
+
+        const assignments = parseAssignmentBlock(parsed.block);
+        const next = createEmptyParameterType();
+        next.name = parsed.name;
+        next.type = (assignments.named["type"] ?? next.type ?? "").trim();
+        next.description = (assignments.named["description"] ?? "").trim();
+
+        const propToken = assignments.named["properties"] ?? assignments.named["props"] ?? "";
+        next.properties = parseTypeProperties(propToken, index + 1, errors);
+        created.push(normalizeType(next, createEmptyParameterType));
+      });
+
+      if (created.length > 0) {
+        setData((prev) => {
+          const existing = (prev[PARAM_TYPES_KEY] as ParameterType[] | undefined) ?? [];
+          return {
+            ...prev,
+            [PARAM_TYPES_KEY]: [...existing, ...created],
+          };
+        });
+      }
+
+      return summarizeImport(processed, created.length, errors);
+    },
+    [setData]
+  );
+
+  const importPredicateTypesFromText = useCallback(
+    (rawText: string): ImportReport => {
+      const lines = rawText.split(/\r?\n/);
+      const created: PredicateType[] = [];
+      const errors: string[] = [];
+      let processed = 0;
+
+      lines.forEach((line, index) => {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) {
+          return;
+        }
+
+        if (!trimmed.toLowerCase().startsWith("predicatetype")) {
+          return;
+        }
+
+        processed += 1;
+        const parsed = parseTypeLine("PredicateType", trimmed);
+        if (!parsed) {
+          errors.push(`Zeile ${index + 1}: Ungültiges PredicateType-Format.`);
+          return;
+        }
+
+        const assignments = parseAssignmentBlock(parsed.block);
+        const next = createEmptyPredicateType();
+        next.name = parsed.name;
+        next.type = "predicate";
+        next.description = (assignments.named["description"] ?? "").trim();
+
+        const propToken = assignments.named["properties"] ?? assignments.named["props"] ?? "";
+        next.properties = parseTypeProperties(propToken, index + 1, errors);
+        created.push(normalizeType(next, createEmptyPredicateType) as PredicateType);
+      });
+
+      if (created.length > 0) {
+        setData((prev) => {
+          const existing = (prev[PREDICATE_TYPES_KEY] as PredicateType[] | undefined) ?? [];
+          return {
+            ...prev,
+            [PREDICATE_TYPES_KEY]: [...existing, ...created],
+          };
+        });
+      }
+
+      return summarizeImport(processed, created.length, errors);
+    },
+    [setData]
+  );
+
+  const importActionTypesFromText = useCallback(
+    (rawText: string): ImportReport => {
+      const lines = rawText.split(/\r?\n/);
+      const created: ActionType[] = [];
+      const errors: string[] = [];
+      let processed = 0;
+
+      lines.forEach((line, index) => {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) {
+          return;
+        }
+
+        if (!trimmed.toLowerCase().startsWith("actiontype")) {
+          return;
+        }
+
+        processed += 1;
+        const parsed = parseTypeLine("ActionType", trimmed);
+        if (!parsed) {
+          errors.push(`Zeile ${index + 1}: Ungültiges ActionType-Format.`);
+          return;
+        }
+
+        const assignments = parseAssignmentBlock(parsed.block);
+        const next = createEmptyActionType();
+        next.name = parsed.name;
+        next.type = (assignments.named["type"] ?? next.type ?? "GenericBTAction").trim();
+        next.description = (assignments.named["description"] ?? "").trim();
+
+        const propToken = assignments.named["properties"] ?? assignments.named["props"] ?? "";
+        next.properties = parseTypeProperties(propToken, index + 1, errors);
+        created.push(normalizeType(next, createEmptyActionType) as ActionType);
+      });
+
+      if (created.length > 0) {
+        setData((prev) => {
+          const existing = (prev[ACTION_TYPES_KEY] as ActionType[] | undefined) ?? [];
+          return {
+            ...prev,
+            [ACTION_TYPES_KEY]: [...existing, ...created],
+          };
+        });
+      }
+
+      return summarizeImport(processed, created.length, errors);
+    },
+    [setData]
+  );
+
   /**
    * Imports parameter instances from the provided raw text input.
    * @param rawText multiline string containing parameter instance definitions
@@ -1427,6 +1664,127 @@ export const useSidebarManager = (): SidebarManager => {
   );
 
   /**
+   * Imports types + instances from a JSON export (ExportedTypesAndInstancesV1).
+   * Merges by id: existing entries with the same id are replaced.
+   */
+  const importTypesAndInstancesFromJsonText = useCallback(
+    (text: string): ImportReport => {
+      const errors: string[] = [];
+      let processed = 0;
+      let imported = 0;
+      let skipped = 0;
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        return {
+          processed: 1,
+          imported: 0,
+          skipped: 1,
+          errors: ["Invalid JSON file."],
+        };
+      }
+
+      if (!isRecord(parsed) || typeof parsed.version !== "number") {
+        return {
+          processed: 1,
+          imported: 0,
+          skipped: 1,
+          errors: ["Invalid payload: missing numeric 'version'."],
+        };
+      }
+
+      const payload = parsed as TypesAndInstancesImportV1;
+      if (payload.version !== 1) {
+        return {
+          processed: 1,
+          imported: 0,
+          skipped: 1,
+          errors: [`Unsupported payload version: ${payload.version}`],
+        };
+      }
+
+      if (!isRecord(payload.data)) {
+        return {
+          processed: 1,
+          imported: 0,
+          skipped: 1,
+          errors: ["Invalid payload: missing 'data' object."],
+        };
+      }
+
+      setData((prev) => {
+        let next = { ...prev };
+
+        const applyList = <T extends { id: string }>(
+          key: string,
+          incomingRaw: unknown,
+          sanitize?: (value: unknown) => T | null
+        ) => {
+          if (incomingRaw === undefined) {
+            return;
+          }
+          processed += 1;
+          if (!Array.isArray(incomingRaw)) {
+            errors.push(`Invalid '${key}': expected an array.`);
+            skipped += 1;
+            return;
+          }
+
+          const incoming: T[] = [];
+          for (const entry of incomingRaw) {
+            const sanitized = sanitize ? sanitize(entry) : (entry as T);
+            if (!sanitized || !sanitized.id) {
+              skipped += 1;
+              continue;
+            }
+            incoming.push(sanitized);
+          }
+
+          const existing = (next[key] as unknown as T[] | undefined) ?? [];
+          const merged = mergeById(existing, incoming);
+          imported += merged.imported;
+          skipped += merged.skipped;
+          next = { ...next, [key]: merged.next as unknown as StructuredItem[] };
+        };
+
+        const sanitizeParameterType = (value: unknown): ParameterType | null => {
+          if (!isRecord(value)) {
+            return null;
+          }
+          const candidate = value as unknown as ParameterType;
+          return normalizeType(candidate, createEmptyParameterType);
+        };
+
+        applyList<ParameterType>(PARAM_TYPES_KEY, payload.data[PARAM_TYPES_KEY], sanitizeParameterType);
+        applyList<PredicateType>(PREDICATE_TYPES_KEY, payload.data[PREDICATE_TYPES_KEY], (v) => {
+          const base = sanitizeParameterType(v);
+          return base ? (base as PredicateType) : null;
+        });
+        applyList<ActionType>(ACTION_TYPES_KEY, payload.data[ACTION_TYPES_KEY], (v) => {
+          const base = sanitizeParameterType(v);
+          return base ? (base as ActionType) : null;
+        });
+
+        applyList<ParameterInstance>(PARAM_INSTANCES_KEY, payload.data[PARAM_INSTANCES_KEY]);
+        applyList<PredicateInstance>(PREDICATE_INSTANCES_KEY, payload.data[PREDICATE_INSTANCES_KEY]);
+        applyList<ActionInstance>(ACTION_INSTANCES_KEY, payload.data[ACTION_INSTANCES_KEY]);
+
+        return next;
+      });
+
+      return {
+        processed,
+        imported,
+        skipped,
+        errors,
+      };
+    },
+    [setData]
+  );
+
+  /**
    * resolves the localized add button label for the supplied category key.
    * @param category category key whose label should be retrieved
    * @returns translated add button label
@@ -1479,8 +1837,12 @@ export const useSidebarManager = (): SidebarManager => {
     parameterTypeModalState,
     predicateTypeModalState,
     actionTypeModalState,
+    importParameterTypesFromText,
+    importPredicateTypesFromText,
+    importActionTypesFromText,
     importParameterInstancesFromText,
     importPredicateInstancesFromText,
     importActionInstancesFromText,
+    importTypesAndInstancesFromJsonText,
   };
 };

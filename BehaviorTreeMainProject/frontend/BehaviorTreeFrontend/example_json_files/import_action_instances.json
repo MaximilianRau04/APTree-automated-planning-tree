@@ -1,0 +1,13 @@
+[
+  {
+    "id": "action-instance-place-1",
+    "name": "place b3",
+    "type": "actionInstance",
+    "typeId": "action-type-place",
+    "propertyValues": {
+      "obj": "b3",
+      "placePos": "fp3",
+      "client": "r1"
+    }
+  }
+]

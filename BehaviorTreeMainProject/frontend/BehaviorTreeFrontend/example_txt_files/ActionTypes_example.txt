@@ -1,0 +1,6 @@
+# ActionTypes example
+# Supported records:
+#   ActionType: Name (type: GenericBTAction, description: ..., properties: prop1:Type1; prop2:Type2)
+
+ActionType: MoveTo (type: GenericBTAction, properties: agent:Agent; to:Location)
+ActionType: PickUp (type: GenericBTAction, properties: agent:Agent; item:Element)

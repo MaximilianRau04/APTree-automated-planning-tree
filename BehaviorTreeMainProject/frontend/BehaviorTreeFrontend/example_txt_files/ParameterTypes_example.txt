@@ -1,0 +1,7 @@
+# ParameterTypes example
+# Supported records:
+#   ParameterType: Name (type: BasicType, description: ..., properties: prop1:Type1; prop2:Type2)
+# You can use () or {} around the assignment block.
+
+ParameterType: Location (type: string, properties: x:number; y:number)
+ParameterType: Agent (type: string, properties: name:string)

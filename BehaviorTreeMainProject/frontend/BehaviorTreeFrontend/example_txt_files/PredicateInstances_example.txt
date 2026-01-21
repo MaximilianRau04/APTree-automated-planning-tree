@@ -1,4 +1,3 @@
-
 # Examples for the TXT predicate instance import.
 # Format:
 # PredicateInstance: <PredicateTypeName>(key=value, ...)
@@ -6,4 +5,3 @@
 PredicateInstance: isAt(myObject = b1, location = fp1)
 PredicateInstance: holding(agent = r1, myObject = b1)
 PredicateInstance: clear(myObject = b3, isNegated = true)
-

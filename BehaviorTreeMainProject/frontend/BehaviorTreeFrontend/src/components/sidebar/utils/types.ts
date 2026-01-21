@@ -274,9 +274,13 @@ export interface SidebarManager {
   parameterTypeModalState: TypeModalState;
   predicateTypeModalState: PredicateTypeModalState;
   actionTypeModalState: ActionTypeModalState;
+  importParameterTypesFromText: (text: string) => ImportReport;
+  importPredicateTypesFromText: (text: string) => ImportReport;
+  importActionTypesFromText: (text: string) => ImportReport;
   importParameterInstancesFromText: (text: string) => ImportReport;
   importPredicateInstancesFromText: (text: string) => ImportReport;
   importActionInstancesFromText: (text: string) => ImportReport;
+  importTypesAndInstancesFromJsonText: (text: string) => ImportReport;
 }
 
 /** props consumed by the category item list component. */

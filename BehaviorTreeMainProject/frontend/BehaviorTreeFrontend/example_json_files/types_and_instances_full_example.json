@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "exportedAt": "2026-01-21T00:00:00.000Z",
+  "data": {
+    "paramTypes": [
+      {
+        "id": "param-type-location",
+        "name": "Location",
+        "type": "parameter",
+        "description": "Example parameter type",
+        "properties": [
+          { "id": "prop-location-name", "name": "name", "valueType": "string" }
+        ]
+      }
+    ],
+    "paramInstances": [
+      {
+        "id": "param-instance-fp1",
+        "name": "fp1",
+        "type": "parameterInstance",
+        "typeId": "param-type-location",
+        "propertyValues": {
+          "prop-location-name": "fp1"
+        }
+      }
+    ],
+    "predTypes": [
+      {
+        "id": "predicate-type-isat",
+        "name": "isAt",
+        "type": "predicate",
+        "properties": [
+          { "id": "property-isat-myObject", "name": "myObject", "valueType": "Element" },
+          { "id": "property-isat-location", "name": "location", "valueType": "Location" }
+        ]
+      }
+    ],
+    "predInstances": [
+      {
+        "id": "predicate-instance-isat-1",
+        "name": "b1@fp1",
+        "type": "predicateInstance",
+        "typeId": "predicate-type-isat",
+        "isNegated": false,
+        "propertyValues": {
+          "property-isat-myObject": "b1",
+          "property-isat-location": "fp1"
+        }
+      }
+    ],
+    "actions": [
+      {
+        "id": "action-type-pickup",
+        "name": "pickUp",
+        "type": "action",
+        "properties": [
+          { "id": "prop-pickup-pickedObject", "name": "pickedObject", "valueType": "Element" },
+          { "id": "prop-pickup-rob", "name": "rob", "valueType": "Agent" },
+          { "id": "prop-pickup-loc", "name": "loc", "valueType": "Location" }
+        ]
+      }
+    ],
+    "actionInstances": [
+      {
+        "id": "action-instance-pickup-1",
+        "name": "pickUp b1",
+        "type": "actionInstance",
+        "typeId": "action-type-pickup",
+        "propertyValues": {
+          "prop-pickup-pickedObject": "b1",
+          "prop-pickup-rob": "r1",
+          "prop-pickup-loc": "fp1"
+        }
+      }
+    ]
+  }
+}

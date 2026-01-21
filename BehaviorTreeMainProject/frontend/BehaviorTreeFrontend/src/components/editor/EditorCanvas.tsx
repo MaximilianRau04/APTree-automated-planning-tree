@@ -145,9 +145,6 @@ const CANVAS_EXTENT: [[number, number], [number, number]] = [
   [4000, 4000],
 ];
 
-const PARAM_BOX_HEIGHT = 24;
-const PARAM_BOX_GAP = 6;
-const PARAM_STACK_CLEARANCE = 18;
 const SUCCESS_BADGE_CLEARANCE = 32;
 
 /**
@@ -276,13 +273,7 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
       : [];
 
   const showActionParams = actionParameterSummaries.length > 0;
-  const paramStackHeight = showActionParams
-    ? actionParameterSummaries.length * PARAM_BOX_HEIGHT +
-      (actionParameterSummaries.length - 1) * PARAM_BOX_GAP
-    : 0;
-  const paramClearance = showActionParams
-    ? paramStackHeight + PARAM_STACK_CLEARANCE
-    : 0;
+  const paramClearance = showActionParams ? 34 : 0;
 
   useEffect(() => {
     updateNodeInternals(id);
@@ -327,13 +318,17 @@ function BehaviorTreeNode({ id, data, selected }: NodeProps<BehaviorNodeData>) {
     targetHandleOverrides.right = { right: offset };
   }
 
-  const successBadgeClearance = node.successType ? SUCCESS_BADGE_CLEARANCE : 0;
-  const topClearance = (isAction ? paramClearance : 0) + successBadgeClearance;
-
-  if (topClearance > 0) {
+  // Align the top connection point with the parameters row for action instances,
+  if (isAction && showActionParams) {
+    const paramHandleTop = -45;
+    portStyleOverrides.top = { ...(portStyleOverrides.top ?? {}), top: paramHandleTop };
+    sourceHandleOverrides.top = { ...(sourceHandleOverrides.top ?? {}), top: paramHandleTop };
+    targetHandleOverrides.top = { ...(targetHandleOverrides.top ?? {}), top: paramHandleTop };
+  } else if (node.successType) {
     const basePortTop = resolveNumericOffset(PORT_STYLES.top.top);
     const baseSourceTop = resolveNumericOffset(SOURCE_HANDLE_STYLES.top.top);
     const baseTargetTop = resolveNumericOffset(TARGET_HANDLE_STYLES.top.top);
+    const topClearance = SUCCESS_BADGE_CLEARANCE;
 
     portStyleOverrides.top = {
       ...(portStyleOverrides.top ?? {}),

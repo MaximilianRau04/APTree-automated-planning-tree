@@ -1,0 +1,8 @@
+# Examples for the TXT parameter instance import.
+# Format:
+# ParameterInstance: <ParameterTypeName>(key=value, ...)
+# ParameterInstance: <ParameterTypeName> {key=value, ...}
+
+ParameterInstance: firstPosition {name = fp1}
+ParameterInstance: robot {name = r1}
+ParameterInstance: plate {name = plateA}

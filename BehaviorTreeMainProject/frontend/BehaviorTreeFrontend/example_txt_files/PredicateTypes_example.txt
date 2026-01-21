@@ -1,0 +1,6 @@
+# PredicateTypes example
+# Supported records:
+#   PredicateType: Name (description: ..., properties: prop1:Type1; prop2:Type2)
+
+PredicateType: AtPlace (properties: item:Element; loc:Location)
+PredicateType: Holding (properties: item:Element; agent:Agent)

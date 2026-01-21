@@ -1,12 +1,14 @@
 import { useCallback, useMemo, useState } from "react";
 import "./App.css";
 import Header from "./components/header/Header.tsx";
+import type { TypesAndInstancesJsonImportScope } from "./components/header/types.ts";
 import Sidebar from "./components/sidebar/Sidebar.tsx";
 import { useSidebarManager } from "./components/sidebar/useSidebarLogic";
 import EditorCanvas from "./components/editor/EditorCanvas.tsx";
 import type {
   ActionParameterDetail,
 } from "./components/editor/types";
+import type { ParameterType } from "./components/sidebar/utils/types";
 import {
   DEFAULT_CANVAS_NODE_HEIGHT,
   DEFAULT_CANVAS_NODE_WIDTH,
@@ -17,8 +19,13 @@ import { createBehaviorNode } from "./components/editor/flowNodeFactory";
 import { reconcileInstanceValues } from "./components/sidebar/utils/helpers";
 import {
   ACTION_INSTANCES_KEY,
+  ACTION_TYPES_KEY,
   BEHAVIOR_NODE_OPTION_MAP,
   BT_NODES_KEY,
+  PARAM_INSTANCES_KEY,
+  PARAM_TYPES_KEY,
+  PREDICATE_INSTANCES_KEY,
+  PREDICATE_TYPES_KEY,
 } from "./components/sidebar/utils/constants";
 import { PredicateInstanceModal } from "./components/sidebar/modals/InstanceModal";
 import ActionParameterDetailsModal from "./components/editor/modals/ActionParameterDetailsModal.tsx";
@@ -36,7 +43,6 @@ import type {
   FlowSuccessType,
 } from "./components/sidebar/utils/types";
 import { PREDICATE_TYPE_CATALOG } from "./constants/predicateCatalog";
-import { PREDICATE_INSTANCES_KEY } from "./components/sidebar/utils/constants";
 import { useThemePreference } from "./hooks/useThemePreference";
 import { GRAMMAR_CONSTRAINTS } from "./generated/aptreeGrammar";
 import {
@@ -84,6 +90,19 @@ type PendingManagerReopen = {
   nodeId: string;
   collection: ActionPredicateCollection;
 } | null;
+
+type ExportedTypesAndInstancesV1 = {
+  version: 1;
+  exportedAt: string;
+  data: {
+    paramTypes?: unknown[];
+    paramInstances?: unknown[];
+    predTypes?: unknown[];
+    predInstances?: unknown[];
+    actions?: unknown[];
+    actionInstances?: unknown[];
+  };
+};
 
 const createInitialPredicateModalState = (): ActionPredicateModalState => ({
   isOpen: false,
@@ -139,9 +158,13 @@ function App() {
   }>({ isOpen: false, level: null, nodeId: null, draft: null });
   const sidebarManager = useSidebarManager();
   const {
+    importParameterTypesFromText,
+    importPredicateTypesFromText,
+    importActionTypesFromText,
     importParameterInstancesFromText,
     importPredicateInstancesFromText,
     importActionInstancesFromText,
+    importTypesAndInstancesFromJsonText,
     actionTypes,
     getItemsForCategory,
     openEditModal,
@@ -343,7 +366,23 @@ function App() {
       const reader = new FileReader();
       reader.onload = () => {
         const text = typeof reader.result === "string" ? reader.result : "";
-        const summary = importer(text);
+        let summary: {
+          processed: number;
+          imported: number;
+          skipped: number;
+          errors: string[];
+        };
+
+        try {
+          summary = importer(text);
+        } catch (error) {
+          window.alert(
+            `Import for ${label} failed: ${
+              error instanceof Error ? error.message : String(error)
+            }`
+          );
+          return;
+        }
         if (summary.processed === 0) {
           window.alert(`No ${label} found in the file.`);
           return;
@@ -368,6 +407,50 @@ function App() {
         );
       };
       reader.readAsText(file);
+    },
+    []
+  );
+
+  const isRecord = (value: unknown): value is Record<string, unknown> =>
+    Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+  const coerceTypesAndInstancesJson = useCallback(
+    (
+      rawText: string,
+      scope: Exclude<TypesAndInstancesJsonImportScope, "full">
+    ) => {
+      const parsed: unknown = JSON.parse(rawText);
+
+      // If user passes a full export payload, restrict import to the chosen scope.
+      if (
+        isRecord(parsed) &&
+        typeof parsed.version === "number" &&
+        isRecord(parsed.data)
+      ) {
+        const data = parsed.data as Record<string, unknown>;
+        return JSON.stringify(
+          {
+            version: parsed.version,
+            data: { [scope]: data[scope] },
+          },
+          null,
+          2
+        );
+      }
+
+      // If user passes a raw list, wrap into a v1 payload for the chosen scope.
+      if (Array.isArray(parsed)) {
+        return JSON.stringify({ version: 1, data: { [scope]: parsed } }, null, 2);
+      }
+
+      // If user passes a single object, wrap it into an array.
+      if (isRecord(parsed)) {
+        return JSON.stringify({ version: 1, data: { [scope]: [parsed] } }, null, 2);
+      }
+
+      throw new Error(
+        "Unsupported JSON format. Expected an export payload, an array, or an object."
+      );
     },
     []
   );
@@ -409,6 +492,199 @@ function App() {
         "Action Instances"
       ),
     [handleImportFromFile, importActionInstancesFromText]
+  );
+
+  const handleImportParameterTypesFile = useCallback(
+    (file: File) =>
+      handleImportFromFile(file, importParameterTypesFromText, "Parameter Types"),
+    [handleImportFromFile, importParameterTypesFromText]
+  );
+
+  const handleImportPredicateTypesFile = useCallback(
+    (file: File) =>
+      handleImportFromFile(file, importPredicateTypesFromText, "Predicate Types"),
+    [handleImportFromFile, importPredicateTypesFromText]
+  );
+
+  const handleImportActionTypesFile = useCallback(
+    (file: File) =>
+      handleImportFromFile(file, importActionTypesFromText, "Action Types"),
+    [handleImportFromFile, importActionTypesFromText]
+  );
+
+  const downloadTextFile = (filename: string, contents: string) => {
+    const blob = new Blob([contents], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportTypesToTxt = (label: string, items: ParameterType[]) => {
+    const lines = [
+      `# ${label} export`,
+      `# Format: <X>Type: Name (type:..., description:..., properties: prop1:Type1; prop2:Type2)`,
+      "",
+    ];
+
+    items.forEach((item) => {
+      const properties = item.properties
+        .map((p) => `${p.name}:${p.valueType}`)
+        .join("; ");
+
+      const parts: string[] = [];
+      if (item.type) {
+        parts.push(`type:${item.type}`);
+      }
+      if (item.description) {
+        parts.push(`description:${item.description}`);
+      }
+      if (properties) {
+        parts.push(`properties:${properties}`);
+      }
+
+      lines.push(
+        `${label.replace(/\s+/g, "")}Type: ${item.name}${
+          parts.length ? ` (${parts.join(", ")})` : ""
+        }`
+      );
+    });
+
+    return lines.join("\n");
+  };
+
+  const handleExportParameterTypesTxt = useCallback(() => {
+    const txt = exportTypesToTxt(
+      "Parameter",
+      (getItemsForCategory(PARAM_TYPES_KEY) as ParameterType[]) ?? []
+    );
+    downloadTextFile("parameter-types.txt", txt);
+  }, [getItemsForCategory]);
+
+  const handleExportPredicateTypesTxt = useCallback(() => {
+    const txt = exportTypesToTxt(
+      "Predicate",
+      (getItemsForCategory(PREDICATE_TYPES_KEY) as ParameterType[]) ?? []
+    );
+    downloadTextFile("predicate-types.txt", txt);
+  }, [getItemsForCategory]);
+
+  const handleExportActionTypesTxt = useCallback(() => {
+    const txt = exportTypesToTxt(
+      "Action",
+      (getItemsForCategory(ACTION_TYPES_KEY) as ParameterType[]) ?? []
+    );
+    downloadTextFile("action-types.txt", txt);
+  }, [getItemsForCategory]);
+
+  /**
+   * handles importing sidebar types + instances from a JSON file.
+   */
+  const handleImportTypesAndInstancesFile = useCallback(
+    (file: File, scope: TypesAndInstancesJsonImportScope = "full") => {
+      if (scope === "full") {
+        return handleImportFromFile(
+          file,
+          importTypesAndInstancesFromJsonText,
+          "Types & Instances (JSON)"
+        );
+      }
+
+      return handleImportFromFile(
+        file,
+        (rawText) =>
+          importTypesAndInstancesFromJsonText(
+            coerceTypesAndInstancesJson(rawText, scope)
+          ),
+        `Types & Instances (JSON) – ${scope}`
+      );
+    },
+    [
+      coerceTypesAndInstancesJson,
+      handleImportFromFile,
+      importTypesAndInstancesFromJsonText,
+    ]
+  );
+
+  /**
+   * exports the current sidebar types + instances to a JSON file.
+   */
+  const handleExportTypesAndInstances = useCallback(() => {
+    const payload: ExportedTypesAndInstancesV1 = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      data: {
+        paramTypes: getItemsForCategory(PARAM_TYPES_KEY),
+        paramInstances: getItemsForCategory(PARAM_INSTANCES_KEY),
+        predTypes: getItemsForCategory(PREDICATE_TYPES_KEY),
+        predInstances: getItemsForCategory(PREDICATE_INSTANCES_KEY),
+        actions: getItemsForCategory(ACTION_TYPES_KEY),
+        actionInstances: getItemsForCategory(ACTION_INSTANCES_KEY),
+      },
+    };
+
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "aptree-types-and-instances.json";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+
+    URL.revokeObjectURL(url);
+  }, [getItemsForCategory]);
+
+  const handleExportTypesAndInstancesScope = useCallback(
+    (scope?: TypesAndInstancesJsonImportScope) => {
+      if (!scope || scope === "full") {
+        handleExportTypesAndInstances();
+        return;
+      }
+
+      const keyByScope: Record<
+        Exclude<TypesAndInstancesJsonImportScope, "full">,
+        string
+      > = {
+        paramTypes: PARAM_TYPES_KEY,
+        paramInstances: PARAM_INSTANCES_KEY,
+        predTypes: PREDICATE_TYPES_KEY,
+        predInstances: PREDICATE_INSTANCES_KEY,
+        actions: ACTION_TYPES_KEY,
+        actionInstances: ACTION_INSTANCES_KEY,
+      };
+
+      const categoryKey = keyByScope[scope];
+      const data: ExportedTypesAndInstancesV1["data"] = {
+        [scope]: getItemsForCategory(categoryKey),
+      };
+
+      const payload: ExportedTypesAndInstancesV1 = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        data,
+      };
+
+      const json = JSON.stringify(payload, null, 2);
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `aptree-${scope}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+
+      URL.revokeObjectURL(url);
+    },
+    [getItemsForCategory, handleExportTypesAndInstances]
   );
 
   /**
@@ -1355,9 +1631,17 @@ function App() {
           <Header
             theme={theme}
             onToggleTheme={toggleTheme}
+            onImportParameterTypes={handleImportParameterTypesFile}
+            onImportPredicateTypes={handleImportPredicateTypesFile}
+            onImportActionTypes={handleImportActionTypesFile}
+            onExportParameterTypesTxt={handleExportParameterTypesTxt}
+            onExportPredicateTypesTxt={handleExportPredicateTypesTxt}
+            onExportActionTypesTxt={handleExportActionTypesTxt}
             onImportParameterInstances={handleImportParameterInstancesFile}
             onImportPredicateInstances={handleImportPredicateInstancesFile}
             onImportActionInstances={handleImportActionInstancesFile}
+            onExportTypesAndInstances={handleExportTypesAndInstancesScope}
+            onImportTypesAndInstances={handleImportTypesAndInstancesFile}
             onExportCanvasGraph={handleExportCanvasGraph}
             onImportCanvasGraph={handleImportCanvasGraphFile}
           />

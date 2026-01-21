@@ -1,0 +1,10 @@
+{
+  "id": "action-type-place",
+  "name": "place",
+  "type": "action",
+  "properties": [
+    { "id": "prop-place-obj", "name": "obj", "valueType": "Element" },
+    { "id": "prop-place-placePos", "name": "placePos", "valueType": "Location" },
+    { "id": "prop-place-client", "name": "client", "valueType": "Agent" }
+  ]
+}
