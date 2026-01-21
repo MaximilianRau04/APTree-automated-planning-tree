@@ -985,6 +985,12 @@ export const useSidebarManager = (): SidebarManager => {
       return nextData;
     });
 
+    /**
+     * closes modals that are editing the item at the specified index.
+     * @param targetCategory 
+     * @param modalState 
+     * @param close 
+     */
     const closeModalEditingIndex = (
       targetCategory: DataCategory,
       modalState: { isOpen: boolean; index: number | null },
@@ -995,6 +1001,13 @@ export const useSidebarManager = (): SidebarManager => {
       }
     };
 
+    /**
+     * closes instance modals that are editing an instance of the removed type.
+     * @param typeCategory 
+     * @param removedType 
+     * @param modalState 
+     * @param close 
+     */
     const closeInstanceModalIfOrphaned = (
       typeCategory: DataCategory,
       removedType: StructuredItem | undefined,
@@ -1245,6 +1258,13 @@ export const useSidebarManager = (): SidebarManager => {
     setSearchQueries((prev) => ({ ...prev, [category]: value }));
   };
 
+  /**
+   * parses a block of assignments in the format "key: value; key2: value2".
+   * @param rawValue 
+   * @param line 
+   * @param errors 
+   * @returns object with named assignments 
+   */
   const parseTypeProperties = (rawValue: string, line: number, errors: string[]) => {
     const trimmed = rawValue.trim();
     if (!trimmed) {
@@ -1274,6 +1294,12 @@ export const useSidebarManager = (): SidebarManager => {
     return properties as Array<{ id: string; name: string; valueType: string }>;
   };
 
+  /**
+   * parses a type definition line for parameter, predicate, or action types.
+   * @param prefix 
+   * @param trimmed 
+   * @returns parsed name and assignment block or null on failure 
+   */
   const parseTypeLine = (
     prefix: "ParameterType" | "PredicateType" | "ActionType",
     trimmed: string
@@ -1291,6 +1317,11 @@ export const useSidebarManager = (): SidebarManager => {
     return null;
   };
 
+  /**
+   * Imports parameter types from the provided raw text input.
+   * @param rawText multiline string containing parameter type definitions
+   * @returns summary report of the import operation
+   */
   const importParameterTypesFromText = useCallback(
     (rawText: string): ImportReport => {
       const lines = rawText.split(/\r?\n/);
@@ -1341,6 +1372,11 @@ export const useSidebarManager = (): SidebarManager => {
     [setData]
   );
 
+  /**
+   * Imports predicate types from the provided raw text input.
+   * @param rawText multiline string containing predicate type definitions
+   * @returns summary report of the import operation
+   */
   const importPredicateTypesFromText = useCallback(
     (rawText: string): ImportReport => {
       const lines = rawText.split(/\r?\n/);
@@ -1391,6 +1427,11 @@ export const useSidebarManager = (): SidebarManager => {
     [setData]
   );
 
+  /**
+   * Imports action types from the provided raw text input.
+   * @param rawText multiline string containing action type definitions
+   * @returns summary report of the import operation
+   */
   const importActionTypesFromText = useCallback(
     (rawText: string): ImportReport => {
       const lines = rawText.split(/\r?\n/);
